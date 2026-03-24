@@ -132,9 +132,38 @@ Cuando no hay canciones pendientes en la cola, el sistema actúa según la confi
 
 ---
 
+## Notificaciones
+
+### BR-14: Notificación "Tu canción está sonando"
+
+Cuando la canción de un usuario comienza a reproducirse, se le envía una **notificación en tiempo real**.
+
+- Se envía vía WebSocket un evento **dirigido al usuario** (no broadcast general): `your_song_playing`
+- El frontend muestra una notificación prominente (toast/modal) con:
+  - Título de la canción
+  - Mensaje: "Tu canción está sonando ahora"
+- Si el usuario tiene la app en segundo plano:
+  - Se usa la **Notification API** del navegador (requiere permiso previo)
+  - Al hacer click en la notificación, se abre/enfoca la app
+- El permiso de notificaciones se solicita al registrarse (después del primer envío de canción)
+
+### BR-15: Historial reciente del usuario (anti-repetición)
+
+El sistema muestra al usuario las canciones que ya pidió en las **últimas 2 horas** para evitar repeticiones.
+
+- Se consulta `submission_log` + `queue_songs` del usuario en el venue actual, donde `added_at > NOW() - 2 horas`
+- Se muestra en el dashboard como sección **"Ya pediste"** con las canciones recientes
+- Si el usuario intenta encolar una canción que ya pidió en las últimas 2 horas:
+  - Se muestra advertencia: "Ya pediste esta canción hace X minutos. ¿Seguro que quieres repetirla?"
+  - El usuario puede confirmar (no se bloquea, solo se advierte)
+- La ventana de 2 horas es **configurable por venue** en `venues.config` (`repeat_warning_hours`)
+- Esto es independiente de la regla de deduplicación BR-08 (que bloquea duplicados en cola activa)
+
+---
+
 ## Usuarios y Datos
 
-### BR-14: Asociación usuario-mesa
+### BR-16: Asociación usuario-mesa
 
 - Cada sesión registra el **número de mesa** del usuario
 - Esto permite:
@@ -142,7 +171,7 @@ Cuando no hay canciones pendientes en la cola, el sistema actúa según la confi
   - Analytics por ubicación dentro del bar
   - Potencial integración futura con sistema de mesas/meseros
 
-### BR-15: Data Mining y Analytics
+### BR-17: Data Mining y Analytics
 
 El sistema recopila datos para análisis (con consentimiento del usuario):
 
@@ -162,7 +191,7 @@ El sistema recopila datos para análisis (con consentimiento del usuario):
 
 ## Códigos QR
 
-### BR-16: Generación de QR por mesa
+### BR-18: Generación de QR por mesa
 
 - Cada mesa del bar tiene un código QR único
 - Formato de la URL: `https://{domain}/{venue_slug}?mesa={table_number}`

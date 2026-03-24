@@ -186,7 +186,8 @@ frontend/
 **Justificación:**
 - FastAPI tiene soporte nativo para WebSocket
 - Baja latencia para actualizaciones de la cola
-- Bidireccional (futuro: notificaciones al cliente)
+- Bidireccional: permite enviar notificaciones dirigidas a usuarios específicos (ej: "tu canción está sonando")
+- Combinado con la **Notification API** del navegador para notificaciones cuando la app está en segundo plano
 - Alternativa considerada: SSE (Server-Sent Events) — más simple pero unidireccional
 
 ### ADR-004: QR como punto de entrada
@@ -241,6 +242,8 @@ frontend/
    └─► Al terminar: POST /api/playback/finished
    └─► Backend marca song como "played", avanza a la siguiente
    └─► Broadcast WebSocket: { event: "now_playing_changed" }
+   └─► Notificación dirigida al dueño: { event: "your_song_playing" }
+   └─► Si app en segundo plano: Notification API del navegador
 
 6. Cola vacía
    └─► Backend detecta que no hay songs pendientes

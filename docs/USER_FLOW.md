@@ -126,6 +126,10 @@ Vista principal después del registro. Diseño mobile-first.
 │  (se reinicia en 18 min)        │
 │                                  │
 ├──────────────────────────────────┤
+│  🕐 Ya pediste (últimas 2h)    │
+│  • Never Gonna... (hace 45 min)│
+│  • Despacito (hace 12 min)     │
+├──────────────────────────────────┤
 │  🎵 Mis canciones               │
 │  • Never Gonna... (sonando)     │
 │  • Despacito (en cola, pos. 2)  │
@@ -139,7 +143,8 @@ Vista principal después del registro. Diseño mobile-first.
 3. **Cola:** lista ordenada de canciones pendientes (actualizada en tiempo real vía WebSocket)
 4. **Formulario:** campo para pegar URL de YouTube + botón enviar
 5. **Rate limit:** indicador visual de canciones restantes y tiempo de reinicio
-6. **Mis canciones:** lista de canciones propias y su estado
+6. **Ya pediste:** canciones enviadas en las últimas 2 horas (anti-repetición)
+7. **Mis canciones:** lista de canciones propias y su estado
 
 ---
 
@@ -209,14 +214,45 @@ POST /api/queue/songs/confirm { youtube_id: "dQw4w9WgXcQ" }
 
 ---
 
-## Paso 5: Tiempo Real
+## Paso 5: Notificaciones y Tiempo Real
 
 Mientras el usuario está en el dashboard:
 
 - **WebSocket** mantiene la cola actualizada sin recargar
 - Ve cuando su canción avanza de posición
-- Ve cuando su canción empieza a sonar
 - Recibe notificación si el admin remueve su canción
+
+### Notificación: "Tu canción está sonando"
+
+Cuando la canción del usuario comienza a reproducirse, recibe una notificación prominente:
+
+```
+┌──────────────────────────────────┐
+│                                  │
+│  🎵 ¡Tu canción está sonando!   │
+│                                  │
+│  Never Gonna Give You Up        │
+│  Rick Astley                     │
+│                                  │
+│  ┌────────────────────────────┐  │
+│  │         ¡Genial!           │  │
+│  └────────────────────────────┘  │
+└──────────────────────────────────┘
+```
+
+- **App en primer plano:** toast/modal dentro de la app
+- **App en segundo plano:** notificación nativa del navegador (Notification API)
+- El permiso de notificaciones se solicita después de la primera canción encolada:
+
+```
+┌──────────────────────────────────┐
+│  ¿Quieres recibir una           │
+│  notificación cuando tu canción │
+│  empiece a sonar?               │
+│                                  │
+│  [No gracias]  [Sí, avisenme]  │
+└──────────────────────────────────┘
+```
 
 **Eventos WebSocket relevantes para el cliente:**
 
@@ -225,8 +261,50 @@ Mientras el usuario está en el dashboard:
 | `song_added` | Nueva canción aparece en la cola |
 | `song_removed` | Canción desaparece de la cola |
 | `now_playing_changed` | Se actualiza el "Sonando ahora" |
+| `your_song_playing` | Notificación personal: tu canción está sonando |
 | `queue_reordered` | Se reordenan las posiciones |
 | `playback_status_changed` | Indicador de pausa/play |
+
+---
+
+## Paso 6: Historial Reciente (Anti-repetición)
+
+El dashboard muestra las canciones que el usuario ya pidió en las **últimas 2 horas**, para que no las repita sin querer.
+
+```
+┌──────────────────────────────────┐
+│                                  │
+│  🕐 YA PEDISTE (últimas 2h)    │
+│  ┌────────────────────────────┐  │
+│  │ • Never Gonna Give You Up  │  │
+│  │   hace 45 min ✓ Reproducida│  │
+│  │                            │  │
+│  │ • Despacito                │  │
+│  │   hace 12 min ⏳ En cola   │  │
+│  └────────────────────────────┘  │
+│                                  │
+└──────────────────────────────────┘
+```
+
+Si el usuario intenta encolar una canción que ya pidió en las últimas 2 horas:
+
+```
+┌──────────────────────────────────┐
+│                                  │
+│  ⚠ Ya pediste esta canción      │
+│  hace 45 minutos.                │
+│                                  │
+│  ¿Quieres repetirla?            │
+│                                  │
+│  ┌─────────┐  ┌──────────────┐  │
+│  │ Cancelar│  │ Sí, repetir  │  │
+│  └─────────┘  └──────────────┘  │
+└──────────────────────────────────┘
+```
+
+- **No se bloquea**, solo se advierte
+- El usuario puede confirmar y la canción se encola normalmente
+- La ventana de 2 horas es configurable por el admin del venue
 
 ---
 

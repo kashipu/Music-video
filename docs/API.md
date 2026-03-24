@@ -199,7 +199,9 @@ Envía una URL de YouTube para validación. Retorna preview de la canción.
   "thumbnail_url": "https://i.ytimg.com/vi/dQw4w9WgXcQ/mqdefault.jpg",
   "duration_sec": 213,
   "duration_formatted": "3:33",
-  "valid": true
+  "valid": true,
+  "recently_played_by_user": false,
+  "recently_played_minutes_ago": null
 }
 ```
 
@@ -279,6 +281,40 @@ Canciones del usuario en la sesión actual.
     "songs_remaining": 2,
     "window_resets_at": "2026-03-24T21:45:00Z"
   }
+}
+```
+
+---
+
+### `GET /api/queue/recent-history`
+
+Canciones que el usuario pidió en las últimas 2 horas (para evitar repeticiones).
+
+**Auth:** Bearer token requerido
+
+**Response 200:**
+
+```json
+{
+  "recent_songs": [
+    {
+      "youtube_id": "dQw4w9WgXcQ",
+      "title": "Rick Astley - Never Gonna Give You Up",
+      "thumbnail_url": "https://i.ytimg.com/vi/dQw4w9WgXcQ/mqdefault.jpg",
+      "status": "played",
+      "added_at": "2026-03-24T20:30:00Z",
+      "minutes_ago": 45
+    },
+    {
+      "youtube_id": "kJQP7kiw5Fk",
+      "title": "Luis Fonsi - Despacito",
+      "thumbnail_url": "https://i.ytimg.com/vi/kJQP7kiw5Fk/mqdefault.jpg",
+      "status": "pending",
+      "added_at": "2026-03-24T21:03:00Z",
+      "minutes_ago": 12
+    }
+  ],
+  "window_hours": 2
 }
 ```
 
@@ -733,6 +769,19 @@ Conexión WebSocket para recibir actualizaciones en tiempo real de la cola.
   "event": "playback_status_changed",
   "data": {
     "status": "paused"
+  }
+}
+
+// Tu canción está sonando (enviado SOLO al usuario dueño de la canción)
+{
+  "event": "your_song_playing",
+  "data": {
+    "song": {
+      "id": 103,
+      "youtube_id": "dQw4w9WgXcQ",
+      "title": "Rick Astley - Never Gonna Give You Up"
+    },
+    "message": "Tu canción está sonando ahora"
   }
 }
 ```
