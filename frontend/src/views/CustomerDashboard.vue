@@ -33,6 +33,8 @@ onEvent((event) => {
   if (['song_added', 'song_removed', 'now_playing_changed', 'queue_reordered', 'song_skipped'].includes(event.event)) {
     queueStore.fetchQueue(venueSlug)
     queueStore.fetchMySongs()
+    queueStore.fetchRemainingSlots()
+    queueStore.fetchMySongs()
   }
   if (event.event === 'your_song_playing') {
     mySongPlaying.value = true
