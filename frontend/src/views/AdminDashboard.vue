@@ -26,6 +26,8 @@ const library = ref([])
 const librarySearch = ref('')
 const fallbackSongs = ref([])
 const fallbackPaused = ref(false)
+const rightTab = ref('music')
+const selectedTable = ref(null)
 const addUrl = ref('')
 const loading = ref(false)
 const showLibrary = ref(false)
@@ -377,8 +379,18 @@ function logout() {
         </div>
       </aside>
 
-      <!-- ===== RIGHT: MUSIC ===== -->
+      <!-- ===== RIGHT COLUMN ===== -->
       <main class="music-col">
+
+        <!-- Right Tabs -->
+        <div class="right-tabs">
+          <button class="rt" :class="{ active: rightTab === 'music' }" @click="rightTab = 'music'">Musica</button>
+          <button class="rt" :class="{ active: rightTab === 'tables' }" @click="rightTab = 'tables'; fetchTables()">Mesas</button>
+          <button class="rt" :class="{ active: rightTab === 'analytics' }" @click="rightTab = 'analytics'; fetchAnalytics()">Analytics</button>
+        </div>
+
+        <!-- ========== MUSIC TAB ========== -->
+        <template v-if="rightTab === 'music'">
 
         <!-- Stats Bar -->
         <div class="stats-bar">
@@ -526,6 +538,93 @@ function logout() {
           </div>
           <p v-else class="text-muted">Sin playlist. Configurala desde el Super Admin.</p>
         </div>
+
+        </template>
+
+        <!-- ========== TABLES TAB ========== -->
+        <template v-if="rightTab === 'tables'">
+          <div v-if="!selectedTable">
+            <div v-if="!tables.length" class="card"><p class="text-muted">Sin mesas activas</p></div>
+            <div v-for="table in tables" :key="table.table_number" class="card table-detail-card" @click="selectedTable = table" style="cursor:pointer;">
+              <div class="td-row">
+                <div>
+                  <span class="td-num">Mesa {{ table.table_number }}</span>
+                  <span class="td-user">{{ table.user_name }} ({{ table.user_phone }})</span>
+                </div>
+                <span class="td-count">{{ table.songs.length }} canciones</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Table detail -->
+          <div v-else>
+            <button class="back-btn" @click="selectedTable = null">&#8592; Volver a mesas</button>
+            <div class="card" style="margin-top:10px;">
+              <div class="td-header">
+                <div>
+                  <h3>Mesa {{ selectedTable.table_number }}</h3>
+                  <p class="td-user-detail">{{ selectedTable.user_name }} &middot; {{ selectedTable.user_phone }}</p>
+                </div>
+                <div class="td-actions">
+                  <button class="t-btn t-btn-reset" @click="resetTableLimit(selectedTable.table_number)">Resetear limite</button>
+                  <button class="t-btn t-btn-kick" @click="kickTable(selectedTable.table_number); selectedTable = null">Expulsar</button>
+                </div>
+              </div>
+            </div>
+            <div class="card" style="margin-top:10px;">
+              <p class="section-title">CANCIONES PEDIDAS ({{ selectedTable.songs.length }})</p>
+              <div v-if="selectedTable.songs.length" class="td-songs">
+                <div v-for="(s, i) in selectedTable.songs" :key="i" class="td-song">
+                  <span class="td-song-status" :class="s.status"></span>
+                  <div class="td-song-info">
+                    <p class="td-song-title">{{ s.title }}</p>
+                    <p class="td-song-meta">{{ s.added_at }} &middot; {{ { playing: 'Sonando', pending: 'En cola', played: 'Reproducida', removed: 'Removida' }[s.status] || s.status }}</p>
+                  </div>
+                </div>
+              </div>
+              <p v-else class="text-muted">No ha pedido canciones</p>
+            </div>
+          </div>
+        </template>
+
+        <!-- ========== ANALYTICS TAB ========== -->
+        <template v-if="rightTab === 'analytics'">
+          <div v-if="analytics">
+            <div class="an-grid">
+              <div class="an-card"><p class="an-val">{{ analytics.summary.total_songs_played }}</p><p class="an-label">Canciones</p></div>
+              <div class="an-card"><p class="an-val">{{ analytics.summary.unique_users }}</p><p class="an-label">Usuarios</p></div>
+              <div class="an-card"><p class="an-val">{{ analytics.summary.unique_songs }}</p><p class="an-label">Unicas</p></div>
+              <div class="an-card"><p class="an-val">{{ analytics.summary.avg_queue_length }}</p><p class="an-label">Prom. Cola</p></div>
+            </div>
+            <div class="card" v-if="analytics.top_songs.length">
+              <p class="section-title">TOP CANCIONES (SEMANA)</p>
+              <div v-for="(s, i) in analytics.top_songs" :key="s.youtube_id" class="an-song">
+                <span class="an-pos">{{ i + 1 }}</span>
+                <img :src="`https://i.ytimg.com/vi/${s.youtube_id}/mqdefault.jpg`" class="an-thumb" />
+                <span class="an-title">{{ s.title }}</span>
+                <span class="an-count">{{ s.times_played }}x</span>
+              </div>
+            </div>
+            <div class="card" v-if="analytics.peak_hours.length" style="margin-top:12px;">
+              <p class="section-title">HORAS PICO</p>
+              <div v-for="h in analytics.peak_hours.slice(0, 8)" :key="h.hour" class="an-hour">
+                <span class="an-hour-label">{{ h.hour }}:00</span>
+                <div class="an-hour-bar"><div class="an-hour-fill" :style="{ width: (h.requests / analytics.peak_hours[0].requests * 100) + '%' }"></div></div>
+                <span class="an-hour-count">{{ h.requests }}</span>
+              </div>
+            </div>
+            <div class="card" v-if="analytics.top_tables && analytics.top_tables.length" style="margin-top:12px;">
+              <p class="section-title">MESAS MAS ACTIVAS</p>
+              <div v-for="t in analytics.top_tables" :key="t.table_number" class="an-song">
+                <span class="an-pos">{{ t.table_number }}</span>
+                <span class="an-title">Mesa {{ t.table_number }}</span>
+                <span class="an-count">{{ t.total_songs }} canciones</span>
+              </div>
+            </div>
+          </div>
+          <div v-else class="card"><p class="text-muted">Cargando analytics...</p></div>
+        </template>
+
       </main>
     </div>
   </div>
@@ -774,6 +873,75 @@ function logout() {
 .fb-status.active { background: rgba(85,239,196,0.15); color: var(--success); }
 .fb-status.inactive { background: rgba(139,139,167,0.15); color: var(--text-muted); }
 
+/* Right Tabs */
+.right-tabs {
+  display: flex; gap: 4px; background: var(--bg-card);
+  border-radius: 10px; padding: 3px;
+}
+.rt {
+  flex: 1; padding: 8px; border-radius: 8px;
+  background: transparent; color: var(--text-muted);
+  font-size: 13px; font-weight: 600; text-align: center;
+  transition: all 0.15s;
+}
+.rt.active { background: var(--primary); color: white; }
+
+/* Tables Tab */
+.table-detail-card { transition: border-color 0.15s; }
+.table-detail-card:hover { border-color: var(--primary); }
+.td-row { display: flex; justify-content: space-between; align-items: center; }
+.td-num { font-weight: 700; font-size: 15px; margin-right: 8px; }
+.td-user { font-size: 12px; color: var(--text-muted); }
+.td-count { font-size: 13px; color: var(--primary); font-weight: 600; }
+.back-btn {
+  padding: 6px 12px; border-radius: 6px; background: var(--bg-card);
+  border: 1px solid var(--border); color: var(--text-muted);
+  font-size: 13px; font-weight: 600; cursor: pointer;
+}
+.back-btn:hover { border-color: var(--primary); color: var(--primary); }
+.td-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.td-header h3 { font-size: 18px; }
+.td-user-detail { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+.td-actions { display: flex; gap: 6px; }
+.td-songs { display: flex; flex-direction: column; gap: 4px; }
+.td-song {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px; background: var(--bg-elevated); border-radius: 8px;
+}
+.td-song-status {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.td-song-status.playing { background: var(--success); }
+.td-song-status.pending { background: var(--warning); }
+.td-song-status.played { background: var(--text-muted); }
+.td-song-status.removed { background: var(--danger); }
+.td-song-info { flex: 1; min-width: 0; }
+.td-song-title { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.td-song-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+/* Analytics Tab */
+.an-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+.an-card { background: var(--bg-card); border: 1px solid rgba(45,45,74,0.4); border-radius: var(--radius-sm); padding: 16px; text-align: center; }
+.an-val { font-size: 26px; font-weight: 700; }
+.an-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.an-song {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0; border-bottom: 1px solid rgba(45,45,74,0.4);
+}
+.an-song:last-child { border-bottom: none; }
+.an-pos { font-weight: 700; font-size: 13px; color: var(--text-muted); width: 20px; text-align: center; flex-shrink: 0; }
+.an-thumb { width: 44px; height: 33px; border-radius: 4px; object-fit: cover; flex-shrink: 0; }
+.an-title { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.an-count { font-weight: 600; color: var(--primary); font-size: 13px; flex-shrink: 0; }
+.an-hour {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 0;
+}
+.an-hour-label { font-size: 13px; font-weight: 600; width: 45px; flex-shrink: 0; }
+.an-hour-bar { flex: 1; height: 8px; background: var(--bg-elevated); border-radius: 4px; overflow: hidden; }
+.an-hour-fill { height: 100%; background: var(--primary); border-radius: 4px; transition: width 0.3s; }
+.an-hour-count { font-size: 12px; color: var(--text-muted); width: 30px; text-align: right; flex-shrink: 0; }
+
 /* Common */
 .text-muted { color: var(--text-muted); font-size: 14px; }
 
@@ -800,6 +968,9 @@ function logout() {
   .qr-img { width: 150px; height: 150px; }
   .table-item { padding: 6px; }
   .table-btns { flex-wrap: wrap; }
+  .an-grid { grid-template-columns: repeat(2, 1fr); }
+  .td-header { flex-direction: column; }
+  .td-actions { width: 100%; }
 }
 
 </style>
