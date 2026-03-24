@@ -117,20 +117,13 @@ async def get_played(admin: dict = Depends(get_current_admin)):
         "ORDER BY qs.played_at DESC",
         (venue_id,),
     )
+    from app.utils import to_colombia_12h
     songs = []
     for r in rows:
-        played_at_label = ""
-        if r[5]:
-            try:
-                from datetime import datetime
-                dt = datetime.fromisoformat(r[5])
-                played_at_label = dt.strftime("%H:%M")
-            except (ValueError, TypeError):
-                played_at_label = ""
         songs.append({
             "id": r[0], "youtube_id": r[1], "title": r[2],
             "user_name": r[3] or "Admin", "table_number": r[4],
-            "played_at_label": played_at_label,
+            "played_at_label": to_colombia_12h(r[5]),
         })
     return {"songs": songs}
 
@@ -520,6 +513,7 @@ async def get_tables(admin: dict = Depends(get_current_admin)):
         (venue_id,),
     )
 
+    from app.utils import to_colombia_12h
     tables: dict = {}
     for r in rows:
         table_num = r[0]
@@ -534,7 +528,7 @@ async def get_tables(admin: dict = Depends(get_current_admin)):
             tables[table_num]["songs"].append({
                 "title": r[3],
                 "status": r[4],
-                "added_at": r[5],
+                "added_at": to_colombia_12h(r[5]),
             })
 
     return {"tables": list(tables.values())}

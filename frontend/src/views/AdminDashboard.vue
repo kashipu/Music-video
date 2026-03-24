@@ -608,7 +608,7 @@ function logout() {
             <div class="card" v-if="analytics.peak_hours.length" style="margin-top:12px;">
               <p class="section-title">HORAS PICO</p>
               <div v-for="h in analytics.peak_hours.slice(0, 8)" :key="h.hour" class="an-hour">
-                <span class="an-hour-label">{{ h.hour }}:00</span>
+                <span class="an-hour-label">{{ h.hour }}</span>
                 <div class="an-hour-bar"><div class="an-hour-fill" :style="{ width: (h.requests / analytics.peak_hours[0].requests * 100) + '%' }"></div></div>
                 <span class="an-hour-count">{{ h.requests }}</span>
               </div>

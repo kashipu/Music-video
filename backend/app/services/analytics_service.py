@@ -55,7 +55,8 @@ async def get_analytics(venue_id: int, period: str = "week") -> dict:
         "GROUP BY hour ORDER BY requests DESC",
         (venue_id, period_filter),
     )
-    peak_hours = [{"hour": r[0], "requests": r[1]} for r in peak_rows]
+    from app.utils import to_colombia_hour
+    peak_hours = [{"hour": to_colombia_hour(r[0]), "requests": r[1]} for r in peak_rows]
 
     # Top tables
     table_rows = await db.execute_fetchall(
