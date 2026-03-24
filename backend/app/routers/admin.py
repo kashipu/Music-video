@@ -257,15 +257,22 @@ async def admin_add_song(req: AdminSongAddRequest, admin: dict = Depends(get_cur
             )
             await db.commit()
 
-    result = await queue_service.add_song(
-        venue_id=venue_id,
-        user_id=admin_user_id,
-        session_id=session_id,
-        youtube_id=video_id,
-        title=metadata["title"],
-        thumbnail_url=metadata["thumbnail_url"],
-        duration_sec=metadata["duration_sec"],
-    )
+    # Check if already in queue
+    if await queue_service.check_duplicate(venue_id, video_id):
+        raise HTTPException(status_code=409, detail="Esta cancion ya esta en la cola")
+
+    try:
+        result = await queue_service.add_song(
+            venue_id=venue_id,
+            user_id=admin_user_id,
+            session_id=session_id,
+            youtube_id=video_id,
+            title=metadata["title"],
+            thumbnail_url=metadata["thumbnail_url"],
+            duration_sec=metadata["duration_sec"],
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al agregar cancion: {str(e)}")
 
     await manager.broadcast(venue_id, {
         "event": "song_added",

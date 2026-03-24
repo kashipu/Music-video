@@ -32,7 +32,11 @@ const rightTab = ref('music')
 const selectedTable = ref(null)
 const addUrl = ref('')
 const loading = ref(false)
-const showLibrary = ref(false)
+const addMode = ref('search')
+const ytSearch = ref('')
+const ytResults = ref([])
+const ytSearching = ref(false)
+let ytSearchTimeout = null
 const dragIdx = ref(null)
 const dropIdx = ref(null)
 
@@ -216,9 +220,20 @@ async function resetTableLimit(tableNumber) {
   await fetchTables()
 }
 
-function toggleLibrary() {
-  showLibrary.value = !showLibrary.value
-  if (showLibrary.value && !library.value.length) fetchLibrary()
+function onYtSearch() {
+  if (ytSearchTimeout) clearTimeout(ytSearchTimeout)
+  if (ytSearch.value.length < 2) { ytResults.value = []; return }
+  ytSearchTimeout = setTimeout(doYtSearch, 400)
+}
+
+async function doYtSearch() {
+  if (ytSearch.value.length < 2) return
+  ytSearching.value = true
+  try {
+    const res = await fetch(`${API}/api/queue/search?q=${encodeURIComponent(ytSearch.value)}`)
+    if (res.ok) { const data = await res.json(); ytResults.value = data.results }
+  } catch { /* */ }
+  finally { ytSearching.value = false }
 }
 
 function downloadQR() {
@@ -456,16 +471,37 @@ function logout() {
 
         <!-- Add Song -->
         <div class="card add-card">
-          <div class="add-header">
-            <p class="section-title">AGREGAR CANCION</p>
-            <button class="lib-toggle" @click="toggleLibrary">{{ showLibrary ? 'Pegar URL' : 'Biblioteca' }}</button>
+          <div class="add-tabs">
+            <button class="add-tab" :class="{ active: addMode === 'search' }" @click="addMode = 'search'">Buscar</button>
+            <button class="add-tab" :class="{ active: addMode === 'url' }" @click="addMode = 'url'">Pegar URL</button>
+            <button class="add-tab" :class="{ active: addMode === 'library' }" @click="addMode = 'library'; if (!library.length) fetchLibrary()">Biblioteca</button>
           </div>
-          <form v-if="!showLibrary" class="add-row" @submit.prevent="addSong">
+
+          <!-- Search YouTube -->
+          <div v-if="addMode === 'search'">
+            <input v-model="ytSearch" class="input-field" placeholder="Buscar en YouTube..." @input="onYtSearch" @keydown.enter.prevent="doYtSearch" />
+            <p v-if="ytSearching" class="search-status">Buscando...</p>
+            <div class="library-list" v-if="ytResults.length">
+              <div v-for="r in ytResults" :key="r.youtube_id" class="lib-item" style="cursor:pointer;" @click="addFromLibrary(r.youtube_id)">
+                <img :src="r.thumbnail_url" class="lib-thumb" />
+                <div class="lib-info">
+                  <p class="lib-title">{{ r.title }}</p>
+                  <p class="lib-artist">{{ r.duration }}</p>
+                </div>
+                <button class="ctrl-add-sm" :disabled="loading">+</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Paste URL -->
+          <form v-if="addMode === 'url'" class="add-row" @submit.prevent="addSong">
             <input v-model="addUrl" class="input-field" placeholder="Pegar URL de YouTube..." />
             <button type="submit" class="ctrl-add" :disabled="loading">+</button>
           </form>
-          <div v-else class="library">
-            <input v-model="librarySearch" class="input-field" placeholder="Buscar cancion..." @input="fetchLibrary" />
+
+          <!-- Library -->
+          <div v-if="addMode === 'library'" class="library">
+            <input v-model="librarySearch" class="input-field" placeholder="Buscar en biblioteca..." @input="fetchLibrary" />
             <div class="library-list">
               <div v-for="song in library" :key="song.youtube_id" class="lib-item">
                 <img :src="song.thumbnail_url" class="lib-thumb" />
@@ -811,9 +847,17 @@ function logout() {
 
 /* Add Song */
 .add-card { padding: 14px; }
-.add-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.add-header .section-title { margin-bottom: 0; }
-.lib-toggle { padding: 4px 12px; border-radius: 6px; background: var(--bg-elevated); border: 1px solid var(--border); color: var(--primary); font-size: 12px; font-weight: 600; }
+.add-tabs {
+  display: flex; gap: 4px; background: var(--bg-elevated);
+  border-radius: 8px; padding: 3px; margin-bottom: 10px;
+}
+.add-tab {
+  flex: 1; padding: 6px; border-radius: 6px; background: transparent;
+  color: var(--text-muted); font-size: 12px; font-weight: 600;
+  text-align: center; transition: all 0.15s;
+}
+.add-tab.active { background: var(--primary); color: var(--text-on-primary); }
+.search-status { font-size: 13px; color: var(--text-muted); text-align: center; padding: 12px 0; }
 .add-row { display: flex; gap: 8px; }
 .add-row .input-field { flex: 1; }
 .ctrl-add {
