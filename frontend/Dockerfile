@@ -7,9 +7,7 @@ RUN npm ci
 
 COPY . .
 
-ARG VITE_API_URL
-ARG VITE_WS_URL
-
+# No VITE_API_URL needed — nginx proxies /api and /ws to backend
 RUN npm run build
 
 FROM nginx:alpine

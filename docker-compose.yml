@@ -5,19 +5,21 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     volumes:
       - sqlite_data:/data
     environment:
       - APP_ENV=production
-      - APP_SECRET_KEY=${APP_SECRET_KEY}
+      - APP_SECRET_KEY=${APP_SECRET_KEY:-cambiar-en-produccion}
       - DATABASE_PATH=/data/barqueue.db
-      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
-      - CORS_ORIGINS=${CORS_ORIGINS}
+      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY:-}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+      - MAX_SONGS_PER_WINDOW=${MAX_SONGS_PER_WINDOW:-5}
+      - WINDOW_MINUTES=${WINDOW_MINUTES:-30}
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -26,9 +28,6 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      args:
-        - VITE_API_URL=${VITE_API_URL}
-        - VITE_WS_URL=${VITE_WS_URL}
     ports:
       - "80:80"
     depends_on:

@@ -1,6 +1,6 @@
 import { ref, onUnmounted } from 'vue'
 
-const WS_URL = import.meta.env.VITE_WS_URL || `ws://${window.location.host}`
+const WS_URL = import.meta.env.VITE_WS_URL || `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
 
 export function useWebSocket(venueSlug, userId = null) {
   const ws = ref(null)
