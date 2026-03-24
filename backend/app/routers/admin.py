@@ -29,9 +29,16 @@ async def admin_login(req: AdminLoginRequest):
     if not admin:
         raise HTTPException(status_code=401, detail="Usuario o contrasena incorrectos")
 
+    # Check venue is active
+    db = await get_db()
+    venue_check = await db.execute_fetchall(
+        "SELECT id, slug, active FROM venues WHERE id = ?", (admin["venue_id"],)
+    )
+    if venue_check and not venue_check[0][2]:
+        raise HTTPException(status_code=403, detail="Este bar esta inactivo. Contacta al administrador.")
+
     # If venue_slug provided, verify admin belongs to that venue
     if req.venue_slug:
-        db = await get_db()
         venue_rows = await db.execute_fetchall(
             "SELECT id, slug FROM venues WHERE slug = ?", (req.venue_slug,)
         )

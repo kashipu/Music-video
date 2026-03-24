@@ -38,6 +38,8 @@ async def register(req: RegisterRequest):
     except ValueError as e:
         if str(e) == "VENUE_NOT_FOUND":
             raise HTTPException(status_code=404, detail="Bar no encontrado", headers={"X-Error-Code": "VENUE_NOT_FOUND"})
+        if str(e) == "VENUE_INACTIVE":
+            raise HTTPException(status_code=403, detail="Este bar no esta disponible en este momento")
         raise
 
     # Notify admin that a new table/user registered
