@@ -439,6 +439,17 @@ async function deleteVenue() {
 .text-muted { color: var(--text-muted); font-size: 14px; }
 
 @media (max-width: 900px) {
-  .vd-layout { grid-template-columns: 1fr; }
+  .vd-layout { grid-template-columns: 1fr; padding: 12px; gap: 12px; }
+  .vd-header { padding: 10px 12px; }
+  .vd-header-left { flex-wrap: wrap; gap: 8px; }
+  .vd-header h1 { font-size: 16px; }
+  .stat-grid { grid-template-columns: repeat(2, 1fr); }
+  .add-row { flex-direction: column; }
+  .add-row .input-field { width: 100%; }
+  .pl-input-row { flex-direction: column; }
+  .pl-item { flex-wrap: wrap; gap: 6px; }
+  .url-item { flex-direction: column; align-items: flex-start; }
+  .url-value { font-size: 10px; }
+  .admin-item { flex-direction: column; align-items: flex-start; gap: 6px; }
 }
 </style>

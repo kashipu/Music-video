@@ -43,6 +43,11 @@
   scrollbar-color: var(--border) transparent;
 }
 
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+}
+
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   background: var(--bg);
@@ -151,8 +156,8 @@ a {
 .toast {
   position: fixed;
   top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 16px;
+  right: 16px;
   background: var(--primary);
   color: white;
   padding: 12px 24px;
@@ -160,6 +165,9 @@ a {
   font-weight: 600;
   z-index: 1000;
   animation: slideDown 0.3s ease;
+  text-align: center;
+  max-width: 480px;
+  margin: 0 auto;
 }
 
 @keyframes slideDown {

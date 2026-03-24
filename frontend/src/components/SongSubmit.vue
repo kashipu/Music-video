@@ -146,9 +146,11 @@ async function pasteFromClipboard() {
 .input-row {
   display: flex;
   gap: 8px;
+  min-width: 0;
 }
 .input-row .input-field {
   flex: 1;
+  min-width: 0;
 }
 .paste-btn {
   padding: 8px 14px;

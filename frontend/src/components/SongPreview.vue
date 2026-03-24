@@ -45,12 +45,14 @@ const emit = defineEmits(['confirm', 'cancel'])
   gap: 12px;
   align-items: center;
   margin-bottom: 12px;
+  min-width: 0;
 }
 .preview-thumb {
-  width: 120px;
-  height: 90px;
+  width: 100px;
+  height: 75px;
   border-radius: 8px;
   object-fit: cover;
+  flex-shrink: 0;
 }
 .preview-title {
   font-weight: 600;

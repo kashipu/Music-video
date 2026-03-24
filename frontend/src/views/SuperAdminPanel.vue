@@ -246,8 +246,16 @@ function forceLogout() {
 .url-value { flex: 1; color: var(--primary); font-family: monospace; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (max-width: 600px) {
-  .overview { grid-template-columns: repeat(2, 1fr); }
+  .sa-content { padding: 12px; }
+  .sa-header { padding: 10px 12px; }
+  .overview { grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .ov-card { padding: 10px; }
+  .ov-value { font-size: 22px; }
   .form-grid { grid-template-columns: 1fr; }
-  .venue-actions { flex-direction: column; }
+  .venue-row { flex-direction: column; }
+  .venue-actions { flex-direction: row; flex-wrap: wrap; width: 100%; }
+  .v-btn { flex: 1; text-align: center; }
+  .url-row { flex-direction: column; gap: 4px; }
+  .url-value { font-size: 10px; }
 }
 </style>

@@ -778,10 +778,27 @@ function logout() {
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 900px) {
-  .admin-layout { grid-template-columns: 1fr; }
+  .admin-layout { grid-template-columns: 1fr; padding: 12px; gap: 12px; }
   .sidebar { position: static; max-height: none; }
   .np-card { flex-direction: column; align-items: stretch; }
-  .np-controls { justify-content: center; }
+  .np-controls { justify-content: center; flex-wrap: wrap; }
+  .stats-bar { flex-wrap: wrap; }
+  .volume-row { flex-wrap: wrap; }
+  .q-item { flex-wrap: wrap; gap: 8px; padding: 10px 8px; }
+  .q-btn-label { font-size: 10px; padding: 3px 8px; }
+  .fb-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .fb-btns { width: 100%; }
+  .fb-toggle { flex: 1; text-align: center; }
+  .add-row { flex-wrap: wrap; }
+  .admin-header { padding: 10px 12px; }
+  .admin-header h1 { font-size: 16px; }
+  .info-stats { gap: 12px; }
+  .info-val { font-size: 22px; }
+  .quick-actions { gap: 4px; }
+  .action-btn { padding: 8px 12px; font-size: 12px; }
+  .qr-img { width: 150px; height: 150px; }
+  .table-item { padding: 6px; }
+  .table-btns { flex-wrap: wrap; }
 }
 
 </style>
