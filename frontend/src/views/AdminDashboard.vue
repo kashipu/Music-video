@@ -49,8 +49,9 @@ const qrCodeUrl = computed(() =>
 // WebSocket
 const { onEvent } = useWebSocket(venueSlug)
 onEvent((event) => {
-  if (['song_added', 'now_playing_changed', 'song_removed', 'queue_reordered', 'song_skipped'].includes(event.event)) {
+  if (['song_added', 'now_playing_changed', 'song_removed', 'queue_reordered', 'song_skipped', 'table_registered'].includes(event.event)) {
     fetchQueue()
+    fetchTables()
   } else if (event.event === 'playback_status_changed') {
     playbackStatus.value = event.data.status
   }

@@ -40,6 +40,21 @@ async def register(req: RegisterRequest):
             raise HTTPException(status_code=404, detail="Bar no encontrado", headers={"X-Error-Code": "VENUE_NOT_FOUND"})
         raise
 
+    # Notify admin that a new table/user registered
+    from app.routers.websocket import manager
+    db = await get_db()
+    venue_rows = await db.execute_fetchall(
+        "SELECT id FROM venues WHERE slug = ?", (req.venue_slug,)
+    )
+    if venue_rows:
+        await manager.broadcast(venue_rows[0][0], {
+            "event": "table_registered",
+            "data": {
+                "table_number": req.table_number,
+                "user_name": req.display_name or phone,
+            },
+        })
+
     return result
 
 
