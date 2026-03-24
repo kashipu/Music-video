@@ -116,7 +116,7 @@ async function cancelSong(songId) {
     <!-- Header -->
     <header class="dash-header">
       <div class="header-left">
-        <span class="venue-name">BarQueue</span>
+        <span class="venue-name">{{ auth.session?.venue_name || venueSlug.replace(/-/g, ' ') }}</span>
         <span class="table-badge">Mesa {{ auth.session?.table_number }}</span>
       </div>
       <div class="header-right">

@@ -13,12 +13,13 @@ async def register_user(phone: str, table_number: str, venue_slug: str,
     db = await get_db()
 
     row = await db.execute_fetchall(
-        "SELECT id FROM venues WHERE slug = ?", (venue_slug,)
+        "SELECT id, name FROM venues WHERE slug = ?", (venue_slug,)
     )
     if not row:
         raise ValueError("VENUE_NOT_FOUND")
 
     venue_id = row[0][0]
+    venue_name = row[0][1]
 
     existing = await db.execute_fetchall(
         "SELECT id, display_name FROM users WHERE phone = ?", (phone,)
@@ -65,6 +66,7 @@ async def register_user(phone: str, table_number: str, venue_slug: str,
             "id": session_id,
             "table_number": table_number,
             "venue_slug": venue_slug,
+            "venue_name": venue_name,
         },
     }
 
