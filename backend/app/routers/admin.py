@@ -563,10 +563,18 @@ async def kick_table(table_number: str, admin: dict = Depends(get_current_admin)
 
     await db.commit()
 
+    # Notify kicked users to log out
+    for session in sessions:
+        user_id = session[1]
+        await manager.send_to_user(venue_id, user_id, {
+            "event": "session_kicked",
+            "data": {"message": "Tu sesion fue cerrada por el administrador"},
+        })
+
     # Broadcast queue update
     await manager.broadcast(venue_id, {
-        "event": "queue_reordered",
-        "data": {"queue": []},
+        "event": "song_removed",
+        "data": {"id": None, "removed_by": "admin"},
     })
 
     return {"message": f"Mesa {table_number} expulsada"}

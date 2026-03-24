@@ -288,7 +288,7 @@ async function onPlayerStateChange(event) {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background: #000;
+  background: var(--kiosk-bg);
   color: white;
 }
 
@@ -313,7 +313,7 @@ async function onPlayerStateChange(event) {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #000;
+  background: var(--kiosk-bg);
   z-index: 5;
 }
 .fallback-content {
@@ -331,7 +331,7 @@ async function onPlayerStateChange(event) {
 }
 .fallback-sub {
   font-size: 18px;
-  color: #666;
+  color: var(--kiosk-text-dim);
   margin-top: 8px;
 }
 
@@ -403,11 +403,11 @@ async function onPlayerStateChange(event) {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #ff4444;
+  background: var(--kiosk-dot);
   animation: pulse 2s infinite;
 }
 .dot-fallback {
-  background: #6C5CE7;
+  background: var(--primary);
 }
 .bottom-badge {
   font-size: 9px;
@@ -415,8 +415,8 @@ async function onPlayerStateChange(event) {
   letter-spacing: 0.5px;
   padding: 2px 6px;
   border-radius: 4px;
-  background: rgba(108, 92, 231, 0.3);
-  color: #a599f0;
+  background: var(--primary-soft);
+  color: var(--primary);
 }
 @keyframes pulse {
   0%, 100% { opacity: 1; }
@@ -439,7 +439,7 @@ async function onPlayerStateChange(event) {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #000;
+  background: var(--kiosk-bg);
   cursor: pointer;
 }
 .start-content { text-align: center; }
@@ -448,14 +448,14 @@ async function onPlayerStateChange(event) {
   font-size: 36px; font-weight: 700;
   text-transform: capitalize; margin-bottom: 8px;
 }
-.start-sub { color: #888; font-size: 18px; margin-bottom: 40px; }
+.start-sub { color: var(--kiosk-text-dim); font-size: 18px; margin-bottom: 40px; }
 .start-btn {
-  background: #6C5CE7; color: white;
+  background: var(--primary); color: white;
   font-size: 20px; font-weight: 700;
   padding: 16px 48px; border-radius: 12px;
   border: none; cursor: pointer;
   transition: transform 0.2s;
 }
 .start-btn:hover { transform: scale(1.05); }
-.start-hint { margin-top: 16px; color: #555; font-size: 14px; }
+.start-hint { margin-top: 16px; color: var(--kiosk-text-dimmer); font-size: 14px; }
 </style>

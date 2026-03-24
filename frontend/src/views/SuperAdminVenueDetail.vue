@@ -13,6 +13,8 @@ const editName = ref('')
 const editLogoUrl = ref('')
 const editQrUrl = ref('')
 const editConfig = ref({ max_duration_sec: 600, max_songs_per_window: 5, window_minutes: 30 })
+const editThemePrimary = ref('#6C5CE7')
+const editThemeMode = ref('dark')
 
 const newAdmin = ref({ username: '', password: '' })
 const showPass = ref(false)
@@ -46,6 +48,12 @@ async function fetchDetail() {
   editName.value = detail.value.venue.name
   editLogoUrl.value = detail.value.venue.logo_url || ''
   editQrUrl.value = detail.value.venue.qr_url || ''
+  // Load theme from config
+  try {
+    const cfg = JSON.parse(detail.value.venue.config || '{}')
+    editThemePrimary.value = cfg.theme?.primary || '#6C5CE7'
+    editThemeMode.value = cfg.theme?.mode || 'dark'
+  } catch { /* */ }
 }
 
 async function saveVenue() {
@@ -56,6 +64,8 @@ async function saveVenue() {
       name: editName.value,
       logo_url: editLogoUrl.value || null,
       qr_url: editQrUrl.value || null,
+      theme_primary: editThemePrimary.value,
+      theme_mode: editThemeMode.value,
     }
     const res = await fetch(`${API}/api/superadmin/venues/${venueId}`, {
       method: 'PATCH',
@@ -211,6 +221,21 @@ async function deleteVenue() {
               <label>URL del QR (dejar vacio para automatica)</label>
               <input v-model="editQrUrl" class="input-field" :placeholder="fullUrl(`/${detail.venue.slug}/registro`)" />
             </div>
+            <div class="form-group">
+              <label>Color principal del bar</label>
+              <div class="color-picker-row">
+                <input v-model="editThemePrimary" type="color" class="color-input" />
+                <input v-model="editThemePrimary" type="text" class="input-field" style="flex:1;" placeholder="#6C5CE7" />
+                <div class="color-preview" :style="{ background: editThemePrimary }"></div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Modo por defecto</label>
+              <div class="mode-picker">
+                <button class="mode-opt" :class="{ active: editThemeMode === 'dark' }" @click="editThemeMode = 'dark'">Oscuro</button>
+                <button class="mode-opt" :class="{ active: editThemeMode === 'light' }" @click="editThemeMode = 'light'">Claro</button>
+              </div>
+            </div>
             <div class="form-row">
               <button class="btn btn-primary" style="width:auto;" :disabled="saving" @click="saveVenue">
                 {{ saving ? 'Guardando...' : 'Guardar cambios' }}
@@ -339,8 +364,8 @@ async function deleteVenue() {
 .header-logo { width: 36px; height: 36px; border-radius: 8px; object-fit: cover; }
 .vd-header h1 { font-size: 20px; text-transform: capitalize; }
 .status-badge { font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 10px; }
-.status-badge.active { background: rgba(85,239,196,0.15); color: var(--success); }
-.status-badge.inactive { background: rgba(255,107,107,0.15); color: var(--danger); }
+.status-badge.active { background: var(--success-soft); color: var(--success); }
+.status-badge.inactive { background: var(--danger-soft); color: var(--danger); }
 
 /* Layout */
 .vd-layout {
@@ -399,10 +424,10 @@ async function deleteVenue() {
 .v-btn-success:hover { background: var(--success); color: #000; }
 
 /* Danger */
-.danger-card { border-color: rgba(255,107,107,0.3); }
+.danger-card { border-color: var(--danger-soft); }
 .btn-delete {
   width: 100%; padding: 10px; border-radius: 8px;
-  background: rgba(255,107,107,0.1); border: 1px solid var(--danger);
+  background: var(--danger-soft); border: 1px solid var(--danger);
   color: var(--danger); font-size: 13px; font-weight: 600; cursor: pointer;
 }
 .btn-delete:hover { background: var(--danger); color: white; }
@@ -428,13 +453,30 @@ async function deleteVenue() {
 .users-list { max-height: 300px; overflow-y: auto; }
 .user-item {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 8px 0; border-bottom: 1px solid rgba(45,45,74,0.4);
+  padding: 8px 0; border-bottom: 1px solid var(--border-soft);
 }
 .user-item:last-child { border-bottom: none; }
 .user-info { display: flex; flex-direction: column; }
 .user-name-detail { font-size: 13px; font-weight: 600; }
 .user-phone { font-size: 12px; color: var(--primary); font-family: monospace; }
 .user-meta { font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
+
+/* Theme editor */
+.color-picker-row { display: flex; align-items: center; gap: 8px; }
+.color-input {
+  width: 44px; height: 44px; border: none; border-radius: 8px;
+  cursor: pointer; background: none; padding: 0;
+}
+.color-input::-webkit-color-swatch-wrapper { padding: 0; }
+.color-input::-webkit-color-swatch { border: 2px solid var(--border); border-radius: 6px; }
+.color-preview { width: 44px; height: 44px; border-radius: 8px; flex-shrink: 0; }
+.mode-picker { display: flex; gap: 4px; background: var(--bg-elevated); border-radius: 8px; padding: 3px; }
+.mode-opt {
+  flex: 1; padding: 8px; border-radius: 6px; background: transparent;
+  color: var(--text-muted); font-size: 13px; font-weight: 600;
+  text-align: center; cursor: pointer; transition: all 0.15s;
+}
+.mode-opt.active { background: var(--primary); color: var(--text-on-primary); }
 
 .text-muted { color: var(--text-muted); font-size: 14px; }
 

@@ -224,8 +224,8 @@ function forceLogout() {
 .venue-name-row { display: flex; align-items: center; gap: 8px; }
 .venue-name { font-size: 16px; font-weight: 700; transition: color 0.15s; }
 .venue-status { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
-.venue-status.active { background: rgba(85, 239, 196, 0.15); color: var(--success); }
-.venue-status.inactive { background: rgba(255, 107, 107, 0.15); color: var(--danger); }
+.venue-status.active { background: var(--success-soft); color: var(--success); }
+.venue-status.inactive { background: var(--danger-soft); color: var(--danger); }
 .venue-slug { font-size: 13px; color: var(--primary); margin-top: 2px; }
 .venue-meta { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
 .venue-actions { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; }

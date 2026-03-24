@@ -13,13 +13,14 @@ async def register_user(phone: str, table_number: str, venue_slug: str,
     db = await get_db()
 
     row = await db.execute_fetchall(
-        "SELECT id, name FROM venues WHERE slug = ?", (venue_slug,)
+        "SELECT id, name, config FROM venues WHERE slug = ?", (venue_slug,)
     )
     if not row:
         raise ValueError("VENUE_NOT_FOUND")
 
     venue_id = row[0][0]
     venue_name = row[0][1]
+    venue_config = row[0][2]
 
     existing = await db.execute_fetchall(
         "SELECT id, display_name FROM users WHERE phone = ?", (phone,)
@@ -67,6 +68,7 @@ async def register_user(phone: str, table_number: str, venue_slug: str,
             "table_number": table_number,
             "venue_slug": venue_slug,
             "venue_name": venue_name,
+            "config": venue_config,
         },
     }
 
@@ -129,7 +131,7 @@ def decode_token(token: str) -> dict:
 async def verify_admin(username: str, password: str) -> dict | None:
     db = await get_db()
     rows = await db.execute_fetchall(
-        "SELECT a.id, a.username, a.password_hash, a.venue_id, v.name, v.slug, v.logo_url, v.qr_url "
+        "SELECT a.id, a.username, a.password_hash, a.venue_id, v.name, v.slug, v.logo_url, v.qr_url, v.config "
         "FROM admins a JOIN venues v ON a.venue_id = v.id "
         "WHERE a.username = ?",
         (username,),
@@ -149,6 +151,7 @@ async def verify_admin(username: str, password: str) -> dict | None:
         "venue_slug": admin[5],
         "logo_url": admin[6],
         "qr_url": admin[7],
+        "config": admin[8],
     }
 
 

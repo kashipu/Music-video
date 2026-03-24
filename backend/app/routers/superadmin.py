@@ -35,6 +35,8 @@ class UpdateVenueRequest(BaseModel):
     max_duration_sec: int | None = None
     max_songs_per_window: int | None = None
     window_minutes: int | None = None
+    theme_primary: str | None = None
+    theme_mode: str | None = None
 
 
 async def get_current_super_admin(authorization: str = Header(...)) -> dict:
@@ -163,6 +165,13 @@ async def update_venue(venue_id: int, req: UpdateVenueRequest,
         config["max_songs_per_window"] = req.max_songs_per_window
     if req.window_minutes is not None:
         config["window_minutes"] = req.window_minutes
+    if req.theme_primary is not None or req.theme_mode is not None:
+        theme = config.get("theme", {})
+        if req.theme_primary is not None:
+            theme["primary"] = req.theme_primary
+        if req.theme_mode is not None:
+            theme["mode"] = req.theme_mode
+        config["theme"] = theme
 
     await db.execute("UPDATE venues SET config = ? WHERE id = ?", (json.dumps(config), venue_id))
     await db.commit()
@@ -190,7 +199,7 @@ async def delete_venue(venue_id: int, admin: dict = Depends(get_current_super_ad
 async def venue_stats(venue_id: int, admin: dict = Depends(get_current_super_admin)):
     db = await get_db()
 
-    rows = await db.execute_fetchall("SELECT name, slug, active, created_at, logo_url, qr_url FROM venues WHERE id = ?", (venue_id,))
+    rows = await db.execute_fetchall("SELECT name, slug, active, created_at, logo_url, qr_url, config FROM venues WHERE id = ?", (venue_id,))
     if not rows:
         raise HTTPException(status_code=404, detail="Bar no encontrado")
 
@@ -211,7 +220,7 @@ async def venue_stats(venue_id: int, admin: dict = Depends(get_current_super_adm
     )
 
     return {
-        "venue": {"id": venue_id, "name": v[0], "slug": v[1], "active": bool(v[2]), "created_at": v[3], "logo_url": v[4], "qr_url": v[5]},
+        "venue": {"id": venue_id, "name": v[0], "slug": v[1], "active": bool(v[2]), "created_at": v[3], "logo_url": v[4], "qr_url": v[5], "config": v[6]},
         "stats": {
             "total_songs_played": s[0], "total_users": s[1],
             "active_sessions": s[2], "songs_in_queue": s[3],

@@ -5,11 +5,13 @@ import { useAuthStore } from '../stores/auth.js'
 import { useQueueStore } from '../stores/queue.js'
 import { useWebSocket } from '../composables/useWebSocket.js'
 import { formatDuration } from '../utils/youtube.js'
+import { useTheme } from '../composables/useTheme.js'
 import SongSubmit from '../components/SongSubmit.vue'
 import SongPreview from '../components/SongPreview.vue'
 
 const route = useRoute()
 const router = useRouter()
+const { currentMode, toggleMode, applyVenueTheme } = useTheme()
 const auth = useAuthStore()
 const queueStore = useQueueStore()
 
@@ -44,9 +46,14 @@ onEvent((event) => {
   if (event.event === 'now_playing_changed') {
     mySongPlaying.value = false
   }
+  if (event.event === 'session_kicked') {
+    auth.logout()
+    router.push({ name: 'registro', params: { venueSlug } })
+  }
 })
 
 onMounted(async () => {
+  applyVenueTheme(auth.session?.config)
   await Promise.all([
     queueStore.fetchQueue(venueSlug),
     queueStore.fetchMySongs(),
@@ -120,6 +127,7 @@ async function cancelSong(songId) {
         <span class="table-badge">Mesa {{ auth.session?.table_number }}</span>
       </div>
       <div class="header-right">
+        <button class="theme-toggle" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button>
         <span class="user-name">{{ auth.user?.display_name || auth.user?.phone }}</span>
         <button class="logout-btn" @click="handleLogout">Salir</button>
       </div>
@@ -240,8 +248,8 @@ async function cancelSong(songId) {
   align-items: center; gap: 12px; position: relative;
 }
 .np-mine {
-  background: linear-gradient(135deg, rgba(85, 239, 196, 0.06), var(--bg-card));
-  box-shadow: inset 0 0 0 1px rgba(85, 239, 196, 0.2);
+  background: linear-gradient(135deg, var(--success-soft), var(--bg-card));
+  box-shadow: inset 0 0 0 1px var(--success-soft);
 }
 .np-thumb {
   width: 56px; height: 42px; border-radius: 8px;
@@ -267,7 +275,7 @@ async function cancelSong(songId) {
   animation: pulse 2s infinite;
 }
 @keyframes pulse {
-  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(85, 239, 196, 0.4); }
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 var(--success-soft); }
   50% { opacity: 0.6; box-shadow: 0 0 0 6px rgba(85, 239, 196, 0); }
 }
 .np-empty { justify-content: center; padding: 20px; }
@@ -287,7 +295,7 @@ async function cancelSong(songId) {
   padding: 10px 0;
 }
 .q-item + .q-item {
-  border-top: 1px solid rgba(45, 45, 74, 0.5);
+  border-top: 1px solid var(--border-soft);
 }
 .q-pos {
   font-weight: 700; font-size: 12px; color: var(--text-muted);
@@ -316,7 +324,7 @@ async function cancelSong(songId) {
   padding: 10px 0;
 }
 .my-item + .my-item {
-  border-top: 1px solid rgba(45, 45, 74, 0.5);
+  border-top: 1px solid var(--border-soft);
 }
 .my-info { flex: 1; min-width: 0; }
 .my-title {
@@ -335,7 +343,7 @@ async function cancelSong(songId) {
 .status-dot.pending { background: var(--warning); }
 .cancel-btn {
   width: 32px; height: 32px; border-radius: 8px;
-  background: rgba(255, 107, 107, 0.08);
+  background: var(--danger-soft);
   border: none;
   color: var(--danger); font-size: 14px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;

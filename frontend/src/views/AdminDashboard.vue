@@ -3,11 +3,13 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
 import { useWebSocket } from '../composables/useWebSocket.js'
+import { useTheme } from '../composables/useTheme.js'
 import { formatDuration } from '../utils/youtube.js'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const { currentMode, toggleMode, applyVenueTheme } = useTheme()
 
 const API = import.meta.env.VITE_API_URL || ''
 const venueSlug = route.params.venueSlug || auth.adminInfo?.venue_slug || 'default'
@@ -60,6 +62,7 @@ onEvent((event) => {
 })
 
 onMounted(async () => {
+  applyVenueTheme(auth.adminInfo?.config)
   await Promise.all([fetchQueue(), fetchTables(), fetchAnalytics(), fetchFallbackPlaylist()])
 })
 
@@ -284,7 +287,10 @@ function logout() {
         <img v-if="auth.adminInfo?.logo_url" :src="auth.adminInfo.logo_url" class="header-logo" />
         <h1>{{ auth.adminInfo?.venue_name || venueSlug }}</h1>
       </div>
-      <button class="btn-logout" @click="logout">Salir</button>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="theme-toggle" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button>
+        <button class="btn-logout" @click="logout">Salir</button>
+      </div>
     </header>
 
     <!-- TWO COLUMN LAYOUT -->
@@ -744,9 +750,9 @@ function logout() {
   background: var(--bg-card); border: 1px solid var(--border);
   font-size: 13px;
 }
-.stat-live { background: rgba(85,239,196,0.15); border-color: var(--success); color: var(--success); font-weight: 700; }
-.stat-paused { background: rgba(255,107,107,0.15); border-color: var(--danger); color: var(--danger); font-weight: 700; }
-.stat-fallback { background: rgba(108,92,231,0.15); border-color: var(--primary); color: var(--primary); font-weight: 700; font-size: 12px; }
+.stat-live { background: var(--success-soft); border-color: var(--success); color: var(--success); font-weight: 700; }
+.stat-paused { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); font-weight: 700; }
+.stat-fallback { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); font-weight: 700; font-size: 12px; }
 
 /* Now Playing */
 .np-card {
@@ -765,7 +771,7 @@ function logout() {
   display: flex; align-items: center; gap: 8px;
   padding: 14px 32px; border-radius: 12px;
   font-size: 16px; font-weight: 700; border: 2px solid;
-  background: rgba(85,239,196,0.15); border-color: var(--success); color: var(--success);
+  background: var(--success-soft); border-color: var(--success); color: var(--success);
 }
 .ctrl-btn-lg:hover { background: var(--success); color: #000; }
 
@@ -777,12 +783,12 @@ function logout() {
 }
 .ctrl-icon { font-size: 16px; }
 .ctrl-text { font-size: 10px; text-transform: uppercase; }
-.ctrl-pause { background: rgba(254,202,87,0.15); border-color: var(--warning); color: var(--warning); }
+.ctrl-pause { background: var(--warning-soft); border-color: var(--warning); color: var(--warning); }
 .ctrl-pause .ctrl-icon { font-size: 12px; letter-spacing: -2px; }
 .ctrl-pause:hover { background: var(--warning); color: #000; }
-.ctrl-play { background: rgba(85,239,196,0.15); border-color: var(--success); color: var(--success); }
+.ctrl-play { background: var(--success-soft); border-color: var(--success); color: var(--success); }
 .ctrl-play:hover { background: var(--success); color: #000; }
-.ctrl-skip { background: rgba(108,92,231,0.15); border-color: var(--primary); color: var(--primary); }
+.ctrl-skip { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); }
 .ctrl-skip:hover { background: var(--primary); color: white; }
 
 /* Volume */
@@ -796,7 +802,7 @@ function logout() {
 }
 .mute-icon { font-size: 18px; }
 .mute-text { font-size: 11px; font-weight: 700; text-transform: uppercase; }
-.mute-btn.muted { background: rgba(255,107,107,0.15); border-color: var(--danger); color: var(--danger); }
+.mute-btn.muted { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
 .volume-value { font-size: 13px; font-weight: 700; color: var(--primary); min-width: 44px; text-align: right; }
 .volume-value.muted { color: var(--danger); }
 .volume-slider { flex: 1; height: 6px; -webkit-appearance: none; background: var(--bg-elevated); border-radius: 3px; outline: none; }
@@ -859,19 +865,19 @@ function logout() {
 .text-hint { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
 .fb-header { display: flex; justify-content: space-between; align-items: center; }
 .fb-btns { display: flex; gap: 6px; }
-.fb-play-now { background: rgba(108,92,231,0.15); border-color: var(--primary); color: var(--primary); }
+.fb-play-now { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); }
 .fb-play-now:hover { background: var(--primary); color: white; }
 .fb-toggle {
   padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;
   border: 1px solid; cursor: pointer; transition: all 0.15s;
 }
-.fb-playing { background: rgba(254,202,87,0.15); border-color: var(--warning); color: var(--warning); }
+.fb-playing { background: var(--warning-soft); border-color: var(--warning); color: var(--warning); }
 .fb-playing:hover { background: var(--warning); color: #000; }
-.fb-paused { background: rgba(85,239,196,0.15); border-color: var(--success); color: var(--success); }
+.fb-paused { background: var(--success-soft); border-color: var(--success); color: var(--success); }
 .fb-paused:hover { background: var(--success); color: #000; }
 .fb-status { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; flex-shrink: 0; }
-.fb-status.active { background: rgba(85,239,196,0.15); color: var(--success); }
-.fb-status.inactive { background: rgba(139,139,167,0.15); color: var(--text-muted); }
+.fb-status.active { background: var(--success-soft); color: var(--success); }
+.fb-status.inactive { background: var(--border-soft); color: var(--text-muted); }
 
 /* Right Tabs */
 .right-tabs {
@@ -921,12 +927,12 @@ function logout() {
 
 /* Analytics Tab */
 .an-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
-.an-card { background: var(--bg-card); border: 1px solid rgba(45,45,74,0.4); border-radius: var(--radius-sm); padding: 16px; text-align: center; }
+.an-card { background: var(--bg-card); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); padding: 16px; text-align: center; }
 .an-val { font-size: 26px; font-weight: 700; }
 .an-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 .an-song {
   display: flex; align-items: center; gap: 10px;
-  padding: 8px 0; border-bottom: 1px solid rgba(45,45,74,0.4);
+  padding: 8px 0; border-bottom: 1px solid var(--border-soft);
 }
 .an-song:last-child { border-bottom: none; }
 .an-pos { font-weight: 700; font-size: 13px; color: var(--text-muted); width: 20px; text-align: center; flex-shrink: 0; }
