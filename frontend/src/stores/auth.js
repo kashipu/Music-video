@@ -1,0 +1,92 @@
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+
+const API = import.meta.env.VITE_API_URL || ''
+
+export const useAuthStore = defineStore('auth', () => {
+  const token = ref(localStorage.getItem('bq_token') || '')
+  const adminToken = ref(localStorage.getItem('bq_admin_token') || '')
+  const user = ref(JSON.parse(localStorage.getItem('bq_user') || 'null'))
+  const session = ref(JSON.parse(localStorage.getItem('bq_session') || 'null'))
+  const adminInfo = ref(JSON.parse(localStorage.getItem('bq_admin') || 'null'))
+
+  const isAuthenticated = computed(() => !!token.value)
+  const isAdmin = computed(() => !!adminToken.value)
+
+  async function register(phone, tableNumber, venueSlug, dataConsent, displayName) {
+    const res = await fetch(`${API}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone,
+        table_number: tableNumber,
+        venue_slug: venueSlug,
+        data_consent: dataConsent,
+        display_name: displayName || null,
+      }),
+    })
+    if (!res.ok) {
+      const err = await res.json()
+      throw new Error(err.detail || 'Registration failed')
+    }
+    const data = await res.json()
+    token.value = data.token
+    user.value = data.user
+    session.value = data.session
+    localStorage.setItem('bq_token', data.token)
+    localStorage.setItem('bq_user', JSON.stringify(data.user))
+    localStorage.setItem('bq_session', JSON.stringify(data.session))
+    return data
+  }
+
+  async function adminLogin(username, password, venueSlug = null) {
+    const body = { username, password }
+    if (venueSlug) body.venue_slug = venueSlug
+    const res = await fetch(`${API}/api/admin/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) {
+      const err = await res.json()
+      throw new Error(err.detail || 'Login failed')
+    }
+    const data = await res.json()
+    adminToken.value = data.token
+    adminInfo.value = data.admin
+    localStorage.setItem('bq_admin_token', data.token)
+    localStorage.setItem('bq_admin', JSON.stringify(data.admin))
+    return data
+  }
+
+  function logout() {
+    token.value = ''
+    user.value = null
+    session.value = null
+    localStorage.removeItem('bq_token')
+    localStorage.removeItem('bq_user')
+    localStorage.removeItem('bq_session')
+  }
+
+  function adminLogout() {
+    adminToken.value = ''
+    adminInfo.value = null
+    localStorage.removeItem('bq_admin_token')
+    localStorage.removeItem('bq_admin')
+  }
+
+  function authHeaders() {
+    return { Authorization: `Bearer ${token.value}` }
+  }
+
+  function adminHeaders() {
+    return { Authorization: `Bearer ${adminToken.value}` }
+  }
+
+  return {
+    token, adminToken, user, session, adminInfo,
+    isAuthenticated, isAdmin,
+    register, adminLogin, logout, adminLogout,
+    authHeaders, adminHeaders,
+  }
+})
