@@ -8,6 +8,14 @@ from app.routers.websocket import manager
 router = APIRouter(prefix="/api/queue", tags=["queue"])
 
 
+@router.get("/search")
+async def search_songs(q: str = Query(..., min_length=2)):
+    """Search YouTube for songs (no API key needed)."""
+    from app.services.youtube_search import search_youtube
+    results = await search_youtube(q)
+    return {"results": results}
+
+
 @router.get("")
 async def get_queue(venue: str = Query(...)):
     from app.database import get_db
