@@ -174,23 +174,41 @@ async function moveSong(songId, newPosition) {
 async function addSong() {
   if (!addUrl.value.trim()) return
   loading.value = true
+  addError.value = ''
   try {
-    await fetch(`${API}/api/admin/queue/songs`, {
+    const res = await fetch(`${API}/api/admin/queue/songs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...auth.adminHeaders() },
       body: JSON.stringify({ youtube_url: addUrl.value }),
     })
-    addUrl.value = ''
+    if (!res.ok) {
+      const err = await res.json()
+      addError.value = err.detail || 'Error al agregar'
+      setTimeout(() => { addError.value = '' }, 3000)
+    } else {
+      addUrl.value = ''
+      await fetchQueue()
+    }
   } finally { loading.value = false }
 }
+const addError = ref('')
+
 async function addFromLibrary(youtubeId) {
   loading.value = true
+  addError.value = ''
   try {
-    await fetch(`${API}/api/admin/queue/songs`, {
+    const res = await fetch(`${API}/api/admin/queue/songs`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...auth.adminHeaders() },
       body: JSON.stringify({ youtube_url: `https://www.youtube.com/watch?v=${youtubeId}` }),
     })
+    if (!res.ok) {
+      const err = await res.json()
+      addError.value = err.detail || 'Error al agregar'
+      setTimeout(() => { addError.value = '' }, 3000)
+    } else {
+      await fetchQueue()
+    }
   } finally { loading.value = false }
 }
 async function requeueSong(youtubeId) {
@@ -514,6 +532,7 @@ function logout() {
               <p v-if="!library.length" class="text-muted">Sin canciones guardadas</p>
             </div>
           </div>
+          <p v-if="addError" class="add-error">{{ addError }}</p>
         </div>
 
         <!-- Queue -->
@@ -858,6 +877,7 @@ function logout() {
 }
 .add-tab.active { background: var(--primary); color: var(--text-on-primary); }
 .search-status { font-size: 13px; color: var(--text-muted); text-align: center; padding: 12px 0; }
+.add-error { color: var(--danger); font-size: 13px; margin-top: 8px; font-weight: 500; }
 .add-row { display: flex; gap: 8px; }
 .add-row .input-field { flex: 1; }
 .ctrl-add {
