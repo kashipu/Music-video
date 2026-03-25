@@ -13,7 +13,7 @@ const editName = ref('')
 const editLogoUrl = ref('')
 const editQrUrl = ref('')
 const editConfig = ref({ max_duration_sec: 600, max_songs_per_window: 5, window_minutes: 30 })
-const editThemePrimary = ref('#6C5CE7')
+const editThemeAccent = ref('#6C5CE7')
 const editThemeMode = ref('dark')
 
 const newAdmin = ref({ username: '', password: '' })
@@ -51,7 +51,7 @@ async function fetchDetail() {
   // Load theme from config
   try {
     const cfg = JSON.parse(detail.value.venue.config || '{}')
-    editThemePrimary.value = cfg.theme?.primary || '#6C5CE7'
+    editThemeAccent.value = cfg.theme?.accent || '#6C5CE7'
     editThemeMode.value = cfg.theme?.mode || 'dark'
   } catch { /* */ }
 }
@@ -64,8 +64,7 @@ async function saveVenue() {
       name: editName.value,
       logo_url: editLogoUrl.value || null,
       qr_url: editQrUrl.value || null,
-      theme_primary: editThemePrimary.value,
-      theme_mode: editThemeMode.value,
+      theme: { accent: editThemeAccent.value, mode: editThemeMode.value },
     }
     const res = await fetch(`${API}/api/superadmin/venues/${venueId}`, {
       method: 'PATCH',
@@ -222,19 +221,26 @@ async function deleteVenue() {
               <input v-model="editQrUrl" class="input-field" :placeholder="fullUrl(`/${detail.venue.slug}/registro`)" />
             </div>
             <div class="form-group">
-              <label>Color principal del bar</label>
+              <label>Color acento del bar</label>
               <div class="color-picker-row">
-                <input v-model="editThemePrimary" type="color" class="color-input" />
-                <input v-model="editThemePrimary" type="text" class="input-field" style="flex:1;" placeholder="#6C5CE7" />
-                <div class="color-preview" :style="{ background: editThemePrimary }"></div>
+                <input v-model="editThemeAccent" type="color" class="color-input" />
+                <input v-model="editThemeAccent" type="text" class="input-field" style="flex:1;" placeholder="#6C5CE7" />
+                <div class="color-preview" :style="{ background: editThemeAccent }"></div>
               </div>
+              <p class="form-hint">Los demas colores se calculan automaticamente para garantizar contraste</p>
             </div>
             <div class="form-group">
               <label>Modo por defecto</label>
               <div class="mode-picker">
-                <button class="mode-opt" :class="{ active: editThemeMode === 'dark' }" @click="editThemeMode = 'dark'">Oscuro</button>
-                <button class="mode-opt" :class="{ active: editThemeMode === 'light' }" @click="editThemeMode = 'light'">Claro</button>
+                <button class="mode-opt" :class="{ active: editThemeMode === 'dark' }" @click="editThemeMode = 'dark'">&#9790; Oscuro</button>
+                <button class="mode-opt" :class="{ active: editThemeMode === 'light' }" @click="editThemeMode = 'light'">&#9728; Claro</button>
               </div>
+            </div>
+            <div class="theme-preview-bar">
+              <div class="tp-swatch" :style="{ background: editThemeAccent }"></div>
+              <div class="tp-swatch" :style="{ background: editThemeMode === 'dark' ? '#0F0F1A' : '#F4F4F8' }"></div>
+              <div class="tp-swatch" :style="{ background: editThemeMode === 'dark' ? '#EAEAEA' : '#1A1A2E' }"></div>
+              <span class="tp-label">Preview: acento + fondo + texto</span>
             </div>
             <div class="form-row">
               <button class="btn btn-primary" style="width:auto;" :disabled="saving" @click="saveVenue">
@@ -477,6 +483,12 @@ async function deleteVenue() {
   text-align: center; cursor: pointer; transition: all 0.15s;
 }
 .mode-opt.active { background: var(--primary); color: var(--text-on-primary); }
+.form-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.theme-preview-bar {
+  display: flex; align-items: center; gap: 8px; margin-top: 4px;
+}
+.tp-swatch { width: 28px; height: 28px; border-radius: 6px; border: 2px solid var(--border); }
+.tp-label { font-size: 11px; color: var(--text-muted); }
 
 .text-muted { color: var(--text-muted); font-size: 14px; }
 

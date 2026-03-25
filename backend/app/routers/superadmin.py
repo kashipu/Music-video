@@ -35,8 +35,7 @@ class UpdateVenueRequest(BaseModel):
     max_duration_sec: int | None = None
     max_songs_per_window: int | None = None
     window_minutes: int | None = None
-    theme_primary: str | None = None
-    theme_mode: str | None = None
+    theme: dict | None = None
 
 
 async def get_current_super_admin(authorization: str = Header(...)) -> dict:
@@ -165,13 +164,8 @@ async def update_venue(venue_id: int, req: UpdateVenueRequest,
         config["max_songs_per_window"] = req.max_songs_per_window
     if req.window_minutes is not None:
         config["window_minutes"] = req.window_minutes
-    if req.theme_primary is not None or req.theme_mode is not None:
-        theme = config.get("theme", {})
-        if req.theme_primary is not None:
-            theme["primary"] = req.theme_primary
-        if req.theme_mode is not None:
-            theme["mode"] = req.theme_mode
-        config["theme"] = theme
+    if req.theme is not None:
+        config["theme"] = req.theme
 
     await db.execute("UPDATE venues SET config = ? WHERE id = ?", (json.dumps(config), venue_id))
     await db.commit()
