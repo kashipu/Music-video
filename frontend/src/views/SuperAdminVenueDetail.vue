@@ -16,8 +16,80 @@ const editName = ref('')
 const editLogoUrl = ref('')
 const editQrUrl = ref('')
 const editConfig = ref({ max_duration_sec: 600, max_songs_per_window: 5, window_minutes: 30 })
-const editThemeAccent = ref('#6C5CE7')
-const editThemeMode = ref('dark')
+const THEME_PRESETS = [
+  {
+    id: 'purple-night',
+    name: 'Noche Morada',
+    accent: '#6C5CE7',
+    mode: 'dark',
+    colors: { bg: '#0F0F1A', text: '#EAEAEA' },
+  },
+  {
+    id: 'red-fire',
+    name: 'Fuego Rojo',
+    accent: '#E74C3C',
+    mode: 'dark',
+    colors: { bg: '#1A0F0F', text: '#EAEAEA' },
+  },
+  {
+    id: 'green-jungle',
+    name: 'Selva Verde',
+    accent: '#00B894',
+    mode: 'dark',
+    colors: { bg: '#0F1A15', text: '#EAEAEA' },
+  },
+  {
+    id: 'blue-ocean',
+    name: 'Oceano Azul',
+    accent: '#0984E3',
+    mode: 'dark',
+    colors: { bg: '#0F131A', text: '#EAEAEA' },
+  },
+  {
+    id: 'gold-elegance',
+    name: 'Elegancia Dorada',
+    accent: '#F39C12',
+    mode: 'dark',
+    colors: { bg: '#1A170F', text: '#EAEAEA' },
+  },
+  {
+    id: 'purple-light',
+    name: 'Morado Claro',
+    accent: '#6C5CE7',
+    mode: 'light',
+    colors: { bg: '#F4F4F8', text: '#1A1A2E' },
+  },
+  {
+    id: 'red-light',
+    name: 'Rojo Claro',
+    accent: '#E74C3C',
+    mode: 'light',
+    colors: { bg: '#FDF4F4', text: '#1A1A2E' },
+  },
+  {
+    id: 'green-light',
+    name: 'Verde Claro',
+    accent: '#00B894',
+    mode: 'light',
+    colors: { bg: '#F0FAF7', text: '#1A1A2E' },
+  },
+  {
+    id: 'blue-light',
+    name: 'Azul Claro',
+    accent: '#0984E3',
+    mode: 'light',
+    colors: { bg: '#F0F6FD', text: '#1A1A2E' },
+  },
+  {
+    id: 'gold-light',
+    name: 'Dorado Claro',
+    accent: '#F39C12',
+    mode: 'light',
+    colors: { bg: '#FDFAF0', text: '#1A1A2E' },
+  },
+]
+
+const selectedPreset = ref('purple-night')
 
 const newAdmin = ref({ username: '', password: '' })
 const showPass = ref(false)
@@ -54,8 +126,7 @@ async function fetchDetail() {
   // Load theme from config
   try {
     const cfg = JSON.parse(detail.value.venue.config || '{}')
-    editThemeAccent.value = cfg.theme?.accent || '#6C5CE7'
-    editThemeMode.value = cfg.theme?.mode || 'dark'
+    selectedPreset.value = cfg.theme?.preset || 'purple-night'
   } catch { /* */ }
 }
 
@@ -67,7 +138,10 @@ async function saveVenue() {
       name: editName.value,
       logo_url: editLogoUrl.value || null,
       qr_url: editQrUrl.value || null,
-      theme: { accent: editThemeAccent.value, mode: editThemeMode.value },
+      theme: (() => {
+        const p = THEME_PRESETS.find(t => t.id === selectedPreset.value) || THEME_PRESETS[0]
+        return { preset: p.id, accent: p.accent, mode: p.mode, bg: p.colors.bg, text: p.colors.text }
+      })(),
     }
     const res = await fetch(`${API}/api/superadmin/venues/${venueId}`, {
       method: 'PATCH',
@@ -225,26 +299,24 @@ async function deleteVenue() {
               <input v-model="editQrUrl" class="input-field" :placeholder="fullUrl(`/${detail.venue.slug}/registro`)" />
             </div>
             <div class="form-group">
-              <label>Color acento del bar</label>
-              <div class="color-picker-row">
-                <input v-model="editThemeAccent" type="color" class="color-input" />
-                <input v-model="editThemeAccent" type="text" class="input-field" style="flex:1;" placeholder="#6C5CE7" />
-                <div class="color-preview" :style="{ background: editThemeAccent }"></div>
+              <label>Tema del bar</label>
+              <div class="preset-grid">
+                <div
+                  v-for="preset in THEME_PRESETS"
+                  :key="preset.id"
+                  class="preset-card"
+                  :class="{ selected: selectedPreset === preset.id }"
+                  @click="selectedPreset = preset.id"
+                >
+                  <div class="preset-swatches">
+                    <div class="ps" :style="{ background: preset.colors.bg }"></div>
+                    <div class="ps ps-accent" :style="{ background: preset.accent }"></div>
+                    <div class="ps" :style="{ background: preset.colors.text }"></div>
+                  </div>
+                  <span class="preset-name">{{ preset.name }}</span>
+                  <span class="preset-mode">{{ preset.mode === 'dark' ? '&#9790;' : '&#9728;' }}</span>
+                </div>
               </div>
-              <p class="form-hint">Los demas colores se calculan automaticamente para garantizar contraste</p>
-            </div>
-            <div class="form-group">
-              <label>Modo por defecto</label>
-              <div class="mode-picker">
-                <button class="mode-opt" :class="{ active: editThemeMode === 'dark' }" @click="editThemeMode = 'dark'">&#9790; Oscuro</button>
-                <button class="mode-opt" :class="{ active: editThemeMode === 'light' }" @click="editThemeMode = 'light'">&#9728; Claro</button>
-              </div>
-            </div>
-            <div class="theme-preview-bar">
-              <div class="tp-swatch" :style="{ background: editThemeAccent }"></div>
-              <div class="tp-swatch" :style="{ background: editThemeMode === 'dark' ? '#0F0F1A' : '#F4F4F8' }"></div>
-              <div class="tp-swatch" :style="{ background: editThemeMode === 'dark' ? '#EAEAEA' : '#1A1A2E' }"></div>
-              <span class="tp-label">Preview: acento + fondo + texto</span>
             </div>
             <div class="form-row">
               <button class="btn btn-primary" style="width:auto;" :disabled="saving" @click="saveVenue">
@@ -472,28 +544,26 @@ async function deleteVenue() {
 .user-phone { font-size: 12px; color: var(--primary); font-family: monospace; }
 .user-meta { font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
 
-/* Theme editor */
-.color-picker-row { display: flex; align-items: center; gap: 8px; }
-.color-input {
-  width: 44px; height: 44px; border: none; border-radius: 8px;
-  cursor: pointer; background: none; padding: 0;
+/* Theme presets */
+.preset-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
 }
-.color-input::-webkit-color-swatch-wrapper { padding: 0; }
-.color-input::-webkit-color-swatch { border: 2px solid var(--border); border-radius: 6px; }
-.color-preview { width: 44px; height: 44px; border-radius: 8px; flex-shrink: 0; }
-.mode-picker { display: flex; gap: 4px; background: var(--bg-elevated); border-radius: 8px; padding: 3px; }
-.mode-opt {
-  flex: 1; padding: 8px; border-radius: 6px; background: transparent;
-  color: var(--text-muted); font-size: 13px; font-weight: 600;
-  text-align: center; cursor: pointer; transition: all 0.15s;
+.preset-card {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px; border-radius: 10px;
+  background: var(--bg-elevated); border: 2px solid transparent;
+  cursor: pointer; transition: all 0.15s;
 }
-.mode-opt.active { background: var(--primary); color: var(--text-on-primary); }
-.form-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
-.theme-preview-bar {
-  display: flex; align-items: center; gap: 8px; margin-top: 4px;
+.preset-card:hover { border-color: var(--border); }
+.preset-card.selected { border-color: var(--primary); background: var(--primary-soft); }
+.preset-swatches { display: flex; gap: 3px; flex-shrink: 0; }
+.ps {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 1px solid var(--border);
 }
-.tp-swatch { width: 28px; height: 28px; border-radius: 6px; border: 2px solid var(--border); }
-.tp-label { font-size: 11px; color: var(--text-muted); }
+.ps-accent { width: 22px; height: 22px; }
+.preset-name { font-size: 12px; font-weight: 600; flex: 1; }
+.preset-mode { font-size: 14px; }
 
 .text-muted { color: var(--text-muted); font-size: 14px; }
 

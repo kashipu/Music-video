@@ -26,8 +26,23 @@ export function useTheme() {
     // Apply mode
     if (theme.mode) applyMode(theme.mode)
 
-    // Apply accent color — everything else is calculated
+    // Apply accent
     if (theme.accent) applyAccent(theme.accent)
+
+    // Apply custom bg/text if preset provides them
+    if (theme.bg) {
+      const el = document.documentElement
+      el.style.setProperty('--bg', theme.bg)
+      el.style.setProperty('--bg-card', adjustBrightness(theme.bg, theme.mode === 'dark' ? 15 : -5))
+      el.style.setProperty('--bg-elevated', adjustBrightness(theme.bg, theme.mode === 'dark' ? 25 : -10))
+      el.style.setProperty('--border', adjustBrightness(theme.bg, theme.mode === 'dark' ? 40 : -25))
+      const { r, g, b } = hexToRgb(theme.bg)
+      el.style.setProperty('--border-soft', `rgba(${r}, ${g}, ${b}, 0.3)`)
+    }
+    if (theme.text) {
+      document.documentElement.style.setProperty('--text', theme.text)
+      document.documentElement.style.setProperty('--text-muted', adjustBrightness(theme.text, theme.mode === 'dark' ? -80 : 80))
+    }
   }
 
   function applyAccent(hex) {
@@ -42,7 +57,10 @@ export function useTheme() {
   }
 
   function clearVenueTheme() {
-    const props = ['--primary', '--primary-dark', '--primary-soft', '--text-on-primary', '--secondary']
+    const props = [
+      '--primary', '--primary-dark', '--primary-soft', '--text-on-primary', '--secondary',
+      '--bg', '--bg-card', '--bg-elevated', '--border', '--border-soft', '--text', '--text-muted',
+    ]
     props.forEach(p => document.documentElement.style.removeProperty(p))
   }
 
