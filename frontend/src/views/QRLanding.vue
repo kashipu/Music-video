@@ -2,6 +2,9 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
+import { useTheme } from '../composables/useTheme.js'
+
+const { currentMode, toggleMode } = useTheme()
 
 const route = useRoute()
 const router = useRouter()
@@ -49,6 +52,7 @@ async function handleRegister() {
 
 <template>
   <div class="landing">
+    <button class="theme-toggle" style="position:fixed;top:16px;right:16px;" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button>
     <div class="container">
       <div class="landing-header">
         <div class="music-icon">&#9835;</div>

@@ -1,8 +1,10 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { useTheme } from '../composables/useTheme.js'
 
 const router = useRouter()
+const { currentMode, toggleMode } = useTheme()
 const API = import.meta.env.VITE_API_URL || ''
 
 const venues = ref([])
@@ -89,7 +91,10 @@ function forceLogout() {
         <h1>BarQueue</h1>
         <span class="sa-badge">Super Admin</span>
       </div>
-      <button class="btn-logout" @click="forceLogout">Salir</button>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="theme-toggle" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button>
+        <button class="btn-logout" @click="forceLogout">Salir</button>
+      </div>
     </header>
 
     <div class="sa-content">

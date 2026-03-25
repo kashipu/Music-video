@@ -8,9 +8,24 @@ from app.database import init_db, close_db
 from app.routers import auth, queue, admin, playback, websocket, superadmin
 
 
+async def cleanup_old_data():
+    """Delete data older than 7 days to keep DB small."""
+    from app.database import get_db
+    try:
+        db = await get_db()
+        await db.execute("DELETE FROM queue_songs WHERE added_at < datetime('now', '-7 days')")
+        await db.execute("DELETE FROM submission_log WHERE submitted_at < datetime('now', '-7 days')")
+        await db.execute("DELETE FROM play_history WHERE played_at < datetime('now', '-7 days')")
+        await db.execute("DELETE FROM user_sessions WHERE ended_at IS NOT NULL AND ended_at < datetime('now', '-7 days')")
+        await db.commit()
+    except Exception:
+        pass
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+    await cleanup_old_data()
     yield
     await close_db()
 

@@ -2,8 +2,10 @@
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
+import { useTheme } from '../composables/useTheme.js'
 
 const route = useRoute()
+const { currentMode, toggleMode } = useTheme()
 const router = useRouter()
 const auth = useAuthStore()
 const venueSlug = route.params.venueSlug
@@ -29,6 +31,7 @@ async function handleLogin() {
 
 <template>
   <div class="login-page">
+    <button class="theme-toggle" style="position:fixed;top:16px;right:16px;" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button>
     <div class="container">
       <div class="login-header">
         <h1>{{ venueSlug.replace(/-/g, ' ') }}</h1>

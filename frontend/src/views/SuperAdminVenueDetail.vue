@@ -2,6 +2,9 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { formatDuration } from '../utils/youtube.js'
+import { useTheme } from '../composables/useTheme.js'
+
+const { currentMode, toggleMode } = useTheme()
 
 const route = useRoute()
 const router = useRouter()
@@ -186,6 +189,7 @@ async function deleteVenue() {
           {{ detail.venue.active ? 'Activo' : 'Inactivo' }}
         </span>
       </div>
+      <button class="theme-toggle" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button>
     </header>
 
     <div class="vd-layout">
@@ -359,6 +363,7 @@ async function deleteVenue() {
 /* Header */
 .vd-header {
   padding: 12px 24px; background: var(--bg-card); border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
 }
 .vd-header-left { display: flex; align-items: center; gap: 12px; }
 .back-btn {
