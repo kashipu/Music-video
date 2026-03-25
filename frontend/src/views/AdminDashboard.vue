@@ -159,6 +159,14 @@ async function playNow(songId) {
   await fetch(`${API}/api/admin/queue/songs/${songId}/play-now`, { method: 'POST', headers: auth.adminHeaders() })
   await fetchQueue()
 }
+async function clearQueue() {
+  if (!confirm('Vaciar toda la cola?')) return
+  for (const song of queue.value) {
+    await fetch(`${API}/api/admin/queue/songs/${song.id}`, { method: 'DELETE', headers: auth.adminHeaders() })
+  }
+  await fetchQueue()
+}
+
 async function removeSong(songId) {
   await fetch(`${API}/api/admin/queue/songs/${songId}`, { method: 'DELETE', headers: auth.adminHeaders() })
   await fetchQueue()
@@ -194,6 +202,7 @@ async function addSong() {
 const addError = ref('')
 
 async function addFromLibrary(youtubeId) {
+  if (loading.value) return
   loading.value = true
   addError.value = ''
   try {
@@ -500,13 +509,13 @@ function logout() {
             <input v-model="ytSearch" class="input-field" placeholder="Buscar en YouTube..." @input="onYtSearch" @keydown.enter.prevent="doYtSearch" />
             <p v-if="ytSearching" class="search-status">Buscando...</p>
             <div class="library-list" v-if="ytResults.length">
-              <div v-for="r in ytResults" :key="r.youtube_id" class="lib-item" style="cursor:pointer;" @click="addFromLibrary(r.youtube_id)">
+              <div v-for="r in ytResults" :key="r.youtube_id" class="lib-item">
                 <img :src="r.thumbnail_url" class="lib-thumb" />
                 <div class="lib-info">
                   <p class="lib-title">{{ r.title }}</p>
                   <p class="lib-artist">{{ r.duration }}</p>
                 </div>
-                <button class="ctrl-add-sm" :disabled="loading">+</button>
+                <button class="ctrl-add-sm" :disabled="loading" @click.stop="addFromLibrary(r.youtube_id)">+</button>
               </div>
             </div>
           </div>
@@ -537,7 +546,10 @@ function logout() {
 
         <!-- Queue -->
         <div class="card">
-          <p class="section-title">COLA ({{ queue.length }})</p>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <p class="section-title">COLA ({{ queue.length }})</p>
+            <button v-if="queue.length" class="q-btn-label q-btn-remove" style="font-size:11px;" @click="clearQueue">Vaciar cola</button>
+          </div>
           <div class="q-list">
             <div v-for="(song, idx) in queue" :key="song.id" class="q-item"
               :class="{ 'q-dragging': dragIdx === idx, 'q-drop-above': dropIdx === idx && dropIdx < dragIdx, 'q-drop-below': dropIdx === idx && dropIdx > dragIdx }"
