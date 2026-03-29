@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
 import { useQueueStore } from '../stores/queue.js'
@@ -67,6 +67,31 @@ onEvent((event) => {
   }
 })
 
+// Verify session is still valid — if kicked, redirect to registro
+const API = import.meta.env.VITE_API_URL || ''
+async function checkSession() {
+  try {
+    const res = await fetch(`${API}/api/auth/session`, {
+      headers: auth.authHeaders(),
+    })
+    if (res.status === 401 || res.status === 404) {
+      auth.logout()
+      router.push({ name: 'registro', params: { venueSlug } })
+      return
+    }
+    if (res.ok) {
+      const data = await res.json()
+      // Session ended (kicked) — backend returns session: null
+      if (!data.session) {
+        auth.logout()
+        router.push({ name: 'registro', params: { venueSlug } })
+      }
+    }
+  } catch { /* network error, skip */ }
+}
+
+let sessionPoll = null
+
 onMounted(async () => {
   applyVenueTheme(auth.session?.config)
   await Promise.all([
@@ -74,7 +99,11 @@ onMounted(async () => {
     queueStore.fetchMySongs(),
     queueStore.fetchRemainingSlots(),
   ])
+  // Poll session every 10s to catch kicks even if WS event is missed
+  sessionPoll = setInterval(checkSession, 10000)
 })
+
+onUnmounted(() => { if (sessionPoll) clearInterval(sessionPoll) })
 
 function showToast(msg) {
   toast.value = msg

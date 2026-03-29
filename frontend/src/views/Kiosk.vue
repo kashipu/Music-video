@@ -108,14 +108,30 @@ async function syncNowPlaying() {
     if (fallbackSongs.value.length && started.value) playFallback()
   }
 
-  // 2. Sync playback status (pause/resume)
-  if (data.playback_status !== playbackStatus.value) {
-    playbackStatus.value = data.playback_status
-    applyPlaybackStatus(data.playback_status)
+  // 2. Sync playback status — always compare backend state vs actual player state
+  playbackStatus.value = data.playback_status
+  enforcePlaybackStatus()
+}
+
+// Compare desired playback status with actual YouTube player state and fix mismatches.
+// YT PlayerState: PLAYING=1, PAUSED=2, BUFFERING=3
+function enforcePlaybackStatus() {
+  if (!ytPlayer || typeof ytPlayer.getPlayerState !== 'function') return
+  const playerState = ytPlayer.getPlayerState()
+  if (playbackStatus.value === 'paused') {
+    // Should be paused but player is playing or buffering
+    if (playerState === 1 || playerState === 3) {
+      ytPlayer.pauseVideo()
+    }
+  } else {
+    // Should be playing but player is paused
+    if (playerState === 2) {
+      ytPlayer.playVideo()
+    }
   }
 }
 
-// Apply pause/resume to the YouTube player
+// Apply pause/resume to the YouTube player (for immediate WS events)
 function applyPlaybackStatus(status) {
   if (!ytPlayer) return
   if (status === 'paused') {
@@ -132,7 +148,7 @@ let pollInterval = null
 onMounted(async () => {
   await fetchNowPlaying()
   await fetchQueuePreview()
-  pollInterval = setInterval(syncNowPlaying, 15000)
+  pollInterval = setInterval(syncNowPlaying, 10000)
 })
 
 function startKiosk() {
