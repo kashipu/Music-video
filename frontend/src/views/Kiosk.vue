@@ -67,9 +67,7 @@ onEvent((event) => {
     fallbackActive.value = true
     playFallback()
   } else if (event.event === 'volume_changed') {
-    if (ytPlayer && ytPlayer.setVolume) {
-      ytPlayer.setVolume(event.data.volume)
-    }
+    applyVolume(event.data.volume)
   } else if (event.event === 'song_added' || event.event === 'song_removed' || event.event === 'queue_reordered') {
     fetchQueuePreview()
     // Safety net: if nothing is playing, a song_added might have started playback
@@ -117,6 +115,11 @@ async function syncNowPlaying() {
   // 2. Sync playback status — always compare backend state vs actual player state
   playbackStatus.value = data.playback_status
   enforcePlaybackStatus()
+
+  // 3. Sync volume
+  if (data.volume !== undefined) {
+    applyVolume(data.volume)
+  }
 }
 
 // Compare desired playback status with actual YouTube player state and fix mismatches.
@@ -145,6 +148,14 @@ function applyPlaybackStatus(status) {
   } else {
     if (typeof ytPlayer.playVideo === 'function') ytPlayer.playVideo()
   }
+}
+
+// Apply volume to the YouTube player
+function applyVolume(vol) {
+  if (!ytPlayer || typeof ytPlayer.setVolume !== 'function') return
+  ytPlayer.setVolume(vol)
+  if (typeof ytPlayer.unMute === 'function' && vol > 0) ytPlayer.unMute()
+  if (typeof ytPlayer.mute === 'function' && vol === 0) ytPlayer.mute()
 }
 
 // Periodic polling as safety net: every 15s, check if the player state

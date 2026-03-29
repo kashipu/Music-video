@@ -157,12 +157,12 @@ async function skipSong() {
   await fetchQueue()
 }
 async function pausePlayback() {
-  await fetch(`${API}/api/admin/playback/pause`, { method: 'POST', headers: auth.adminHeaders() })
   playbackStatus.value = 'paused'
+  fetch(`${API}/api/admin/playback/pause`, { method: 'POST', headers: auth.adminHeaders() })
 }
 async function resumePlayback() {
-  await fetch(`${API}/api/admin/playback/resume`, { method: 'POST', headers: auth.adminHeaders() })
   playbackStatus.value = 'playing'
+  fetch(`${API}/api/admin/playback/resume`, { method: 'POST', headers: auth.adminHeaders() })
 }
 
 // ===== VOLUME =====
@@ -184,14 +184,18 @@ async function toggleFallback() {
   })
 }
 
-async function changeVolume() {
+let volumeDebounce = null
+function changeVolume() {
   muted.value = false
-  await fetch(`${API}/api/admin/volume?volume=${volume.value}`, { method: 'POST', headers: auth.adminHeaders() })
+  if (volumeDebounce) clearTimeout(volumeDebounce)
+  volumeDebounce = setTimeout(() => {
+    fetch(`${API}/api/admin/volume?volume=${volume.value}`, { method: 'POST', headers: auth.adminHeaders() })
+  }, 150)
 }
-async function toggleMute() {
+function toggleMute() {
   if (muted.value) { muted.value = false; volume.value = volumeBeforeMute.value }
   else { volumeBeforeMute.value = volume.value; muted.value = true; volume.value = 0 }
-  await fetch(`${API}/api/admin/volume?volume=${volume.value}`, { method: 'POST', headers: auth.adminHeaders() })
+  fetch(`${API}/api/admin/volume?volume=${volume.value}`, { method: 'POST', headers: auth.adminHeaders() })
 }
 
 // ===== QUEUE ACTIONS =====

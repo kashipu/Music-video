@@ -542,8 +542,18 @@ async def set_volume(
     admin: dict = Depends(get_current_admin),
     volume: int = Query(..., ge=0, le=100),
 ):
-    """Set volume and broadcast to kiosk."""
+    """Set volume, persist in config, and broadcast to kiosk."""
     venue_id = admin["venue_id"]
+    db = await get_db()
+    import json
+    rows = await db.execute_fetchall("SELECT config FROM venues WHERE id = ?", (venue_id,))
+    config = {}
+    if rows and rows[0][0]:
+        try: config = json.loads(rows[0][0])
+        except: pass
+    config["volume"] = volume
+    await db.execute("UPDATE venues SET config = ? WHERE id = ?", (json.dumps(config), venue_id))
+    await db.commit()
     await manager.broadcast(venue_id, {
         "event": "volume_changed",
         "data": {"volume": volume},

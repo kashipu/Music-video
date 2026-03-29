@@ -36,6 +36,7 @@ async def get_now_playing(venue_id: int) -> dict:
         "SELECT config FROM venues WHERE id = ?", (venue_id,)
     )
     playback_status = "playing"
+    volume = 80
     fallback_active = song is None
     fallback_mode = "playlist"
     fallback_playlist = []
@@ -44,6 +45,7 @@ async def get_now_playing(venue_id: int) -> dict:
         try:
             config = json.loads(venue_rows[0][0])
             playback_status = config.get("playback_status", "playing")
+            volume = config.get("volume", 80)
         except (json.JSONDecodeError, TypeError):
             pass
 
@@ -54,6 +56,7 @@ async def get_now_playing(venue_id: int) -> dict:
     result = {
         "song": song,
         "playback_status": playback_status,
+        "volume": volume,
         "fallback_active": fallback_active,
         "next_in_queue": next_song,
     }
