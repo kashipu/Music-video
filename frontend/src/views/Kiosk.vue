@@ -266,31 +266,53 @@ async function onPlayerStateChange(event) {
     if (playingFallback.value) {
       nextFallback()
     } else {
-      // User song ended, notify backend
+      // User song ended — notify backend to advance queue
       const songId = song.value.id
-      song.value = null
       let adminToken = null
       try { adminToken = localStorage.getItem('bq_admin_token') } catch { /* */ }
       const hdrs = { 'Content-Type': 'application/json' }
       if (adminToken) hdrs['Authorization'] = `Bearer ${adminToken}`
-      await fetch(`${API}/api/playback/finished`, {
-        method: 'POST',
-        headers: hdrs,
-        body: JSON.stringify({ song_id: songId, venue_slug: venueSlug }),
-      })
-      // If backend didn't send next song via WS, check after a short delay
-      setTimeout(() => {
-        if (!song.value && !playingFallback.value && fallbackSongs.value.length && !fallbackPaused.value) {
-          playFallback()
+
+      try {
+        const res = await fetch(`${API}/api/playback/finished`, {
+          method: 'POST',
+          headers: hdrs,
+          body: JSON.stringify({ song_id: songId, venue_slug: venueSlug }),
+        })
+        if (res.ok) {
+          const data = await res.json()
+          if (data.next_song) {
+            // Backend returned next song — load it directly without waiting for WS
+            song.value = data.next_song
+            fallbackActive.value = false
+            playingFallback.value = false
+            loadVideo(data.next_song.youtube_id)
+            triggerOverlay()
+            fetchQueuePreview()
+            return
+          }
         }
-      }, 2000)
+      } catch {
+        // Network error — fall through to sync
+      }
+
+      // No next song or fetch failed — sync from backend after short delay
+      song.value = null
+      fallbackActive.value = true
+      setTimeout(async () => {
+        if (!song.value && !playingFallback.value) {
+          await syncNowPlaying()
+          // If still nothing after sync, try fallback
+          if (!song.value && !playingFallback.value && fallbackSongs.value.length && !fallbackPaused.value) {
+            playFallback()
+          }
+        }
+      }, 1000)
     }
   }
   // Detect silence: player stopped/unstarted with nothing queued
   if ((event.data === -1 || event.data === 5) && !song.value && !playingFallback.value) {
-    if (fallbackSongs.value.length && !fallbackPaused.value) {
-      playFallback()
-    }
+    syncNowPlaying()
   }
 }
 
