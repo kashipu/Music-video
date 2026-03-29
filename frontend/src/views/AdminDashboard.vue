@@ -1104,7 +1104,7 @@ function logout() {
   .sidebar {
     display: none; position: fixed; top: 0; left: 0; bottom: 0;
     width: 320px; max-width: 85vw; z-index: 100;
-    background: var(--bg); padding: 16px; padding-top: 56px;
+    background: var(--bg); padding: 16px; padding-top: 56px; padding-bottom: 200px;
     overflow-y: auto; max-height: 100vh;
     box-shadow: 4px 0 20px rgba(0,0,0,0.3);
   }
