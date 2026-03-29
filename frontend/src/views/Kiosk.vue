@@ -47,9 +47,7 @@ onEvent((event) => {
     fetchQueuePreview()
   } else if (event.event === 'playback_status_changed') {
     playbackStatus.value = event.data.status
-    if (ytPlayer) {
-      event.data.status === 'paused' ? ytPlayer.pauseVideo() : ytPlayer.playVideo()
-    }
+    applyPlaybackStatus(event.data.status)
   } else if (event.event === 'fallback_status_changed') {
     fallbackPaused.value = event.data.paused
     if (playingFallback.value) {
@@ -82,19 +80,21 @@ onEvent((event) => {
   }
 })
 
-// Fetch now_playing from the API and sync the player if state changed
+// Fetch now_playing from the API and sync the player to match backend state.
+// This is the single source of truth — handles song changes, pause/resume,
+// and fallback transitions.
 async function syncNowPlaying() {
   const res = await fetch(`${API}/api/playback/now-playing?venue=${venueSlug}`)
   if (!res.ok) return
   const data = await res.json()
-  playbackStatus.value = data.playback_status
   if (data.fallback_songs) fallbackSongs.value = data.fallback_songs
 
+  // 1. Sync song state
   if (data.song) {
-    // A song should be playing
     const currentYtId = song.value?.youtube_id
-    if (currentYtId !== data.song.youtube_id || playingFallback.value) {
-      // Different song or we were on fallback — switch to it
+    const playerIdle = ytPlayer && typeof ytPlayer.getPlayerState === 'function'
+      && (ytPlayer.getPlayerState() === -1 || ytPlayer.getPlayerState() === 5)
+    if (currentYtId !== data.song.youtube_id || playingFallback.value || playerIdle) {
       song.value = data.song
       fallbackActive.value = false
       playingFallback.value = false
@@ -102,11 +102,26 @@ async function syncNowPlaying() {
       triggerOverlay()
     }
   } else if (!data.song && song.value && !playingFallback.value) {
-    // Backend says nothing playing but we think something is — go to fallback
     song.value = null
     fallbackActive.value = true
     playingFallback.value = false
     if (fallbackSongs.value.length && started.value) playFallback()
+  }
+
+  // 2. Sync playback status (pause/resume)
+  if (data.playback_status !== playbackStatus.value) {
+    playbackStatus.value = data.playback_status
+    applyPlaybackStatus(data.playback_status)
+  }
+}
+
+// Apply pause/resume to the YouTube player
+function applyPlaybackStatus(status) {
+  if (!ytPlayer) return
+  if (status === 'paused') {
+    if (typeof ytPlayer.pauseVideo === 'function') ytPlayer.pauseVideo()
+  } else {
+    if (typeof ytPlayer.playVideo === 'function') ytPlayer.playVideo()
   }
 }
 
@@ -220,11 +235,8 @@ function initPlayer() {
     },
     events: {
       onReady: () => {
-        if (song.value) {
-          loadVideo(song.value.youtube_id)
-        } else if (fallbackSongs.value.length && !fallbackPaused.value) {
-          playFallback()
-        }
+        // Sync full state from backend now that player is ready
+        syncNowPlaying()
       },
       onStateChange: onPlayerStateChange,
     },
@@ -232,13 +244,24 @@ function initPlayer() {
 }
 
 function loadVideo(videoId) {
-  if (ytPlayer && ytPlayer.loadVideoById) {
+  if (!ytPlayer || !ytPlayer.loadVideoById) return
+  if (playbackStatus.value === 'paused') {
+    // Load but don't play — cueVideoById loads without autoplay
+    ytPlayer.cueVideoById(videoId)
+  } else {
     ytPlayer.loadVideoById(videoId)
   }
 }
 
 async function onPlayerStateChange(event) {
-  // YT.PlayerState: ENDED=0, UNSTARTED=-1, PAUSED=2
+  // YT.PlayerState: ENDED=0, PLAYING=1, PAUSED=2, BUFFERING=3, CUED=5, UNSTARTED=-1
+
+  // If video started playing but we're supposed to be paused, pause it
+  if (event.data === 1 && playbackStatus.value === 'paused') {
+    ytPlayer.pauseVideo()
+    return
+  }
+
   if (event.data === 0 && song.value) {
     if (playingFallback.value) {
       nextFallback()
