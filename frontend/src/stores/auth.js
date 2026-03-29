@@ -38,15 +38,21 @@ export const useAuthStore = defineStore('auth', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         phone,
-        table_number: tableNumber,
+        table_number: String(tableNumber),
         venue_slug: venueSlug,
         data_consent: dataConsent,
         display_name: displayName || null,
       }),
     })
     if (!res.ok) {
-      const err = await res.json()
-      throw new Error(err.detail || 'Registration failed')
+      let msg = 'Registration failed'
+      try {
+        const err = await res.json()
+        msg = typeof err.detail === 'string' ? err.detail
+            : Array.isArray(err.detail) ? err.detail.map(e => e.msg || e).join(', ')
+            : JSON.stringify(err.detail)
+      } catch { /* non-JSON response */ }
+      throw new Error(msg)
     }
     const data = await res.json()
     token.value = data.token
@@ -67,8 +73,14 @@ export const useAuthStore = defineStore('auth', () => {
       body: JSON.stringify(body),
     })
     if (!res.ok) {
-      const err = await res.json()
-      throw new Error(err.detail || 'Login failed')
+      let msg = 'Login failed'
+      try {
+        const err = await res.json()
+        msg = typeof err.detail === 'string' ? err.detail
+            : Array.isArray(err.detail) ? err.detail.map(e => e.msg || e).join(', ')
+            : JSON.stringify(err.detail)
+      } catch { /* non-JSON response */ }
+      throw new Error(msg)
     }
     const data = await res.json()
     adminToken.value = data.token

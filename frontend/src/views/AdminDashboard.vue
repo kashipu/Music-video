@@ -1045,15 +1045,24 @@ function logout() {
   .sidebar { position: static; max-height: none; }
   .tables-list { max-height: none; }
   .np-card { flex-direction: column; align-items: stretch; }
+  .np-left { flex-direction: column; gap: 8px; }
+  .np-thumb { width: 100%; height: auto; max-height: 200px; }
   .np-controls { justify-content: center; flex-wrap: wrap; }
+  .ctrl-labeled { flex: 1; min-width: 0; }
   .stats-bar { flex-wrap: wrap; }
+  .stat-pill { font-size: 12px; padding: 5px 10px; }
   .volume-row { flex-wrap: wrap; }
-  .q-item { flex-wrap: wrap; gap: 8px; padding: 10px 8px; }
+  .volume-slider { width: 100%; order: 3; }
+  .q-item { padding: 10px 8px; }
+  .q-handle { display: none; }
+  .q-pos { display: none; }
+  .q-thumb { width: 40px; height: 30px; }
   .q-btn-label { font-size: 10px; padding: 3px 8px; }
   .fb-header { flex-direction: column; align-items: flex-start; gap: 8px; }
   .fb-btns { width: 100%; }
   .fb-toggle { flex: 1; text-align: center; }
   .add-row { flex-wrap: wrap; }
+  .add-row .input-field { width: 100%; }
   .admin-header { padding: 10px 12px; }
   .admin-header h1 { font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .header-brand { min-width: 0; flex: 1; }
@@ -1069,13 +1078,25 @@ function logout() {
   .td-header { flex-direction: column; }
   .td-actions { width: 100%; }
   .td-actions .t-btn { flex: 1; text-align: center; }
+  .lib-item { gap: 8px; }
+  .lib-thumb { width: 40px; height: 30px; }
+  .ctrl-add { width: 36px; min-width: 36px; height: 36px; font-size: 18px; }
+  .ctrl-add-sm { width: 28px; height: 28px; min-width: 28px; font-size: 16px; }
 }
 
 @media (max-width: 480px) {
   .admin-layout { padding: 8px; gap: 8px; }
+  .q-item { gap: 6px; }
+  .q-info { font-size: 12px; }
+  .q-title { font-size: 12px; }
+  .q-meta { font-size: 10px; }
+  .q-btn-label { font-size: 9px; padding: 2px 6px; }
   .td-row { flex-direction: column; align-items: flex-start; gap: 4px; }
   .td-count { align-self: flex-end; }
   .song-pill { max-width: 120px; }
+  .an-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .an-val { font-size: 20px; }
+  .section-title { font-size: 11px; }
 }
 
 </style>
