@@ -779,18 +779,20 @@ function logout() {
 .qr-btn:hover { border-color: var(--primary); color: var(--primary); }
 
 /* Tables in sidebar */
-.tables-list { display: flex; flex-direction: column; gap: 8px; }
+.tables-list { display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto; }
 .table-item {
   padding: 8px; background: var(--bg-elevated);
   border-radius: 8px; border: 1px solid var(--border);
+  min-width: 0;
 }
-.table-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-.table-num { font-weight: 700; font-size: 13px; }
-.table-user { font-size: 11px; color: var(--text-muted); }
-.table-songs-mini { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+.table-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 8px; min-width: 0; }
+.table-num { font-weight: 700; font-size: 13px; white-space: nowrap; flex-shrink: 0; }
+.table-user { font-size: 11px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.table-songs-mini { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; max-height: 52px; overflow: hidden; }
 .song-pill {
   font-size: 10px; padding: 1px 6px; border-radius: 4px;
   background: var(--bg-card); border: 1px solid var(--border);
+  max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .song-pill.playing { border-color: var(--success); color: var(--success); }
 .song-pill.pending { border-color: var(--warning); color: var(--warning); }
@@ -980,10 +982,11 @@ function logout() {
 /* Tables Tab */
 .table-detail-card { transition: border-color 0.15s; }
 .table-detail-card:hover { border-color: var(--primary); }
-.td-row { display: flex; justify-content: space-between; align-items: center; }
-.td-num { font-weight: 700; font-size: 15px; margin-right: 8px; }
-.td-user { font-size: 12px; color: var(--text-muted); }
-.td-count { font-size: 13px; color: var(--primary); font-weight: 600; }
+.td-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-width: 0; }
+.td-row > div { min-width: 0; flex: 1; }
+.td-num { font-weight: 700; font-size: 15px; margin-right: 8px; white-space: nowrap; }
+.td-user { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.td-count { font-size: 13px; color: var(--primary); font-weight: 600; white-space: nowrap; flex-shrink: 0; }
 .back-btn {
   padding: 6px 12px; border-radius: 6px; background: var(--bg-card);
   border: 1px solid var(--border); color: var(--text-muted);
@@ -1040,6 +1043,7 @@ function logout() {
 @media (max-width: 900px) {
   .admin-layout { grid-template-columns: 1fr; padding: 12px; gap: 12px; }
   .sidebar { position: static; max-height: none; }
+  .tables-list { max-height: none; }
   .np-card { flex-direction: column; align-items: stretch; }
   .np-controls { justify-content: center; flex-wrap: wrap; }
   .stats-bar { flex-wrap: wrap; }
@@ -1051,7 +1055,8 @@ function logout() {
   .fb-toggle { flex: 1; text-align: center; }
   .add-row { flex-wrap: wrap; }
   .admin-header { padding: 10px 12px; }
-  .admin-header h1 { font-size: 16px; }
+  .admin-header h1 { font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .header-brand { min-width: 0; flex: 1; }
   .info-stats { gap: 12px; }
   .info-val { font-size: 22px; }
   .quick-actions { gap: 4px; }
@@ -1059,9 +1064,18 @@ function logout() {
   .qr-img { width: 150px; height: 150px; }
   .table-item { padding: 6px; }
   .table-btns { flex-wrap: wrap; }
+  .table-songs-mini { max-height: none; }
   .an-grid { grid-template-columns: repeat(2, 1fr); }
   .td-header { flex-direction: column; }
   .td-actions { width: 100%; }
+  .td-actions .t-btn { flex: 1; text-align: center; }
+}
+
+@media (max-width: 480px) {
+  .admin-layout { padding: 8px; gap: 8px; }
+  .td-row { flex-direction: column; align-items: flex-start; gap: 4px; }
+  .td-count { align-self: flex-end; }
+  .song-pill { max-width: 120px; }
 }
 
 </style>

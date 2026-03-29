@@ -247,7 +247,7 @@ async function cancelSong(songId) {
   white-space: nowrap; flex-shrink: 0;
 }
 .header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.user-name { font-size: 13px; color: var(--text-muted); }
+.user-name { font-size: 13px; color: var(--text-muted); max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .logout-btn {
   padding: 5px 12px; border-radius: 8px;
   background: transparent; border: 1px solid var(--border);

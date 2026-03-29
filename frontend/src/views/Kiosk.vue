@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useWebSocket } from '../composables/useWebSocket.js'
 
@@ -25,7 +25,7 @@ const { onEvent, onReconnect } = useWebSocket(venueSlug)
 
 // On reconnect, re-fetch current state since events were missed
 onReconnect(() => {
-  fetchNowPlaying()
+  syncNowPlaying()
   fetchQueuePreview()
 })
 
@@ -74,12 +74,50 @@ onEvent((event) => {
     }
   } else if (event.event === 'song_added' || event.event === 'song_removed' || event.event === 'queue_reordered') {
     fetchQueuePreview()
+    // Safety net: if nothing is playing, a song_added might have started playback
+    // but the now_playing_changed event could have been lost
+    if (event.event === 'song_added' && !song.value && !playingFallback.value) {
+      setTimeout(syncNowPlaying, 500)
+    }
   }
 })
+
+// Fetch now_playing from the API and sync the player if state changed
+async function syncNowPlaying() {
+  const res = await fetch(`${API}/api/playback/now-playing?venue=${venueSlug}`)
+  if (!res.ok) return
+  const data = await res.json()
+  playbackStatus.value = data.playback_status
+  if (data.fallback_songs) fallbackSongs.value = data.fallback_songs
+
+  if (data.song) {
+    // A song should be playing
+    const currentYtId = song.value?.youtube_id
+    if (currentYtId !== data.song.youtube_id || playingFallback.value) {
+      // Different song or we were on fallback — switch to it
+      song.value = data.song
+      fallbackActive.value = false
+      playingFallback.value = false
+      if (started.value) loadVideo(data.song.youtube_id)
+      triggerOverlay()
+    }
+  } else if (!data.song && song.value && !playingFallback.value) {
+    // Backend says nothing playing but we think something is — go to fallback
+    song.value = null
+    fallbackActive.value = true
+    playingFallback.value = false
+    if (fallbackSongs.value.length && started.value) playFallback()
+  }
+}
+
+// Periodic polling as safety net: every 15s, check if the player state
+// matches the backend. Catches any missed WS events.
+let pollInterval = null
 
 onMounted(async () => {
   await fetchNowPlaying()
   await fetchQueuePreview()
+  pollInterval = setInterval(syncNowPlaying, 15000)
 })
 
 function startKiosk() {
@@ -208,7 +246,8 @@ async function onPlayerStateChange(event) {
       // User song ended, notify backend
       const songId = song.value.id
       song.value = null
-      const adminToken = localStorage.getItem('bq_admin_token')
+      let adminToken = null
+      try { adminToken = localStorage.getItem('bq_admin_token') } catch { /* */ }
       const hdrs = { 'Content-Type': 'application/json' }
       if (adminToken) hdrs['Authorization'] = `Bearer ${adminToken}`
       await fetch(`${API}/api/playback/finished`, {
@@ -231,6 +270,10 @@ async function onPlayerStateChange(event) {
     }
   }
 }
+
+onUnmounted(() => {
+  if (pollInterval) clearInterval(pollInterval)
+})
 </script>
 
 <template>
