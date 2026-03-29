@@ -11,7 +11,6 @@ const router = useRouter()
 const auth = useAuthStore()
 
 const venueSlug = route.params.venueSlug
-const tableNumber = ref(route.query.mesa || '')
 const phone = ref('')
 const displayName = ref('')
 const dataConsent = ref(false)
@@ -30,17 +29,13 @@ async function handleRegister() {
     error.value = 'Ingresa tu numero de celular'
     return
   }
-  if (!tableNumber.value.toString().trim()) {
-    error.value = 'Ingresa el numero de mesa'
-    return
-  }
   if (!dataConsent.value) {
     error.value = 'Debes aceptar el uso de datos para continuar'
     return
   }
   loading.value = true
   try {
-    await auth.register(phone.value, tableNumber.value, venueSlug, dataConsent.value, displayName.value)
+    await auth.register(phone.value, null, venueSlug, dataConsent.value, displayName.value)
     router.push({ name: 'usuario', params: { venueSlug } })
   } catch (e) {
     error.value = e.message
@@ -69,19 +64,6 @@ async function handleRegister() {
             class="input-field"
             placeholder="+57 300 123 4567"
             inputmode="tel"
-          />
-        </div>
-
-        <div class="form-group">
-          <label>Numero de mesa</label>
-          <input
-            v-model="tableNumber"
-            type="number"
-            class="input-field"
-            placeholder="Ej: 1, 2, 3..."
-            inputmode="numeric"
-            pattern="[0-9]*"
-            min="1"
           />
         </div>
 

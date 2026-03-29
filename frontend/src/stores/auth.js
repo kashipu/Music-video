@@ -38,7 +38,7 @@ export const useAuthStore = defineStore('auth', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         phone,
-        table_number: String(tableNumber),
+        table_number: tableNumber || null,
         venue_slug: venueSlug,
         data_consent: dataConsent,
         display_name: displayName || null,

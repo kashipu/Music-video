@@ -168,7 +168,7 @@ async function cancelSong(songId) {
     <header class="dash-header">
       <div class="header-left">
         <span class="venue-name">{{ auth.session?.venue_name || venueSlug.replace(/-/g, ' ') }}</span>
-        <span class="table-badge">Mesa {{ auth.session?.table_number }}</span>
+        <span class="table-badge">#{{ auth.session?.table_number }}</span>
       </div>
       <div class="header-right">
         <button class="theme-toggle" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button>
@@ -187,7 +187,7 @@ async function cancelSong(songId) {
           <p class="np-label" v-else>SONANDO AHORA</p>
           <p class="np-title">{{ queueStore.nowPlaying.title }}</p>
           <p class="np-meta">
-            {{ queueStore.nowPlaying.added_by }} &middot; Mesa {{ queueStore.nowPlaying.table_number }}
+            {{ queueStore.nowPlaying.added_by }}
           </p>
         </div>
         <div v-if="isMyNowPlaying" class="np-pulse"></div>
@@ -242,7 +242,7 @@ async function cancelSong(songId) {
           <img :src="song.thumbnail_url || `https://i.ytimg.com/vi/${song.youtube_id}/mqdefault.jpg`" class="q-thumb" />
           <div class="q-info">
             <p class="q-title">{{ song.title }}</p>
-            <p class="q-meta">{{ song.added_by }} &middot; Mesa {{ song.table_number }}</p>
+            <p class="q-meta">{{ song.added_by }}</p>
           </div>
         </div>
         <p v-if="queueStore.totalInQueue > 3" class="more-text">y {{ queueStore.totalInQueue - 3 }} mas...</p>

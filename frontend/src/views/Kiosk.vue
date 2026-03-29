@@ -101,11 +101,17 @@ async function syncNowPlaying() {
       if (started.value) loadVideo(data.song.youtube_id)
       triggerOverlay()
     }
-  } else if (!data.song && song.value && !playingFallback.value) {
-    song.value = null
+  } else if (!data.song) {
+    // No song playing on backend
+    if (song.value && !playingFallback.value) {
+      // We thought a user song was playing — clear it
+      song.value = null
+    }
     fallbackActive.value = true
-    playingFallback.value = false
-    if (fallbackSongs.value.length && started.value) playFallback()
+    // Start fallback if not already playing and songs available
+    if (!playingFallback.value && fallbackSongs.value.length && started.value && !fallbackPaused.value) {
+      playFallback()
+    }
   }
 
   // 2. Sync playback status — always compare backend state vs actual player state

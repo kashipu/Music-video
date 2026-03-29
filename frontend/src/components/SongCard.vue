@@ -14,7 +14,7 @@ defineProps({
       <p class="title">{{ song.title }}</p>
       <p class="meta">
         <span v-if="song.added_by">{{ song.added_by }}</span>
-        <span v-if="song.table_number"> &middot; Mesa {{ song.table_number }}</span>
+        <span v-if="song.table_number"> &middot; #{{ song.table_number }}</span>
         <span v-if="song.duration_sec"> &middot; {{ formatDuration(song.duration_sec) }}</span>
       </p>
     </div>

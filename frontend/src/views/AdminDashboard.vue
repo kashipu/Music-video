@@ -390,7 +390,7 @@ function logout() {
           <div class="info-stats">
             <div class="info-stat">
               <span class="info-val">{{ tables.length }}</span>
-              <span class="info-label">Mesas activas</span>
+              <span class="info-label">Usuarios activos</span>
             </div>
             <div class="info-stat">
               <span class="info-val">{{ queue.length }}</span>
@@ -435,7 +435,7 @@ function logout() {
           <div v-if="tables.length" class="tables-list">
             <div v-for="table in tables" :key="table.table_number" class="table-item">
               <div class="table-top">
-                <span class="table-num">Mesa {{ table.table_number }}</span>
+                <span class="table-num">#{{ table.table_number }}</span>
                 <span class="table-user">{{ table.user_name }}</span>
               </div>
               <div class="table-songs-mini">
@@ -501,7 +501,7 @@ function logout() {
             <div class="np-info">
               <p class="section-title">SONANDO AHORA</p>
               <p class="np-title">{{ nowPlaying.title }}</p>
-              <p class="np-meta">{{ nowPlaying.user_name }} &middot; Mesa {{ nowPlaying.table_number }}</p>
+              <p class="np-meta">{{ nowPlaying.user_name }} &middot; #{{ nowPlaying.table_number }}</p>
             </div>
           </div>
           <div class="np-controls">
@@ -602,7 +602,7 @@ function logout() {
               <img :src="`https://i.ytimg.com/vi/${song.youtube_id}/mqdefault.jpg`" class="q-thumb" />
               <div class="q-info">
                 <p class="q-title">{{ song.title }}</p>
-                <p class="q-meta">{{ song.user_name }} &middot; Mesa {{ song.table_number }} &middot; {{ formatDuration(song.duration_sec) }}</p>
+                <p class="q-meta">{{ song.user_name }} &middot; #{{ song.table_number }} &middot; {{ formatDuration(song.duration_sec) }}</p>
               </div>
               <button class="q-btn-label q-btn-play" @click="playNow(song.id)">&#9654; Play</button>
               <button class="q-btn-label q-btn-remove" @click="removeSong(song.id)">&#10005; Quitar</button>
@@ -663,7 +663,7 @@ function logout() {
             <div v-for="table in tables" :key="table.table_number" class="card table-detail-card" @click="selectedTable = table" style="cursor:pointer;">
               <div class="td-row">
                 <div>
-                  <span class="td-num">Mesa {{ table.table_number }}</span>
+                  <span class="td-num">#{{ table.table_number }}</span>
                   <span class="td-user">{{ table.user_name }} ({{ table.user_phone }})</span>
                 </div>
                 <span class="td-count">{{ table.songs.length }} canciones</span>
@@ -677,7 +677,7 @@ function logout() {
             <div class="card" style="margin-top:10px;">
               <div class="td-header">
                 <div>
-                  <h3>Mesa {{ selectedTable.table_number }}</h3>
+                  <h3>Usuario #{{ selectedTable.table_number }}</h3>
                   <p class="td-user-detail">{{ selectedTable.user_name }} &middot; {{ selectedTable.user_phone }}</p>
                 </div>
                 <div class="td-actions">
@@ -732,7 +732,7 @@ function logout() {
               <p class="section-title">MESAS MAS ACTIVAS</p>
               <div v-for="t in analytics.top_tables" :key="t.table_number" class="an-song">
                 <span class="an-pos">{{ t.table_number }}</span>
-                <span class="an-title">Mesa {{ t.table_number }}</span>
+                <span class="an-title">#{{ t.table_number }}</span>
                 <span class="an-count">{{ t.total_songs }} canciones</span>
               </div>
             </div>

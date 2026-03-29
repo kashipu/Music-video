@@ -6,7 +6,7 @@ from datetime import datetime
 
 class RegisterRequest(BaseModel):
     phone: str = Field(..., min_length=8, max_length=20)
-    table_number: str
+    table_number: str | None = None
     venue_slug: str
     data_consent: bool
     display_name: str | None = None

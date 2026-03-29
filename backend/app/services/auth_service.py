@@ -8,7 +8,7 @@ from app.config import settings
 from app.database import get_db
 
 
-async def register_user(phone: str, table_number: str, venue_slug: str,
+async def register_user(phone: str, table_number: str | None, venue_slug: str,
                         data_consent: bool, display_name: str | None = None) -> dict:
     db = await get_db()
 
@@ -23,6 +23,10 @@ async def register_user(phone: str, table_number: str, venue_slug: str,
     venue_id = row[0][0]
     venue_name = row[0][1]
     venue_config = row[0][2]
+
+    # Auto-generate a short unique ID if no table_number provided
+    if not table_number:
+        table_number = uuid.uuid4().hex[:6].upper()
 
     existing = await db.execute_fetchall(
         "SELECT id, display_name FROM users WHERE phone = ?", (phone,)
