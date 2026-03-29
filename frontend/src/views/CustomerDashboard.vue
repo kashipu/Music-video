@@ -61,16 +61,21 @@ onEvent((event) => {
   if (event.event === 'now_playing_changed') {
     mySongPlaying.value = false
   }
+  if (event.event === 'rate_limit_reset') {
+    queueStore.fetchRemainingSlots()
+    showToast('Tu limite fue reseteado. Puedes pedir mas canciones!')
+  }
   if (event.event === 'session_kicked') {
     auth.logout()
     router.push({ name: 'registro', params: { venueSlug } })
   }
 })
 
-// Verify session is still valid — if kicked, redirect to registro
+// Full sync: verify session + refresh queue, songs, rate limits
 const API = import.meta.env.VITE_API_URL || ''
-async function checkSession() {
+async function syncAll() {
   try {
+    // Check session is still valid
     const res = await fetch(`${API}/api/auth/session`, {
       headers: auth.authHeaders(),
     })
@@ -81,16 +86,21 @@ async function checkSession() {
     }
     if (res.ok) {
       const data = await res.json()
-      // Session ended (kicked) — backend returns session: null
       if (!data.session) {
         auth.logout()
         router.push({ name: 'registro', params: { venueSlug } })
+        return
       }
     }
   } catch { /* network error, skip */ }
+
+  // Refresh data in case WS events were missed
+  queueStore.fetchQueue(venueSlug)
+  queueStore.fetchMySongs()
+  queueStore.fetchRemainingSlots()
 }
 
-let sessionPoll = null
+let syncPoll = null
 
 onMounted(async () => {
   applyVenueTheme(auth.session?.config)
@@ -99,11 +109,11 @@ onMounted(async () => {
     queueStore.fetchMySongs(),
     queueStore.fetchRemainingSlots(),
   ])
-  // Poll session every 10s to catch kicks even if WS event is missed
-  sessionPoll = setInterval(checkSession, 10000)
+  // Full sync every 10s — catches any missed WS events
+  syncPoll = setInterval(syncAll, 10000)
 })
 
-onUnmounted(() => { if (sessionPoll) clearInterval(sessionPoll) })
+onUnmounted(() => { if (syncPoll) clearInterval(syncPoll) })
 
 function showToast(msg) {
   toast.value = msg

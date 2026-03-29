@@ -648,4 +648,13 @@ async def reset_table_limit(table_number: str, admin: dict = Depends(get_current
         )
 
     await db.commit()
-    return {"message": f"Limite de Mesa {table_number} reseteado"}
+
+    # Notify affected users so their UI updates immediately
+    for session in sessions:
+        user_id = session[0]
+        await manager.send_to_user(venue_id, user_id, {
+            "event": "rate_limit_reset",
+            "data": {"message": "Tu limite fue reseteado"},
+        })
+
+    return {"message": f"Limite de {table_number} reseteado"}
