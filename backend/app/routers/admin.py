@@ -543,6 +543,7 @@ async def get_tables(admin: dict = Depends(get_current_admin)):
         "FROM user_sessions us "
         "JOIN users u ON us.user_id = u.id "
         "LEFT JOIN queue_songs qs ON qs.session_id = us.id "
+        "AND qs.status IN ('pending', 'playing', 'played') "
         "WHERE us.venue_id = ? AND us.ended_at IS NULL "
         "AND us.table_number != 'admin' "
         "ORDER BY us.table_number, qs.added_at DESC",

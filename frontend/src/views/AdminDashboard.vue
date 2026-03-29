@@ -15,6 +15,13 @@ const API = import.meta.env.VITE_API_URL || ''
 const venueSlug = route.params.venueSlug || auth.adminInfo?.venue_slug || 'default'
 
 // State
+const adminToast = ref('')
+let toastTimer = null
+function showAdminToast(msg) {
+  adminToast.value = msg
+  if (toastTimer) clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => { adminToast.value = '' }, 3000)
+}
 const nowPlaying = ref(null)
 const queue = ref([])
 const played = ref([])
@@ -114,7 +121,14 @@ async function fetchPlayed() {
 
 async function fetchTables() {
   const res = await fetch(`${API}/api/admin/tables`, { headers: auth.adminHeaders() })
-  if (res.ok) { const data = await res.json(); tables.value = data.tables }
+  if (!res.ok) return
+  const data = await res.json()
+  tables.value = data.tables
+  // Keep selectedTable in sync with fresh data
+  if (selectedTable.value) {
+    const updated = data.tables.find(t => t.table_number === selectedTable.value.table_number)
+    selectedTable.value = updated || null
+  }
 }
 
 async function fetchAnalytics() {
@@ -278,10 +292,12 @@ function onDragEnd() { dragIdx.value = null; dropIdx.value = null }
 async function kickTable(tableNumber) {
   await fetch(`${API}/api/admin/tables/${tableNumber}/kick`, { method: 'POST', headers: auth.adminHeaders() })
   await fetchTables()
+  showAdminToast(`Usuario #${tableNumber} expulsado`)
 }
 async function resetTableLimit(tableNumber) {
   await fetch(`${API}/api/admin/tables/${tableNumber}/reset-limit`, { method: 'POST', headers: auth.adminHeaders() })
   await fetchTables()
+  showAdminToast(`Limite de #${tableNumber} reseteado`)
 }
 
 function onYtSearch() {
@@ -360,6 +376,11 @@ function logout() {
 
 <template>
   <div class="admin">
+    <!-- Toast -->
+    <Transition name="fade">
+      <div v-if="adminToast" class="toast">{{ adminToast }}</div>
+    </Transition>
+
     <!-- HEADER -->
     <header class="admin-header">
       <div class="header-brand">

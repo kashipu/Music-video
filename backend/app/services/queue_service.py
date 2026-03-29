@@ -22,10 +22,13 @@ async def get_rate_limit_info(user_id: int, venue_id: int) -> dict:
         (user_id, venue_id, f"-{settings.window_minutes} minutes"),
     )
 
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     if oldest_rows and oldest_rows[0][0]:
         try:
             oldest_dt = datetime.fromisoformat(oldest_rows[0][0])
+            # SQLite datetime('now') stores UTC without timezone info
+            if oldest_dt.tzinfo is None:
+                oldest_dt = oldest_dt.replace(tzinfo=timezone.utc)
         except (ValueError, TypeError):
             oldest_dt = now
         resets_at = oldest_dt + timedelta(minutes=settings.window_minutes)

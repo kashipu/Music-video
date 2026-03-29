@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"
 
     max_songs_per_window: int = 5
-    window_minutes: int = 30
+    window_minutes: int = 20
 
     jwt_expiration_hours: int = 24
     jwt_admin_expiration_hours: int = 8
