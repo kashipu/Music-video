@@ -20,7 +20,8 @@ const preview = ref(null)
 const toast = ref('')
 const toastTimeout = ref(null)
 const mySongPlaying = ref(false)
-const notificationPermission = ref(Notification?.permission || 'default')
+const supportsNotifications = 'Notification' in window && typeof Notification.requestPermission === 'function'
+const notificationPermission = ref(supportsNotifications ? Notification.permission : 'denied')
 
 const isMyNowPlaying = computed(() => {
   if (!queueStore.nowPlaying) return false
@@ -29,14 +30,23 @@ const isMyNowPlaying = computed(() => {
 
 const nextThree = computed(() => queueStore.queue.slice(0, 3))
 
+// Refresh all data from server
+function refreshAll() {
+  queueStore.fetchQueue(venueSlug)
+  queueStore.fetchMySongs()
+  queueStore.fetchRemainingSlots()
+}
+
 // WebSocket
-const { onEvent } = useWebSocket(venueSlug, auth.user?.id)
+const { onEvent, onReconnect } = useWebSocket(venueSlug, auth.user?.id)
+
+// On reconnect (after background, network loss, etc.), re-fetch everything
+// since we likely missed events while disconnected
+onReconnect(refreshAll)
+
 onEvent((event) => {
   if (['song_added', 'song_removed', 'now_playing_changed', 'queue_reordered', 'song_skipped'].includes(event.event)) {
-    queueStore.fetchQueue(venueSlug)
-    queueStore.fetchMySongs()
-    queueStore.fetchRemainingSlots()
-    queueStore.fetchMySongs()
+    refreshAll()
   }
   if (event.event === 'your_song_playing') {
     mySongPlaying.value = true
@@ -74,7 +84,7 @@ function sendBrowserNotification(title) {
 }
 
 async function requestNotifications() {
-  if ('Notification' in window) {
+  if (supportsNotifications) {
     const perm = await Notification.requestPermission()
     notificationPermission.value = perm
   }
@@ -212,7 +222,9 @@ async function cancelSong(songId) {
 <style scoped>
 .dashboard {
   padding-bottom: 40px;
+  padding-bottom: max(40px, env(safe-area-inset-bottom));
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--bg);
 }
 
@@ -220,17 +232,21 @@ async function cancelSong(songId) {
 .dash-header {
   display: flex; justify-content: space-between; align-items: center;
   padding: 14px 16px;
+  padding-top: max(14px, env(safe-area-inset-top));
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
   background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg) 100%);
   position: sticky; top: 0; z-index: 10;
 }
-.header-left { display: flex; align-items: center; }
-.venue-name { font-weight: 700; font-size: 16px; }
+.header-left { display: flex; align-items: center; min-width: 0; flex-shrink: 1; }
+.venue-name { font-weight: 700; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .table-badge {
   background: var(--primary); color: white;
   font-size: 10px; font-weight: 700;
   padding: 3px 10px; border-radius: 12px; margin-left: 8px;
+  white-space: nowrap; flex-shrink: 0;
 }
-.header-right { display: flex; align-items: center; gap: 10px; }
+.header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .user-name { font-size: 13px; color: var(--text-muted); }
 .logout-btn {
   padding: 5px 12px; border-radius: 8px;
@@ -342,7 +358,7 @@ async function cancelSong(songId) {
 .status-dot.playing { background: var(--success); animation: pulse 2s infinite; }
 .status-dot.pending { background: var(--warning); }
 .cancel-btn {
-  width: 32px; height: 32px; border-radius: 8px;
+  width: 44px; height: 44px; border-radius: 8px;
   background: var(--danger-soft);
   border: none;
   color: var(--danger); font-size: 14px; flex-shrink: 0;

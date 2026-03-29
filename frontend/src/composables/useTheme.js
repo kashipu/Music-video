@@ -1,13 +1,21 @@
 import { ref } from 'vue'
 
-const currentMode = ref(localStorage.getItem('bq_theme') || 'dark')
+function safeGetItem(key) {
+  try { return localStorage.getItem(key) } catch { return null }
+}
+
+function safeSetItem(key, value) {
+  try { localStorage.setItem(key, value) } catch { /* private browsing */ }
+}
+
+const currentMode = ref(safeGetItem('bq_theme') || 'dark')
 
 export function useTheme() {
 
   function applyMode(mode) {
     currentMode.value = mode
     document.documentElement.setAttribute('data-theme', mode)
-    localStorage.setItem('bq_theme', mode)
+    safeSetItem('bq_theme', mode)
   }
 
   function toggleMode() {

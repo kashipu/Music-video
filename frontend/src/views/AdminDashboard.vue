@@ -55,7 +55,16 @@ const qrCodeUrl = computed(() =>
 )
 
 // WebSocket
-const { onEvent } = useWebSocket(venueSlug)
+const { onEvent, onReconnect } = useWebSocket(venueSlug)
+
+// On reconnect, re-fetch everything since events were missed
+onReconnect(() => {
+  fetchQueue()
+  fetchTables()
+  fetchAnalytics()
+  fetchFallbackPlaylist()
+})
+
 onEvent((event) => {
   if (['song_added', 'now_playing_changed', 'song_removed', 'queue_reordered', 'song_skipped', 'table_registered'].includes(event.event)) {
     fetchQueue()

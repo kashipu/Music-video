@@ -3,12 +3,31 @@ import { ref, computed } from 'vue'
 
 const API = import.meta.env.VITE_API_URL || ''
 
+function safeGetItem(key) {
+  try { return localStorage.getItem(key) } catch { return null }
+}
+
+function safeSetItem(key, value) {
+  try { localStorage.setItem(key, value) } catch { /* private browsing */ }
+}
+
+function safeRemoveItem(key) {
+  try { localStorage.removeItem(key) } catch { /* private browsing */ }
+}
+
+function safeParseJSON(key) {
+  try {
+    const raw = localStorage.getItem(key)
+    return raw ? JSON.parse(raw) : null
+  } catch { return null }
+}
+
 export const useAuthStore = defineStore('auth', () => {
-  const token = ref(localStorage.getItem('bq_token') || '')
-  const adminToken = ref(localStorage.getItem('bq_admin_token') || '')
-  const user = ref(JSON.parse(localStorage.getItem('bq_user') || 'null'))
-  const session = ref(JSON.parse(localStorage.getItem('bq_session') || 'null'))
-  const adminInfo = ref(JSON.parse(localStorage.getItem('bq_admin') || 'null'))
+  const token = ref(safeGetItem('bq_token') || '')
+  const adminToken = ref(safeGetItem('bq_admin_token') || '')
+  const user = ref(safeParseJSON('bq_user'))
+  const session = ref(safeParseJSON('bq_session'))
+  const adminInfo = ref(safeParseJSON('bq_admin'))
 
   const isAuthenticated = computed(() => !!token.value)
   const isAdmin = computed(() => !!adminToken.value)
@@ -33,9 +52,9 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = data.token
     user.value = data.user
     session.value = data.session
-    localStorage.setItem('bq_token', data.token)
-    localStorage.setItem('bq_user', JSON.stringify(data.user))
-    localStorage.setItem('bq_session', JSON.stringify(data.session))
+    safeSetItem('bq_token', data.token)
+    safeSetItem('bq_user', JSON.stringify(data.user))
+    safeSetItem('bq_session', JSON.stringify(data.session))
     return data
   }
 
@@ -54,8 +73,8 @@ export const useAuthStore = defineStore('auth', () => {
     const data = await res.json()
     adminToken.value = data.token
     adminInfo.value = data.admin
-    localStorage.setItem('bq_admin_token', data.token)
-    localStorage.setItem('bq_admin', JSON.stringify(data.admin))
+    safeSetItem('bq_admin_token', data.token)
+    safeSetItem('bq_admin', JSON.stringify(data.admin))
     return data
   }
 
@@ -63,16 +82,16 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = ''
     user.value = null
     session.value = null
-    localStorage.removeItem('bq_token')
-    localStorage.removeItem('bq_user')
-    localStorage.removeItem('bq_session')
+    safeRemoveItem('bq_token')
+    safeRemoveItem('bq_user')
+    safeRemoveItem('bq_session')
   }
 
   function adminLogout() {
     adminToken.value = ''
     adminInfo.value = null
-    localStorage.removeItem('bq_admin_token')
-    localStorage.removeItem('bq_admin')
+    safeRemoveItem('bq_admin_token')
+    safeRemoveItem('bq_admin')
   }
 
   function authHeaders() {

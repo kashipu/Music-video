@@ -9,9 +9,15 @@ export function useWebSocket(venueSlug, userId = null) {
   let reconnectTimer = null
   let reconnectDelay = 1000
   const handlers = new Set()
+  const reconnectHandlers = new Set()
 
   function connect() {
     if (!venueSlug) return
+    if (ws.value) {
+      try { ws.value.close() } catch { /* ignore */ }
+      ws.value = null
+    }
+
     let url = `${WS_URL}/ws/queue?venue=${venueSlug}`
     if (userId) url += `&user_id=${userId}`
 
@@ -23,8 +29,13 @@ export function useWebSocket(venueSlug, userId = null) {
     }
 
     ws.value.onopen = () => {
+      const wasDisconnected = !connected.value
       connected.value = true
-      reconnectDelay = 1000 // reset on success
+      reconnectDelay = 1000
+      // On reconnect, notify so views can re-fetch full state
+      if (wasDisconnected) {
+        reconnectHandlers.forEach(h => h())
+      }
     }
 
     ws.value.onmessage = (event) => {
@@ -50,15 +61,19 @@ export function useWebSocket(venueSlug, userId = null) {
   function scheduleReconnect() {
     if (reconnectTimer) clearTimeout(reconnectTimer)
     reconnectTimer = setTimeout(() => {
-      reconnectDelay = Math.min(reconnectDelay * 1.5, 15000) // exponential backoff, max 15s
+      reconnectDelay = Math.min(reconnectDelay * 1.5, 15000)
       connect()
     }, reconnectDelay)
   }
 
   function onEvent(handler) {
     handlers.add(handler)
-    // Return cleanup function
     return () => handlers.delete(handler)
+  }
+
+  function onReconnect(handler) {
+    reconnectHandlers.add(handler)
+    return () => reconnectHandlers.delete(handler)
   }
 
   function disconnect() {
@@ -67,6 +82,7 @@ export function useWebSocket(venueSlug, userId = null) {
     ws.value?.close()
     connected.value = false
     handlers.clear()
+    reconnectHandlers.clear()
   }
 
   function sendPing() {
@@ -75,14 +91,33 @@ export function useWebSocket(venueSlug, userId = null) {
     }
   }
 
+  // iOS Safari kills WebSockets when app goes to background.
+  // Any browser can also lose connection on unstable networks.
+  // On return: force reconnect + always re-fetch data since messages were likely lost.
+  function handleVisibilityChange() {
+    if (document.visibilityState === 'visible') {
+      reconnectDelay = 500
+      if (!ws.value || ws.value.readyState !== WebSocket.OPEN) {
+        connect()
+      } else {
+        // Connection looks open but could be stale — ping + re-fetch anyway
+        sendPing()
+        reconnectHandlers.forEach(h => h())
+      }
+    }
+  }
+
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+
   connect()
 
   const pingInterval = setInterval(sendPing, 30000)
 
   onUnmounted(() => {
     clearInterval(pingInterval)
+    document.removeEventListener('visibilitychange', handleVisibilityChange)
     disconnect()
   })
 
-  return { ws, connected, lastEvent, onEvent, disconnect }
+  return { ws, connected, lastEvent, onEvent, onReconnect, disconnect }
 }

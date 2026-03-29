@@ -21,7 +21,14 @@ const showOverlay = ref(false)
 let ytPlayer = null
 let overlayTimer = null
 
-const { onEvent } = useWebSocket(venueSlug)
+const { onEvent, onReconnect } = useWebSocket(venueSlug)
+
+// On reconnect, re-fetch current state since events were missed
+onReconnect(() => {
+  fetchNowPlaying()
+  fetchQueuePreview()
+})
+
 onEvent((event) => {
   if (event.event === 'now_playing_changed') {
     if (event.data.song) {

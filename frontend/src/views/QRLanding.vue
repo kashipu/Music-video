@@ -30,7 +30,7 @@ async function handleRegister() {
     error.value = 'Ingresa tu numero de celular'
     return
   }
-  if (!tableNumber.value.trim()) {
+  if (!tableNumber.value.toString().trim()) {
     error.value = 'Ingresa el numero de mesa'
     return
   }
@@ -76,9 +76,12 @@ async function handleRegister() {
           <label>Numero de mesa</label>
           <input
             v-model="tableNumber"
-            type="text"
+            type="number"
             class="input-field"
-            placeholder="Mesa"
+            placeholder="Ej: 1, 2, 3..."
+            inputmode="numeric"
+            pattern="[0-9]*"
+            min="1"
           />
         </div>
 
@@ -110,10 +113,15 @@ async function handleRegister() {
 <style scoped>
 .landing {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px 0;
+  padding-top: max(24px, env(safe-area-inset-top));
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
 }
 .landing-header {
   text-align: center;

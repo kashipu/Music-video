@@ -99,8 +99,20 @@ async function handlePaste() {
   } finally { loading.value = false }
 }
 
+const pasteError = ref('')
+
 async function pasteFromClipboard() {
-  try { url.value = await navigator.clipboard.readText() } catch { /* */ }
+  pasteError.value = ''
+  try {
+    if (navigator.clipboard && navigator.clipboard.readText) {
+      url.value = await navigator.clipboard.readText()
+    } else {
+      // Fallback for iOS Safari where clipboard API may not be available
+      pasteError.value = 'Pega el link directamente en el campo'
+    }
+  } catch {
+    pasteError.value = 'Pega el link directamente en el campo'
+  }
 }
 </script>
 
@@ -160,6 +172,7 @@ async function pasteFromClipboard() {
             <input v-model="url" type="url" class="input-field" placeholder="https://youtu.be/..." inputmode="url" />
             <button type="button" class="paste-btn" @click="pasteFromClipboard">Pegar</button>
           </div>
+          <p v-if="pasteError" class="paste-hint">{{ pasteError }}</p>
           <button type="submit" class="btn btn-primary" :disabled="loading">
             {{ loading ? 'Validando...' : 'ENVIAR' }}
           </button>
@@ -194,13 +207,14 @@ async function pasteFromClipboard() {
 /* Search */
 .search-input-row { margin-bottom: 8px; }
 .search-status { font-size: 13px; color: var(--text-muted); text-align: center; padding: 12px 0; }
-.search-results { max-height: 320px; overflow-y: auto; }
+.search-results { max-height: 50dvh; max-height: 50vh; overflow-y: auto; }
 .result-item {
   display: flex; align-items: center; gap: 10px;
-  padding: 8px 4px; border-radius: 8px; cursor: pointer;
+  padding: 10px 4px; border-radius: 8px; cursor: pointer;
   transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
 }
-.result-item:hover { background: var(--bg-elevated); }
+.result-item:active { background: var(--bg-elevated); }
 .result-thumb {
   width: 56px; height: 42px; border-radius: 6px;
   object-fit: cover; flex-shrink: 0;
@@ -213,7 +227,7 @@ async function pasteFromClipboard() {
 }
 .result-duration { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 .result-add {
-  width: 32px; height: 32px; border-radius: 50%;
+  width: 44px; height: 44px; border-radius: 50%;
   background: var(--primary); color: white;
   font-size: 18px; font-weight: 700; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
@@ -234,6 +248,7 @@ async function pasteFromClipboard() {
 }
 
 /* Common */
+.paste-hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
 .error-msg { color: var(--danger); font-size: 13px; margin-top: 8px; }
 .rate-info { margin-top: 10px; font-size: 13px; color: var(--text-muted); }
 
