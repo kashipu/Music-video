@@ -163,12 +163,25 @@ async def play_now(song_id: int, admin: dict = Depends(get_current_admin)):
 
     song = rows[0]
 
+    # Get current playing song's owner before marking as played
+    current_playing = await db.execute_fetchall(
+        "SELECT user_id FROM queue_songs WHERE venue_id = ? AND status = 'playing' LIMIT 1",
+        (venue_id,),
+    )
+
     # Mark current playing song as played
     await db.execute(
         "UPDATE queue_songs SET status = 'played', played_at = CURRENT_TIMESTAMP "
         "WHERE venue_id = ? AND status = 'playing'",
         (venue_id,),
     )
+
+    # Notify previous song's owner
+    if current_playing and current_playing[0][0]:
+        await manager.send_to_user(venue_id, current_playing[0][0], {
+            "event": "rate_limit_reset",
+            "data": {"message": "Tu cancion termino"},
+        })
 
     # Move this song to position 1 (before all others)
     await db.execute(
@@ -322,6 +335,13 @@ async def admin_add_song(req: AdminSongAddRequest, admin: dict = Depends(get_cur
 async def skip_song(admin: dict = Depends(get_current_admin)):
     venue_id = admin["venue_id"]
     result = await playback_service.skip_song(venue_id)
+
+    # Notify skipped song's owner — their rate limit slot freed up
+    if result["skipped"] and result["skipped"].get("user_id"):
+        await manager.send_to_user(venue_id, result["skipped"]["user_id"], {
+            "event": "rate_limit_reset",
+            "data": {"message": "Tu cancion termino"},
+        })
 
     # Single broadcast for skip — includes next song info
     await manager.broadcast(venue_id, {

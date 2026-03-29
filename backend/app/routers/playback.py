@@ -43,6 +43,13 @@ async def finished(req: PlaybackFinishedRequest, authorization: str = Header(def
 
     result = await playback_service.finish_song(req.song_id, venue_id)
 
+    # Notify the user whose song just finished — their rate limit slot freed up
+    if result.get("finished_user_id"):
+        await manager.send_to_user(venue_id, result["finished_user_id"], {
+            "event": "rate_limit_reset",
+            "data": {"message": "Tu cancion termino, puedes pedir otra"},
+        })
+
     if result["next_song"]:
         await manager.broadcast(venue_id, {
             "event": "now_playing_changed",

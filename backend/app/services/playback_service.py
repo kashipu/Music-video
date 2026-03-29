@@ -73,13 +73,15 @@ async def finish_song(song_id: int, venue_id: int) -> dict:
         (song_id, venue_id),
     )
 
-    # Copy to play_history
+    # Copy to play_history and get finished song's user_id
+    finished_user_id = None
     rows = await db.execute_fetchall(
         "SELECT venue_id, user_id, youtube_id, title, duration_sec FROM queue_songs WHERE id = ?",
         (song_id,),
     )
     if rows:
         r = rows[0]
+        finished_user_id = r[1]
         await db.execute(
             "INSERT INTO play_history (venue_id, user_id, youtube_id, title, duration_sec) VALUES (?, ?, ?, ?, ?)",
             (r[0], r[1], r[2], r[3], r[4]),
@@ -92,6 +94,7 @@ async def finish_song(song_id: int, venue_id: int) -> dict:
     return {
         "next_song": next_song,
         "fallback_active": next_song is None,
+        "finished_user_id": finished_user_id,
     }
 
 
@@ -121,12 +124,12 @@ async def skip_song(venue_id: int) -> dict:
 
     # Get current playing song
     current = await db.execute_fetchall(
-        "SELECT id, title FROM queue_songs WHERE venue_id = ? AND status = 'playing' LIMIT 1",
+        "SELECT id, title, user_id FROM queue_songs WHERE venue_id = ? AND status = 'playing' LIMIT 1",
         (venue_id,),
     )
     skipped = None
     if current:
-        skipped = {"id": current[0][0], "title": current[0][1]}
+        skipped = {"id": current[0][0], "title": current[0][1], "user_id": current[0][2]}
         await db.execute(
             "UPDATE queue_songs SET status = 'played', played_at = CURRENT_TIMESTAMP WHERE id = ?",
             (current[0][0],),
