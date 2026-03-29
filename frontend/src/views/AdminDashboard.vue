@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
 import { useWebSocket } from '../composables/useWebSocket.js'
@@ -79,10 +79,19 @@ onEvent((event) => {
   }
 })
 
+// Polling fallback: if WS events are lost, keep admin in sync
+let adminPoll = null
+
 onMounted(async () => {
   applyVenueTheme(auth.adminInfo?.config)
   await Promise.all([fetchQueue(), fetchTables(), fetchAnalytics(), fetchFallbackPlaylist()])
+  adminPoll = setInterval(() => {
+    fetchQueue()
+    fetchTables()
+  }, 10000)
 })
+
+onUnmounted(() => { if (adminPoll) clearInterval(adminPoll) })
 
 // ===== FETCH =====
 async function fetchQueue() {
@@ -729,6 +738,14 @@ function logout() {
 </template>
 
 <style scoped>
+/* ===== ROOT ===== */
+.admin {
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
 /* ===== HEADER ===== */
 .admin-header {
   display: flex; justify-content: space-between; align-items: center;
@@ -750,6 +767,7 @@ function logout() {
   display: grid; grid-template-columns: 320px 1fr;
   gap: 20px; max-width: 1200px;
   margin: 0 auto; padding: 16px;
+  min-width: 0;
 }
 
 /* ===== SIDEBAR ===== */
@@ -757,14 +775,15 @@ function logout() {
   display: flex; flex-direction: column; gap: 14px;
   position: sticky; top: 16px; align-self: start;
   max-height: calc(100vh - 80px); overflow-y: auto;
+  min-width: 0;
 }
-.sidebar-info { text-align: center; }
+.sidebar-info { text-align: center; overflow: hidden; }
 .sidebar-logo { width: 64px; height: 64px; border-radius: 12px; object-fit: cover; margin: 0 auto 8px; }
-.bar-name { font-size: 22px; margin-bottom: 12px; }
-.info-stats { display: flex; justify-content: center; gap: 24px; }
-.info-stat { text-align: center; }
+.bar-name { font-size: 22px; margin-bottom: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.info-stats { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; }
+.info-stat { text-align: center; min-width: 0; }
 .info-val { font-size: 28px; font-weight: 700; display: block; }
-.info-label { font-size: 11px; color: var(--text-muted); }
+.info-label { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
 
 /* Quick Actions */
 .quick-actions { display: flex; flex-direction: column; gap: 6px; }
@@ -786,7 +805,7 @@ function logout() {
 .qr-img { width: 180px; height: 180px; border-radius: 8px; background: white; padding: 6px; }
 .qr-bar-name { font-size: 16px; font-weight: 700; margin-top: 10px; }
 .qr-url { font-size: 10px; color: var(--text-muted); margin-top: 4px; word-break: break-all; }
-.qr-btns { display: flex; gap: 8px; justify-content: center; }
+.qr-btns { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 .qr-btn {
   padding: 6px 16px; border-radius: 6px; font-size: 12px; font-weight: 600;
   background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text);
@@ -834,7 +853,7 @@ function logout() {
 .top-mini-count { font-weight: 600; color: var(--primary); }
 
 /* ===== MUSIC COLUMN ===== */
-.music-col { display: flex; flex-direction: column; gap: 14px; }
+.music-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 
 /* Stats Bar */
 .stats-bar { display: flex; gap: 8px; flex-wrap: wrap; }
