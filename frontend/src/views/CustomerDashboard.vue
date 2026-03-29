@@ -45,8 +45,13 @@ const { onEvent, onReconnect } = useWebSocket(venueSlug, auth.user?.id)
 onReconnect(refreshAll)
 
 onEvent((event) => {
-  if (['song_added', 'song_removed', 'now_playing_changed', 'queue_reordered', 'song_skipped'].includes(event.event)) {
+  if (['song_added', 'song_removed', 'now_playing_changed', 'song_skipped'].includes(event.event)) {
     refreshAll()
+  }
+  if (event.event === 'queue_reordered') {
+    // Only refresh queue positions, no need to re-fetch my songs or rate limits
+    queueStore.fetchQueue(venueSlug)
+    queueStore.fetchMySongs()
   }
   if (event.event === 'your_song_playing') {
     mySongPlaying.value = true

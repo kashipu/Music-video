@@ -39,6 +39,7 @@ const ytSearching = ref(false)
 let ytSearchTimeout = null
 const dragIdx = ref(null)
 const dropIdx = ref(null)
+let ignoreNextReorder = false
 
 // Computed
 const totalDuration = computed(() => {
@@ -66,7 +67,11 @@ onReconnect(() => {
 })
 
 onEvent((event) => {
-  if (['song_added', 'now_playing_changed', 'song_removed', 'queue_reordered', 'song_skipped', 'table_registered'].includes(event.event)) {
+  if (event.event === 'queue_reordered') {
+    // Skip if this was triggered by our own drag-and-drop (we already fetched)
+    if (ignoreNextReorder) { ignoreNextReorder = false; return }
+    fetchQueue()
+  } else if (['song_added', 'now_playing_changed', 'song_removed', 'song_skipped', 'table_registered'].includes(event.event)) {
     fetchQueue()
     fetchTables()
   } else if (event.event === 'playback_status_changed') {
@@ -181,11 +186,22 @@ async function removeSong(songId) {
   await fetchQueue()
 }
 async function moveSong(songId, newPosition) {
+  // Optimistic: reorder locally so UI feels instant
+  const fromIdx = queue.value.findIndex(s => s.id === songId)
+  const toIdx = queue.value.findIndex(s => s.position === newPosition)
+  if (fromIdx !== -1 && toIdx !== -1) {
+    const [moved] = queue.value.splice(fromIdx, 1)
+    queue.value.splice(toIdx, 0, moved)
+    queue.value.forEach((s, i) => { s.position = i + 1 })
+  }
+
+  ignoreNextReorder = true
   await fetch(`${API}/api/admin/queue/songs/${songId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...auth.adminHeaders() },
     body: JSON.stringify({ position: newPosition }),
   })
+  // Confirm with server state
   await fetchQueue()
 }
 async function addSong() {
