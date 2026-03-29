@@ -560,6 +560,9 @@ async def get_tables(admin: dict = Depends(get_current_admin)):
                 "user_name": r[1] or "Anonymous",
                 "user_phone": r[2],
                 "songs": [],
+                "songs_pending": 0,
+                "songs_playing": 0,
+                "songs_played": 0,
             }
         if r[3]:  # has a song
             tables[table_num]["songs"].append({
@@ -567,6 +570,12 @@ async def get_tables(admin: dict = Depends(get_current_admin)):
                 "status": r[4],
                 "added_at": to_colombia_12h(r[5]),
             })
+            if r[4] == "pending":
+                tables[table_num]["songs_pending"] += 1
+            elif r[4] == "playing":
+                tables[table_num]["songs_playing"] += 1
+            elif r[4] == "played":
+                tables[table_num]["songs_played"] += 1
 
     return {"tables": list(tables.values())}
 

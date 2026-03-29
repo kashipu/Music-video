@@ -460,11 +460,12 @@ function logout() {
               <div class="table-top">
                 <span class="table-num">#{{ table.table_number }}</span>
                 <span class="table-user">{{ table.user_name }}</span>
+                <span class="table-count">{{ table.songs.length }}</span>
               </div>
-              <div class="table-songs-mini">
-                <span v-for="(s, i) in table.songs.slice(0, 3)" :key="i" class="song-pill" :class="s.status">
-                  {{ s.title.substring(0, 20) }}{{ s.title.length > 20 ? '...' : '' }}
-                </span>
+              <div class="table-status-row" v-if="table.songs.length">
+                <span v-if="table.songs_playing" class="ts-badge ts-playing">{{ table.songs_playing }} sonando</span>
+                <span v-if="table.songs_pending" class="ts-badge ts-pending">{{ table.songs_pending }} en cola</span>
+                <span v-if="table.songs_played" class="ts-badge ts-played">{{ table.songs_played }} reproducidas</span>
               </div>
               <div class="table-btns">
                 <button class="t-btn t-btn-reset" @click="resetTableLimit(table.table_number)">Resetear</button>
@@ -689,7 +690,12 @@ function logout() {
                   <span class="td-num">#{{ table.table_number }}</span>
                   <span class="td-user">{{ table.user_name }} ({{ table.user_phone }})</span>
                 </div>
-                <span class="td-count">{{ table.songs.length }} canciones</span>
+                <span class="td-count">{{ table.songs.length }}</span>
+              </div>
+              <div class="td-status-row" v-if="table.songs.length">
+                <span v-if="table.songs_playing" class="ts-badge ts-playing">{{ table.songs_playing }} sonando</span>
+                <span v-if="table.songs_pending" class="ts-badge ts-pending">{{ table.songs_pending }} en cola</span>
+                <span v-if="table.songs_played" class="ts-badge ts-played">{{ table.songs_played }} reproducidas</span>
               </div>
             </div>
           </div>
@@ -867,15 +873,19 @@ function logout() {
 }
 .table-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 8px; min-width: 0; }
 .table-num { font-weight: 700; font-size: 13px; white-space: nowrap; flex-shrink: 0; }
-.table-user { font-size: 11px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.table-songs-mini { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; max-height: 52px; overflow: hidden; }
-.song-pill {
-  font-size: 10px; padding: 1px 6px; border-radius: 4px;
-  background: var(--bg-card); border: 1px solid var(--border);
-  max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+.table-user { font-size: 11px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+.table-count {
+  font-size: 12px; font-weight: 700; color: var(--primary);
+  background: var(--primary-soft); padding: 2px 8px; border-radius: 10px;
+  flex-shrink: 0;
 }
-.song-pill.playing { border-color: var(--success); color: var(--success); }
-.song-pill.pending { border-color: var(--warning); color: var(--warning); }
+.table-status-row, .td-status-row { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+.ts-badge {
+  font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px;
+}
+.ts-playing { background: var(--success-soft); color: var(--success); }
+.ts-pending { background: var(--warning-soft); color: var(--warning); }
+.ts-played { background: var(--border-soft); color: var(--text-muted); }
 .table-btns { display: flex; gap: 4px; }
 .t-btn {
   padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; border: 1px solid;
