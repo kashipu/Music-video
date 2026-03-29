@@ -45,7 +45,7 @@ const { onEvent, onReconnect } = useWebSocket(venueSlug, auth.user?.id)
 onReconnect(refreshAll)
 
 onEvent((event) => {
-  if (['song_added', 'song_removed', 'now_playing_changed', 'song_skipped'].includes(event.event)) {
+  if (['song_added', 'song_removed', 'now_playing_changed'].includes(event.event)) {
     refreshAll()
   }
   if (event.event === 'queue_reordered') {
@@ -113,7 +113,7 @@ function showToast(msg) {
 
 function sendBrowserNotification(title) {
   if (notificationPermission.value === 'granted') {
-    new Notification('BarQueue', { body: title, icon: '/vite.svg' })
+    new Notification('BarQueue', { body: title })
   }
 }
 

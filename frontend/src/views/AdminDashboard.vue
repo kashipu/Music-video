@@ -72,8 +72,10 @@ onEvent((event) => {
     // Skip if this was triggered by our own drag-and-drop (we already fetched)
     if (ignoreNextReorder) { ignoreNextReorder = false; return }
     fetchQueue()
-  } else if (['song_added', 'now_playing_changed', 'song_removed', 'song_skipped', 'table_registered'].includes(event.event)) {
+  } else if (['song_added', 'now_playing_changed', 'song_removed'].includes(event.event)) {
     fetchQueue()
+    fetchTables()
+  } else if (event.event === 'table_registered') {
     fetchTables()
   } else if (event.event === 'playback_status_changed') {
     playbackStatus.value = event.data.status

@@ -292,6 +292,23 @@ async def admin_add_song(req: AdminSongAddRequest, admin: dict = Depends(get_cur
         },
     })
 
+    # If nothing is playing, auto-start this song
+    playing = await db.execute_fetchall(
+        "SELECT id FROM queue_songs WHERE venue_id = ? AND status = 'playing'",
+        (venue_id,),
+    )
+    if not playing:
+        await db.execute(
+            "UPDATE queue_songs SET status = 'playing', played_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (result["id"],),
+        )
+        await db.commit()
+        now_playing = {"id": result["id"], "youtube_id": video_id, "title": metadata["title"]}
+        await manager.broadcast(venue_id, {
+            "event": "now_playing_changed",
+            "data": {"song": now_playing},
+        })
+
     return {
         "id": result["id"],
         "youtube_id": video_id,
@@ -306,27 +323,32 @@ async def skip_song(admin: dict = Depends(get_current_admin)):
     venue_id = admin["venue_id"]
     result = await playback_service.skip_song(venue_id)
 
-    if result["now_playing"]:
-        await manager.broadcast(venue_id, {
-            "event": "song_skipped",
+    # Single broadcast for skip — includes next song info
+    await manager.broadcast(venue_id, {
+        "event": "now_playing_changed",
+        "data": {
+            "song": result["now_playing"],
+            "skipped_id": result["skipped"]["id"] if result["skipped"] else None,
+        },
+    })
+
+    if result["now_playing"] and result["now_playing"].get("user_id"):
+        await manager.send_to_user(venue_id, result["now_playing"]["user_id"], {
+            "event": "your_song_playing",
             "data": {
-                "skipped_id": result["skipped"]["id"] if result["skipped"] else None,
-                "now_playing": result["now_playing"],
+                "song": result["now_playing"],
+                "message": "Tu cancion esta sonando ahora",
             },
         })
+
+    if not result["now_playing"]:
+        # Queue empty after skip — activate fallback
+        from app.services.playlist_service import get_active_fallback_songs
+        fallback_songs = await get_active_fallback_songs(venue_id)
         await manager.broadcast(venue_id, {
             "event": "now_playing_changed",
-            "data": {"song": result["now_playing"]},
+            "data": {"song": None, "fallback_active": True, "fallback_songs": fallback_songs},
         })
-        # Notify song owner
-        if result["now_playing"].get("user_id"):
-            await manager.send_to_user(venue_id, result["now_playing"]["user_id"], {
-                "event": "your_song_playing",
-                "data": {
-                    "song": result["now_playing"],
-                    "message": "Tu cancion esta sonando ahora",
-                },
-            })
 
     return {
         "message": "Song skipped",
