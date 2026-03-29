@@ -40,6 +40,7 @@ let ytSearchTimeout = null
 const dragIdx = ref(null)
 const dropIdx = ref(null)
 let ignoreNextReorder = false
+const sidebarOpen = ref(false)
 
 // Computed
 const totalDuration = computed(() => {
@@ -360,6 +361,7 @@ function logout() {
     <!-- HEADER -->
     <header class="admin-header">
       <div class="header-brand">
+        <button class="menu-btn" @click="sidebarOpen = !sidebarOpen">&#9776;</button>
         <img v-if="auth.adminInfo?.logo_url" :src="auth.adminInfo.logo_url" class="header-logo" />
         <h1>{{ auth.adminInfo?.venue_name || venueSlug }}</h1>
       </div>
@@ -369,11 +371,17 @@ function logout() {
       </div>
     </header>
 
+    <!-- MOBILE SIDEBAR OVERLAY -->
+    <Transition name="drawer">
+      <div v-if="sidebarOpen" class="sidebar-overlay" @click="sidebarOpen = false"></div>
+    </Transition>
+
     <!-- TWO COLUMN LAYOUT -->
     <div class="admin-layout">
 
       <!-- ===== LEFT: BAR INFO ===== -->
-      <aside class="sidebar">
+      <aside class="sidebar" :class="{ open: sidebarOpen }">
+        <button class="sidebar-close" @click="sidebarOpen = false">&#10005;</button>
 
         <!-- Bar Info Card -->
         <div class="card sidebar-info">
@@ -752,9 +760,23 @@ function logout() {
   padding: 10px 20px; background: var(--bg-card);
   border-bottom: 1px solid var(--border);
 }
-.header-brand { display: flex; align-items: center; gap: 10px; }
+.header-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .header-logo { width: 36px; height: 36px; border-radius: 8px; object-fit: cover; }
-.admin-header h1 { font-size: 18px; text-transform: capitalize; }
+.admin-header h1 { font-size: 18px; text-transform: capitalize; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menu-btn {
+  display: none; width: 40px; height: 40px; border-radius: 8px;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  color: var(--text); font-size: 20px; flex-shrink: 0;
+  align-items: center; justify-content: center;
+}
+.sidebar-close {
+  display: none; position: absolute; top: 12px; right: 12px;
+  width: 36px; height: 36px; border-radius: 8px;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  color: var(--text-muted); font-size: 18px;
+  align-items: center; justify-content: center; z-index: 1;
+}
+.sidebar-overlay { display: none; }
 .btn-logout {
   padding: 6px 14px; border-radius: 6px;
   background: var(--danger); color: white;
@@ -1076,8 +1098,21 @@ function logout() {
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 900px) {
+  .menu-btn { display: flex; }
+  .sidebar-close { display: flex; }
   .admin-layout { grid-template-columns: 1fr; padding: 12px; gap: 12px; }
-  .sidebar { position: static; max-height: none; }
+  .sidebar {
+    display: none; position: fixed; top: 0; left: 0; bottom: 0;
+    width: 320px; max-width: 85vw; z-index: 100;
+    background: var(--bg); padding: 16px; padding-top: 56px;
+    overflow-y: auto; max-height: 100vh;
+    box-shadow: 4px 0 20px rgba(0,0,0,0.3);
+  }
+  .sidebar.open { display: flex; }
+  .sidebar-overlay {
+    display: block; position: fixed; inset: 0; z-index: 99;
+    background: rgba(0,0,0,0.5);
+  }
   .tables-list { max-height: none; }
   .np-card { flex-direction: column; align-items: stretch; }
   .np-left { flex-direction: column; gap: 8px; }
@@ -1133,5 +1168,9 @@ function logout() {
   .an-val { font-size: 20px; }
   .section-title { font-size: 11px; }
 }
+
+/* Drawer transition */
+.drawer-enter-active, .drawer-leave-active { transition: opacity 0.25s ease; }
+.drawer-enter-from, .drawer-leave-to { opacity: 0; }
 
 </style>
