@@ -655,8 +655,8 @@ onUnmounted(() => {
   right: 0;
   z-index: 20;
   overflow: hidden;
-  background: rgba(0, 0, 0, 0.85);
-  padding: 10px 0;
+  background: #000000;
+  padding: 18px 0;
   white-space: nowrap;
 }
 .banner-track {
@@ -665,9 +665,9 @@ onUnmounted(() => {
 }
 .banner-content {
   padding-right: 120px;
-  font-size: 20px;
-  font-weight: 600;
-  color: #ffd700;
+  font-size: 48px;
+  font-weight: 700;
+  color: #ffffff;
   letter-spacing: 0.5px;
   min-width: 100vw;
 }
