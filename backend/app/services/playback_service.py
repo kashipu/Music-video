@@ -38,6 +38,7 @@ async def get_now_playing(venue_id: int) -> dict:
     playback_status = "playing"
     volume = 80
     banner_text = ""
+    show_brand = True
     fallback_active = song is None
     fallback_mode = "playlist"
     fallback_playlist = []
@@ -48,6 +49,7 @@ async def get_now_playing(venue_id: int) -> dict:
             playback_status = config.get("playback_status", "playing")
             volume = config.get("volume", 80)
             banner_text = config.get("banner_text", "")
+            show_brand = config.get("show_brand", True)
         except (json.JSONDecodeError, TypeError):
             pass
 
@@ -63,6 +65,7 @@ async def get_now_playing(venue_id: int) -> dict:
         "playback_status": playback_status,
         "volume": volume,
         "banner_text": banner_text,
+        "show_brand": show_brand,
         "venue_name": venue_name,
         "venue_logo": venue_logo,
         "fallback_active": fallback_active,

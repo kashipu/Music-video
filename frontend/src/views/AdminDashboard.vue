@@ -37,6 +37,7 @@ const fallbackSongs = ref([])
 const fallbackPaused = ref(false)
 const bannerText = ref('')
 const bannerActive = ref(false)
+const showBrand = ref(true)
 const rightTab = ref('music')
 const selectedTable = ref(null)
 const addUrl = ref('')
@@ -100,6 +101,7 @@ onMounted(async () => {
   try {
     const cfg = typeof auth.adminInfo?.config === 'string' ? JSON.parse(auth.adminInfo.config) : auth.adminInfo?.config
     bannerText.value = cfg?.banner_text || ''
+    showBrand.value = cfg?.show_brand !== false
   } catch { /* */ }
   await Promise.all([fetchQueue(), fetchTables(), fetchAnalytics(), fetchFallbackPlaylist()])
   adminPoll = setInterval(() => {
@@ -205,22 +207,28 @@ function toggleMute() {
   fetch(`${API}/api/admin/volume?volume=${volume.value}`, { method: 'POST', headers: auth.adminHeaders() })
 }
 
-// ===== BANNER =====
-function toggleBanner() {
-  bannerActive.value = !bannerActive.value
-  const text = bannerActive.value ? bannerText.value : ''
-  fetch(`${API}/api/admin/banner?text=${encodeURIComponent(text)}`, {
+// ===== BANNER & BRANDING =====
+function activateBanner() {
+  if (!bannerText.value) return
+  bannerActive.value = true
+  fetch(`${API}/api/admin/banner?text=${encodeURIComponent(bannerText.value)}`, {
     method: 'POST', headers: auth.adminHeaders(),
   })
-  showAdminToast(bannerActive.value ? 'Banner activado (3 min)' : 'Banner desactivado')
+  showAdminToast('Banner activado (3 min)')
 }
-function saveBannerText() {
-  // Only save text, don't activate — user must click the button
-  if (bannerActive.value) {
-    fetch(`${API}/api/admin/banner?text=${encodeURIComponent(bannerText.value)}`, {
-      method: 'POST', headers: auth.adminHeaders(),
-    })
-  }
+function deactivateBanner() {
+  bannerActive.value = false
+  fetch(`${API}/api/admin/banner?text=`, {
+    method: 'POST', headers: auth.adminHeaders(),
+  })
+  showAdminToast('Banner desactivado')
+}
+function toggleBrand() {
+  showBrand.value = !showBrand.value
+  fetch(`${API}/api/admin/banner?text=${encodeURIComponent(bannerActive.value ? bannerText.value : '')}&show_brand=${showBrand.value}`, {
+    method: 'POST', headers: auth.adminHeaders(),
+  })
+  showAdminToast(showBrand.value ? 'Logo visible' : 'Logo oculto')
 }
 
 // ===== QUEUE ACTIONS =====
@@ -591,14 +599,32 @@ function logout() {
           </div>
         </div>
 
-        <!-- Banner -->
+        <!-- Kiosk Controls -->
         <div class="card volume-card">
-          <p class="section-title">BANNER PUBLICITARIO</p>
-          <input type="text" v-model="bannerText" @input="saveBannerText" class="input-field"
-            placeholder="Escribe el texto del banner..." />
-          <button class="btn" :class="bannerActive ? 'btn-danger' : 'btn-primary'" style="margin-top:8px;" @click="toggleBanner" :disabled="!bannerText && !bannerActive">
-            {{ bannerActive ? 'Desactivar banner' : 'Activar banner (3 min)' }}
-          </button>
+          <p class="section-title">PANTALLA VIDEO</p>
+
+          <!-- Logo/Nombre toggle -->
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <span style="font-size:13px;font-weight:600;">Logo / Nombre del bar</span>
+            <button class="t-btn" :class="showBrand ? 't-btn-kick' : 't-btn-reset'" @click="toggleBrand" style="padding:5px 12px;font-size:11px;">
+              {{ showBrand ? 'Ocultar' : 'Mostrar' }}
+            </button>
+          </div>
+
+          <!-- Banner -->
+          <div style="border-top:1px solid var(--border);padding-top:12px;">
+            <span style="font-size:13px;font-weight:600;display:block;margin-bottom:8px;">Banner publicitario</span>
+            <input type="text" v-model="bannerText" class="input-field"
+              placeholder="Escribe el texto del banner..." />
+            <div style="display:flex;gap:8px;margin-top:8px;">
+              <button class="btn btn-primary" style="flex:1;" @click="activateBanner" :disabled="!bannerText || bannerActive">
+                Mostrar (3 min)
+              </button>
+              <button class="btn btn-danger" style="flex:1;" @click="deactivateBanner" :disabled="!bannerActive">
+                Apagar
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Add Song -->

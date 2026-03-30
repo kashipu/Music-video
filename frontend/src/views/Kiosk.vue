@@ -23,6 +23,7 @@ let bannerTimer = null
 let bannerAutoHidden = false
 const venueName = ref('')
 const venueLogo = ref(null)
+const showBrand = ref(true)
 let ytPlayer = null
 let overlayTimer = null
 
@@ -74,13 +75,15 @@ onEvent((event) => {
   } else if (event.event === 'volume_changed') {
     applyVolume(event.data.volume)
   } else if (event.event === 'banner_changed') {
+    // Banner text
     bannerAutoHidden = false
     bannerText.value = event.data.banner_text || ''
-    // Auto-hide after 3 minutes
     if (bannerTimer) clearTimeout(bannerTimer)
     if (bannerText.value) {
       bannerTimer = setTimeout(() => { bannerText.value = ''; bannerAutoHidden = true }, 3 * 60 * 1000)
     }
+    // Brand visibility
+    if (event.data.show_brand !== undefined) showBrand.value = event.data.show_brand
   } else if (event.event === 'song_added' || event.event === 'song_removed' || event.event === 'queue_reordered') {
     fetchQueuePreview()
     // Safety net: if nothing is playing, a song_added might have started playback
@@ -134,6 +137,7 @@ async function syncNowPlaying() {
 
   // 4. Sync banner + venue branding (don't re-show if auto-hidden)
   if (data.banner_text !== undefined && !bannerAutoHidden) bannerText.value = data.banner_text
+  if (data.show_brand !== undefined) showBrand.value = data.show_brand
   if (data.venue_name) venueName.value = data.venue_name
   if (data.venue_logo !== undefined) venueLogo.value = data.venue_logo
 }
@@ -204,6 +208,7 @@ async function fetchNowPlaying() {
   fallbackActive.value = data.fallback_active
   if (data.fallback_songs) fallbackSongs.value = data.fallback_songs
   if (data.banner_text !== undefined) bannerText.value = data.banner_text
+  if (data.show_brand !== undefined) showBrand.value = data.show_brand
   if (data.venue_name) venueName.value = data.venue_name
   if (data.venue_logo !== undefined) venueLogo.value = data.venue_logo
   if (song.value) {
@@ -392,7 +397,7 @@ onUnmounted(() => {
         <div id="yt-player"></div>
 
         <!-- Venue branding top-left -->
-        <div v-if="venueName || venueLogo" class="venue-brand">
+        <div v-if="showBrand && (venueName || venueLogo)" class="venue-brand">
           <img v-if="venueLogo" :src="venueLogo" class="venue-brand-logo" />
           <span v-else class="venue-brand-name">{{ venueName }}</span>
         </div>

@@ -565,8 +565,9 @@ async def set_volume(
 async def set_banner(
     admin: dict = Depends(get_current_admin),
     text: str = Query("", max_length=500),
+    show_brand: bool | None = Query(None),
 ):
-    """Set banner text, persist in config, and broadcast to kiosk."""
+    """Set banner text and/or brand visibility, persist in config, broadcast to kiosk."""
     venue_id = admin["venue_id"]
     db = await get_db()
     import json
@@ -576,11 +577,16 @@ async def set_banner(
         try: config = json.loads(rows[0][0])
         except: pass
     config["banner_text"] = text
+    if show_brand is not None:
+        config["show_brand"] = show_brand
     await db.execute("UPDATE venues SET config = ? WHERE id = ?", (json.dumps(config), venue_id))
     await db.commit()
+    broadcast_data = {"banner_text": text}
+    if show_brand is not None:
+        broadcast_data["show_brand"] = show_brand
     await manager.broadcast(venue_id, {
         "event": "banner_changed",
-        "data": {"banner_text": text},
+        "data": broadcast_data,
     })
     return {"banner_text": text}
 
