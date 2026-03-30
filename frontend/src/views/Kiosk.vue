@@ -19,6 +19,8 @@ const queue = ref([])
 const started = ref(false)
 const showOverlay = ref(false)
 const bannerText = ref('')
+let bannerTimer = null
+let bannerAutoHidden = false
 const venueName = ref('')
 const venueLogo = ref(null)
 let ytPlayer = null
@@ -72,7 +74,13 @@ onEvent((event) => {
   } else if (event.event === 'volume_changed') {
     applyVolume(event.data.volume)
   } else if (event.event === 'banner_changed') {
+    bannerAutoHidden = false
     bannerText.value = event.data.banner_text || ''
+    // Auto-hide after 3 minutes
+    if (bannerTimer) clearTimeout(bannerTimer)
+    if (bannerText.value) {
+      bannerTimer = setTimeout(() => { bannerText.value = ''; bannerAutoHidden = true }, 3 * 60 * 1000)
+    }
   } else if (event.event === 'song_added' || event.event === 'song_removed' || event.event === 'queue_reordered') {
     fetchQueuePreview()
     // Safety net: if nothing is playing, a song_added might have started playback
@@ -124,8 +132,8 @@ async function syncNowPlaying() {
   // 3. Sync volume
   if (data.volume !== undefined) applyVolume(data.volume)
 
-  // 4. Sync banner + venue branding
-  if (data.banner_text !== undefined) bannerText.value = data.banner_text
+  // 4. Sync banner + venue branding (don't re-show if auto-hidden)
+  if (data.banner_text !== undefined && !bannerAutoHidden) bannerText.value = data.banner_text
   if (data.venue_name) venueName.value = data.venue_name
   if (data.venue_logo !== undefined) venueLogo.value = data.venue_logo
 }

@@ -36,6 +36,7 @@ const librarySearch = ref('')
 const fallbackSongs = ref([])
 const fallbackPaused = ref(false)
 const bannerText = ref('')
+const bannerActive = ref(false)
 const rightTab = ref('music')
 const selectedTable = ref(null)
 const addUrl = ref('')
@@ -205,15 +206,21 @@ function toggleMute() {
 }
 
 // ===== BANNER =====
-let bannerDebounce = null
-function changeBanner() {
-  if (bannerDebounce) clearTimeout(bannerDebounce)
-  bannerDebounce = setTimeout(() => {
+function toggleBanner() {
+  bannerActive.value = !bannerActive.value
+  const text = bannerActive.value ? bannerText.value : ''
+  fetch(`${API}/api/admin/banner?text=${encodeURIComponent(text)}`, {
+    method: 'POST', headers: auth.adminHeaders(),
+  })
+  showAdminToast(bannerActive.value ? 'Banner activado (3 min)' : 'Banner desactivado')
+}
+function saveBannerText() {
+  // Only save text, don't activate — user must click the button
+  if (bannerActive.value) {
     fetch(`${API}/api/admin/banner?text=${encodeURIComponent(bannerText.value)}`, {
       method: 'POST', headers: auth.adminHeaders(),
     })
-    showAdminToast('Banner actualizado')
-  }, 500)
+  }
 }
 
 // ===== QUEUE ACTIONS =====
@@ -587,11 +594,11 @@ function logout() {
         <!-- Banner -->
         <div class="card volume-card">
           <p class="section-title">BANNER PUBLICITARIO</p>
-          <input type="text" v-model="bannerText" @input="changeBanner" class="input-field"
-            placeholder="Texto del banner (vacio = desactivado)" />
-          <p v-if="bannerText" style="font-size:11px;color:var(--text-muted);margin-top:6px;">
-            El texto se desplazara en la pantalla del kiosk
-          </p>
+          <input type="text" v-model="bannerText" @input="saveBannerText" class="input-field"
+            placeholder="Escribe el texto del banner..." />
+          <button class="btn" :class="bannerActive ? 'btn-danger' : 'btn-primary'" style="margin-top:8px;" @click="toggleBanner" :disabled="!bannerText && !bannerActive">
+            {{ bannerActive ? 'Desactivar banner' : 'Activar banner (3 min)' }}
+          </button>
         </div>
 
         <!-- Add Song -->
