@@ -31,7 +31,7 @@ Backend (FastAPI)
 | `table_registered` | broadcast | auth/register | `{table_number, user_name}` |
 | `session_kicked` | send_to_user | admin/kick | `{message}` |
 | `rate_limit_reset` | send_to_user | admin/reset-limit, playback/finished | `{message}` |
-| `banner_changed` | broadcast | admin/banner | `{banner_text}` |
+| `banner_changed` | broadcast | admin/banner | `{banner_text, show_brand?}` |
 
 ## Acciones y sus Efectos en Cada Vista
 
@@ -107,6 +107,19 @@ Backend (FastAPI)
 |------|---------|----------|-------|----------|-------|
 | Register | INSERT user + session | `table_registered` | — | — | fetchTables |
 
+### Admin activa/desactiva banner o logo
+
+| Paso | Backend | WS Event | Kiosk | Customer | Admin |
+|------|---------|----------|-------|----------|-------|
+| Activar banner | SET config.banner_text | `banner_changed` | **solo** actualiza bannerText ref (no re-fetcha nada) | — | toast local |
+| Desactivar banner | SET config.banner_text="" | `banner_changed` | **solo** oculta banner (v-if) | — | toast local |
+| Mostrar/ocultar logo | SET config.show_brand | `banner_changed` | **solo** actualiza showBrand ref (v-if) | — | toast local |
+| Auto-hide (3 min) | — | — | timer local oculta banner, flag evita re-show por polling | — | — |
+
+> **Hidratacion selectiva**: `banner_changed` solo muta `bannerText` y `showBrand`.
+> Vue re-renderiza unicamente los `<div v-if>` del banner y branding.
+> El player de YouTube, overlays, bottom-bar y fallback NO se tocan.
+
 ### Usuario cancela su cancion
 
 | Paso | Backend | WS Event | Kiosk | Customer | Admin |
@@ -119,9 +132,11 @@ Cada vista tiene un polling que cubre eventos perdidos:
 
 | Vista | Intervalo | Que sincroniza |
 |-------|-----------|----------------|
-| Kiosk | 10s | now_playing + playback_status via syncNowPlaying() |
+| Kiosk | 10s | now_playing + playback_status + volume + banner* + brand* via syncNowPlaying() |
 | Customer | 10s | session + queue + my_songs + rate_limits via syncAll() |
 | Admin | 10s | queue + tables via fetchQueue() + fetchTables() |
+
+*banner no se re-muestra por polling si fue auto-ocultado (bannerAutoHidden flag)
 
 ## WebSocket Reconexion
 
