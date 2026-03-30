@@ -33,10 +33,11 @@ async def get_now_playing(venue_id: int) -> dict:
 
     # Check playback status
     venue_rows = await db.execute_fetchall(
-        "SELECT config FROM venues WHERE id = ?", (venue_id,)
+        "SELECT config, name, logo_url FROM venues WHERE id = ?", (venue_id,)
     )
     playback_status = "playing"
     volume = 80
+    banner_text = ""
     fallback_active = song is None
     fallback_mode = "playlist"
     fallback_playlist = []
@@ -46,6 +47,7 @@ async def get_now_playing(venue_id: int) -> dict:
             config = json.loads(venue_rows[0][0])
             playback_status = config.get("playback_status", "playing")
             volume = config.get("volume", 80)
+            banner_text = config.get("banner_text", "")
         except (json.JSONDecodeError, TypeError):
             pass
 
@@ -53,10 +55,16 @@ async def get_now_playing(venue_id: int) -> dict:
         from app.services.playlist_service import get_active_fallback_songs
         fallback_playlist = await get_active_fallback_songs(venue_id)
 
+    venue_name = venue_rows[0][1] if venue_rows else ""
+    venue_logo = venue_rows[0][2] if venue_rows else None
+
     result = {
         "song": song,
         "playback_status": playback_status,
         "volume": volume,
+        "banner_text": banner_text,
+        "venue_name": venue_name,
+        "venue_logo": venue_logo,
         "fallback_active": fallback_active,
         "next_in_queue": next_song,
     }

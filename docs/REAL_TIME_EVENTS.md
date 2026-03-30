@@ -31,6 +31,7 @@ Backend (FastAPI)
 | `table_registered` | broadcast | auth/register | `{table_number, user_name}` |
 | `session_kicked` | send_to_user | admin/kick | `{message}` |
 | `rate_limit_reset` | send_to_user | admin/reset-limit, playback/finished | `{message}` |
+| `banner_changed` | broadcast | admin/banner | `{banner_text}` |
 
 ## Acciones y sus Efectos en Cada Vista
 

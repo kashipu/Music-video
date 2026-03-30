@@ -561,6 +561,30 @@ async def set_volume(
     return {"volume": volume}
 
 
+@router.post("/banner")
+async def set_banner(
+    admin: dict = Depends(get_current_admin),
+    text: str = Query("", max_length=500),
+):
+    """Set banner text, persist in config, and broadcast to kiosk."""
+    venue_id = admin["venue_id"]
+    db = await get_db()
+    import json
+    rows = await db.execute_fetchall("SELECT config FROM venues WHERE id = ?", (venue_id,))
+    config = {}
+    if rows and rows[0][0]:
+        try: config = json.loads(rows[0][0])
+        except: pass
+    config["banner_text"] = text
+    await db.execute("UPDATE venues SET config = ? WHERE id = ?", (json.dumps(config), venue_id))
+    await db.commit()
+    await manager.broadcast(venue_id, {
+        "event": "banner_changed",
+        "data": {"banner_text": text},
+    })
+    return {"banner_text": text}
+
+
 @router.get("/tables")
 async def get_tables(admin: dict = Depends(get_current_admin)):
     """Get all active tables with their song history for today."""

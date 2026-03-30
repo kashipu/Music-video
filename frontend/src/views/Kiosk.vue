@@ -18,6 +18,9 @@ const playbackStatus = ref('playing')
 const queue = ref([])
 const started = ref(false)
 const showOverlay = ref(false)
+const bannerText = ref('')
+const venueName = ref('')
+const venueLogo = ref(null)
 let ytPlayer = null
 let overlayTimer = null
 
@@ -68,6 +71,8 @@ onEvent((event) => {
     playFallback()
   } else if (event.event === 'volume_changed') {
     applyVolume(event.data.volume)
+  } else if (event.event === 'banner_changed') {
+    bannerText.value = event.data.banner_text || ''
   } else if (event.event === 'song_added' || event.event === 'song_removed' || event.event === 'queue_reordered') {
     fetchQueuePreview()
     // Safety net: if nothing is playing, a song_added might have started playback
@@ -117,9 +122,12 @@ async function syncNowPlaying() {
   enforcePlaybackStatus()
 
   // 3. Sync volume
-  if (data.volume !== undefined) {
-    applyVolume(data.volume)
-  }
+  if (data.volume !== undefined) applyVolume(data.volume)
+
+  // 4. Sync banner + venue branding
+  if (data.banner_text !== undefined) bannerText.value = data.banner_text
+  if (data.venue_name) venueName.value = data.venue_name
+  if (data.venue_logo !== undefined) venueLogo.value = data.venue_logo
 }
 
 // Compare desired playback status with actual YouTube player state and fix mismatches.
@@ -187,6 +195,9 @@ async function fetchNowPlaying() {
   playbackStatus.value = data.playback_status
   fallbackActive.value = data.fallback_active
   if (data.fallback_songs) fallbackSongs.value = data.fallback_songs
+  if (data.banner_text !== undefined) bannerText.value = data.banner_text
+  if (data.venue_name) venueName.value = data.venue_name
+  if (data.venue_logo !== undefined) venueLogo.value = data.venue_logo
   if (song.value) {
     playingFallback.value = false
     triggerOverlay()
@@ -372,6 +383,12 @@ onUnmounted(() => {
       <div class="player-fullscreen">
         <div id="yt-player"></div>
 
+        <!-- Venue branding top-left -->
+        <div v-if="venueName || venueLogo" class="venue-brand">
+          <img v-if="venueLogo" :src="venueLogo" class="venue-brand-logo" />
+          <span v-else class="venue-brand-name">{{ venueName }}</span>
+        </div>
+
         <!-- Fallback: no songs playing -->
         <div v-if="!song && !playingFallback" class="fallback-overlay">
           <div class="fallback-content">
@@ -404,6 +421,14 @@ onUnmounted(() => {
           <div class="bottom-right">
             <span v-if="queue.length" class="bottom-next">Siguiente: {{ queue[0]?.title }}</span>
             <span v-else-if="playingFallback" class="bottom-next">{{ fallbackPlayed.size }}/{{ fallbackSongs.length }} reproducidas</span>
+          </div>
+        </div>
+
+        <!-- Scrolling banner -->
+        <div v-if="bannerText" class="banner-marquee">
+          <div class="banner-track">
+            <span class="banner-content">{{ bannerText }}</span>
+            <span class="banner-content">{{ bannerText }}</span>
           </div>
         </div>
       </div>
@@ -586,4 +611,55 @@ onUnmounted(() => {
 }
 .start-btn:hover { transform: scale(1.05); }
 .start-hint { margin-top: 16px; color: var(--kiosk-text-dimmer); font-size: 14px; }
+
+/* ===== VENUE BRANDING ===== */
+.venue-brand {
+  position: absolute;
+  top: 20px;
+  left: 24px;
+  z-index: 15;
+  opacity: 0.8;
+}
+.venue-brand-logo {
+  height: 48px;
+  max-width: 160px;
+  object-fit: contain;
+  border-radius: 8px;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.6));
+}
+.venue-brand-name {
+  font-size: 22px;
+  font-weight: 700;
+  text-transform: capitalize;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+}
+
+/* ===== SCROLLING BANNER ===== */
+.banner-marquee {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.85);
+  padding: 10px 0;
+  white-space: nowrap;
+}
+.banner-track {
+  display: inline-flex;
+  animation: marquee-scroll 20s linear infinite;
+}
+.banner-content {
+  padding-right: 120px;
+  font-size: 20px;
+  font-weight: 600;
+  color: #ffd700;
+  letter-spacing: 0.5px;
+  min-width: 100vw;
+}
+@keyframes marquee-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
 </style>

@@ -35,6 +35,7 @@ const library = ref([])
 const librarySearch = ref('')
 const fallbackSongs = ref([])
 const fallbackPaused = ref(false)
+const bannerText = ref('')
 const rightTab = ref('music')
 const selectedTable = ref(null)
 const addUrl = ref('')
@@ -94,6 +95,11 @@ let adminPoll = null
 
 onMounted(async () => {
   applyVenueTheme(auth.adminInfo?.config)
+  // Load banner from venue config
+  try {
+    const cfg = typeof auth.adminInfo?.config === 'string' ? JSON.parse(auth.adminInfo.config) : auth.adminInfo?.config
+    bannerText.value = cfg?.banner_text || ''
+  } catch { /* */ }
   await Promise.all([fetchQueue(), fetchTables(), fetchAnalytics(), fetchFallbackPlaylist()])
   adminPoll = setInterval(() => {
     fetchQueue()
@@ -196,6 +202,18 @@ function toggleMute() {
   if (muted.value) { muted.value = false; volume.value = volumeBeforeMute.value }
   else { volumeBeforeMute.value = volume.value; muted.value = true; volume.value = 0 }
   fetch(`${API}/api/admin/volume?volume=${volume.value}`, { method: 'POST', headers: auth.adminHeaders() })
+}
+
+// ===== BANNER =====
+let bannerDebounce = null
+function changeBanner() {
+  if (bannerDebounce) clearTimeout(bannerDebounce)
+  bannerDebounce = setTimeout(() => {
+    fetch(`${API}/api/admin/banner?text=${encodeURIComponent(bannerText.value)}`, {
+      method: 'POST', headers: auth.adminHeaders(),
+    })
+    showAdminToast('Banner actualizado')
+  }, 500)
 }
 
 // ===== QUEUE ACTIONS =====
@@ -564,6 +582,16 @@ function logout() {
             <input type="range" min="0" max="100" v-model.number="volume" class="volume-slider" :disabled="muted" @input="changeVolume" />
             <span class="volume-value" :class="{ muted: muted }">{{ muted ? 'MUTE' : volume + '%' }}</span>
           </div>
+        </div>
+
+        <!-- Banner -->
+        <div class="card volume-card">
+          <p class="section-title">BANNER PUBLICITARIO</p>
+          <input type="text" v-model="bannerText" @input="changeBanner" class="input-field"
+            placeholder="Texto del banner (vacio = desactivado)" />
+          <p v-if="bannerText" style="font-size:11px;color:var(--text-muted);margin-top:6px;">
+            El texto se desplazara en la pantalla del kiosk
+          </p>
         </div>
 
         <!-- Add Song -->
