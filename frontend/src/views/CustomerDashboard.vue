@@ -8,6 +8,7 @@ import { formatDuration } from '../utils/youtube.js'
 import { useTheme } from '../composables/useTheme.js'
 import SongSubmit from '../components/SongSubmit.vue'
 import SongPreview from '../components/SongPreview.vue'
+import { trackSongConfirmed, trackSongCancelled, trackSessionKicked } from '../utils/analytics.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,6 +18,8 @@ const queueStore = useQueueStore()
 
 const venueSlug = route.params.venueSlug
 const preview = ref(null)
+const confirmLoading = ref(false)
+const cancelLoading = ref({})
 const toast = ref('')
 const toastTimeout = ref(null)
 const mySongPlaying = ref(false)
@@ -66,6 +69,7 @@ onEvent((event) => {
     showToast('Tu limite fue reseteado. Puedes pedir mas canciones!')
   }
   if (event.event === 'session_kicked') {
+    trackSessionKicked(venueSlug)
     auth.logout()
     router.push({ name: 'registro', params: { venueSlug } })
   }
@@ -143,8 +147,10 @@ function onPreview(data) { preview.value = data }
 function onCancelPreview() { preview.value = null }
 
 async function onConfirm(youtubeId) {
+  confirmLoading.value = true
   try {
     const result = await queueStore.confirmSong(youtubeId)
+    trackSongConfirmed(youtubeId, result.title, result.position)
     preview.value = null
     showToast(`Cancion agregada! Posicion #${result.position}`)
     await queueStore.fetchMySongs()
@@ -152,18 +158,20 @@ async function onConfirm(youtubeId) {
     if (notificationPermission.value === 'default') requestNotifications()
   } catch (e) {
     showToast(e.message)
-  }
+  } finally { confirmLoading.value = false }
 }
 
 async function cancelSong(songId) {
+  cancelLoading.value = { ...cancelLoading.value, [songId]: true }
   try {
     await queueStore.cancelMySong(songId)
+    trackSongCancelled(songId)
     showToast('Cancion removida de la cola')
     await queueStore.fetchMySongs()
     await queueStore.fetchQueue(venueSlug)
   } catch (e) {
     showToast(e.message)
-  }
+  } finally { cancelLoading.value = { ...cancelLoading.value, [songId]: false } }
 }
 </script>
 
@@ -178,7 +186,6 @@ async function cancelSong(songId) {
     <header class="dash-header">
       <div class="header-left">
         <span class="venue-name">{{ auth.session?.venue_name || venueSlug.replace(/-/g, ' ') }}</span>
-        <span class="table-badge">#{{ auth.session?.table_number }}</span>
       </div>
       <div class="header-right">
         <button class="theme-toggle" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button>
@@ -210,6 +217,7 @@ async function cancelSong(songId) {
       <SongPreview
         v-if="preview"
         :preview="preview"
+        :loading="confirmLoading"
         @confirm="onConfirm"
         @cancel="onCancelPreview"
       />
@@ -239,8 +247,9 @@ async function cancelSong(songId) {
             v-if="song.status === 'pending'"
             class="cancel-btn"
             @click="cancelSong(song.id)"
+            :disabled="cancelLoading[song.id]"
             title="Quitar de la cola"
-          >&#10005;</button>
+          >{{ cancelLoading[song.id] ? '...' : '&#10005;' }}</button>
         </div>
       </div>
 

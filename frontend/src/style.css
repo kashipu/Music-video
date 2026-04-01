@@ -1,28 +1,28 @@
 /* ===== DARK THEME (default) ===== */
 :root, [data-theme="dark"] {
-  --primary: #6C5CE7;
-  --primary-dark: #5A4BD1;
-  --primary-soft: rgba(108, 92, 231, 0.15);
+  --primary: #7C6CF0;
+  --primary-dark: #6355D8;
+  --primary-soft: rgba(124, 108, 240, 0.15);
   --secondary: #00CEC9;
-  --danger: #FF6B6B;
-  --danger-soft: rgba(255, 107, 107, 0.15);
-  --warning: #FECA57;
-  --warning-soft: rgba(254, 202, 87, 0.15);
-  --success: #55EFC4;
-  --success-soft: rgba(85, 239, 196, 0.15);
+  --danger: #F87171;
+  --danger-soft: rgba(248, 113, 113, 0.15);
+  --warning: #FBBF24;
+  --warning-soft: rgba(251, 191, 36, 0.15);
+  --success: #34D399;
+  --success-soft: rgba(52, 211, 153, 0.15);
   --bg: #0F0F1A;
   --bg-card: #1A1A2E;
-  --bg-elevated: #232342;
-  --text: #EAEAEA;
-  --text-muted: #8B8BA7;
+  --bg-elevated: #252545;
+  --text: #F1F1F5;
+  --text-muted: #9CA3BE;
   --text-on-primary: #FFFFFF;
-  --border: #2D2D4A;
-  --border-soft: rgba(45, 45, 74, 0.4);
-  --shadow: rgba(0, 0, 0, 0.3);
+  --border: #333358;
+  --border-soft: rgba(51, 51, 88, 0.5);
+  --shadow: rgba(0, 0, 0, 0.4);
   --kiosk-bg: #000000;
-  --kiosk-text-dim: #888888;
-  --kiosk-text-dimmer: #555555;
-  --kiosk-dot: #ff4444;
+  --kiosk-text-dim: #999999;
+  --kiosk-text-dimmer: #666666;
+  --kiosk-dot: #F87171;
   --radius: 12px;
   --radius-sm: 8px;
 }
@@ -31,22 +31,25 @@
 [data-theme="light"] {
   --primary-dark: #4A3CC9;
   --primary-soft: rgba(108, 92, 231, 0.1);
-  --danger-soft: rgba(255, 107, 107, 0.1);
-  --warning-soft: rgba(254, 202, 87, 0.15);
-  --success-soft: rgba(85, 239, 196, 0.12);
-  --bg: #F4F4F8;
+  --danger: #DC2626;
+  --danger-soft: rgba(220, 38, 38, 0.1);
+  --warning: #D97706;
+  --warning-soft: rgba(217, 119, 6, 0.12);
+  --success: #059669;
+  --success-soft: rgba(5, 150, 105, 0.1);
+  --bg: #F5F5FA;
   --bg-card: #FFFFFF;
-  --bg-elevated: #E8E8F0;
-  --text: #1A1A2E;
-  --text-muted: #555570;
+  --bg-elevated: #EBEBF2;
+  --text: #111827;
+  --text-muted: #4B5563;
   --text-on-primary: #FFFFFF;
-  --border: #D4D4E0;
-  --border-soft: rgba(0, 0, 0, 0.07);
-  --shadow: rgba(0, 0, 0, 0.08);
+  --border: #C8C8D8;
+  --border-soft: rgba(0, 0, 0, 0.1);
+  --shadow: rgba(0, 0, 0, 0.1);
   --kiosk-bg: #000000;
   --kiosk-text-dim: #888888;
   --kiosk-text-dimmer: #666666;
-  --kiosk-dot: #ff4444;
+  --kiosk-dot: #DC2626;
 }
 
 /* ===== RESET ===== */
@@ -102,7 +105,9 @@ a { color: var(--primary); text-decoration: none; }
 .btn-primary:hover { background: var(--primary-dark); }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-secondary { background: var(--bg-elevated); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover { background: var(--border); }
 .btn-danger { background: var(--danger); color: white; }
+.btn-danger:hover { opacity: 0.9; }
 
 /* ===== INPUTS ===== */
 .input-field {
@@ -123,6 +128,7 @@ a { color: var(--primary); text-decoration: none; }
   border: 1px solid var(--border-soft);
   border-radius: var(--radius);
   padding: 16px;
+  box-shadow: 0 1px 3px var(--shadow);
 }
 
 .section-title {

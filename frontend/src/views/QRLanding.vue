@@ -3,24 +3,43 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
 import { useTheme } from '../composables/useTheme.js'
+import { trackUserRegistered, trackSessionStarted } from '../utils/analytics.js'
 
-const { currentMode, toggleMode } = useTheme()
+const { currentMode, toggleMode, applyVenueTheme } = useTheme()
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 
+const API = import.meta.env.VITE_API_URL || ''
 const venueSlug = route.params.venueSlug
+
 const phone = ref('')
 const displayName = ref('')
 const dataConsent = ref(false)
+const pin = ref('')
+const pinRequired = ref(false)
+const venueName = ref('')
+const venueLogo = ref(null)
 const error = ref('')
 const loading = ref(false)
 
-onMounted(() => {
+onMounted(async () => {
   if (auth.isAuthenticated && auth.session?.venue_slug === venueSlug) {
     router.push({ name: 'usuario', params: { venueSlug } })
+    return
   }
+  // Fetch venue info (name, logo, theme, PIN)
+  try {
+    const res = await fetch(`${API}/api/auth/venue-info?venue_slug=${venueSlug}`)
+    if (res.ok) {
+      const data = await res.json()
+      pinRequired.value = data.pin_required
+      venueName.value = data.venue_name || ''
+      venueLogo.value = data.logo_url || null
+      if (data.theme) applyVenueTheme({ theme: data.theme })
+    }
+  } catch { /* */ }
 })
 
 async function handleRegister() {
@@ -35,7 +54,9 @@ async function handleRegister() {
   }
   loading.value = true
   try {
-    await auth.register(phone.value, null, venueSlug, dataConsent.value, displayName.value)
+    const data = await auth.register(phone.value, null, venueSlug, dataConsent.value, displayName.value, pinRequired.value ? pin.value : null)
+    trackUserRegistered(venueSlug, !!data.user?.id)
+    trackSessionStarted(venueSlug)
     router.push({ name: 'usuario', params: { venueSlug } })
   } catch (e) {
     error.value = e.message
@@ -50,9 +71,11 @@ async function handleRegister() {
     <button class="theme-toggle" style="position:fixed;top:16px;right:16px;" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button>
     <div class="container">
       <div class="landing-header">
-        <div class="music-icon">&#9835;</div>
-        <h1>BarQueue</h1>
+        <img v-if="venueLogo" :src="venueLogo" class="venue-logo" />
+        <div v-else class="music-icon">&#9835;</div>
+        <h1>{{ venueName || venueSlug.replace(/-/g, ' ') }}</h1>
         <p class="subtitle">Elige la musica que suena!</p>
+        <p class="powered-by">por Repitela</p>
       </div>
 
       <form class="register-form" @submit.prevent="handleRegister">
@@ -74,6 +97,19 @@ async function handleRegister() {
             type="text"
             class="input-field"
             placeholder="Como te llamas?"
+          />
+        </div>
+
+        <div v-if="pinRequired" class="form-group">
+          <label>Codigo PIN (visible en la pantalla del bar)</label>
+          <input
+            v-model="pin"
+            type="text"
+            class="input-field pin-input"
+            placeholder="1234"
+            inputmode="numeric"
+            maxlength="4"
+            autocomplete="off"
           />
         </div>
 
@@ -109,6 +145,13 @@ async function handleRegister() {
   text-align: center;
   margin-bottom: 32px;
 }
+.venue-logo {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 12px;
+}
 .music-icon {
   font-size: 48px;
   margin-bottom: 8px;
@@ -121,6 +164,12 @@ async function handleRegister() {
 .subtitle {
   color: var(--text-muted);
   font-size: 15px;
+}
+.powered-by {
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-top: 4px;
+  opacity: 0.6;
 }
 .register-form {
   display: flex;
@@ -148,6 +197,13 @@ async function handleRegister() {
 .consent-label input {
   margin-top: 2px;
   accent-color: var(--primary);
+}
+.pin-input {
+  text-align: center;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 8px;
+  max-width: 160px;
 }
 .error-msg {
   color: var(--danger);

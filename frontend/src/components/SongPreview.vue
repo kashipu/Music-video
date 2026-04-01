@@ -3,6 +3,7 @@ import { formatDuration } from '../utils/youtube.js'
 
 const props = defineProps({
   preview: { type: Object, required: true },
+  loading: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['confirm', 'cancel'])
@@ -25,8 +26,10 @@ const emit = defineEmits(['confirm', 'cancel'])
     </div>
 
     <div class="preview-actions">
-      <button class="btn btn-secondary" @click="emit('cancel')">Cancelar</button>
-      <button class="btn btn-primary" @click="emit('confirm', preview.youtube_id)">Confirmar</button>
+      <button class="btn btn-secondary" @click="emit('cancel')" :disabled="loading">Cancelar</button>
+      <button class="btn btn-primary" @click="emit('confirm', preview.youtube_id)" :disabled="loading">
+        {{ loading ? 'Agregando...' : 'Confirmar' }}
+      </button>
     </div>
   </div>
 </template>

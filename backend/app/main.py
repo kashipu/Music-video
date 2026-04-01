@@ -15,7 +15,7 @@ async def cleanup_old_data():
         db = await get_db()
         await db.execute("DELETE FROM queue_songs WHERE added_at < datetime('now', '-7 days')")
         await db.execute("DELETE FROM submission_log WHERE submitted_at < datetime('now', '-7 days')")
-        await db.execute("DELETE FROM play_history WHERE played_at < datetime('now', '-7 days')")
+        # play_history is now preserved for long-term analytics
         await db.execute("DELETE FROM user_sessions WHERE ended_at IS NOT NULL AND ended_at < datetime('now', '-7 days')")
         await db.commit()
     except Exception:

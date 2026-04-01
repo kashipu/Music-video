@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/auth.js'
 import { useWebSocket } from '../composables/useWebSocket.js'
 import { useTheme } from '../composables/useTheme.js'
 import { formatDuration } from '../utils/youtube.js'
+import { trackAdminAction } from '../utils/analytics.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -33,6 +34,7 @@ const tables = ref([])
 const analytics = ref(null)
 const library = ref([])
 const librarySearch = ref('')
+const analyticsPeriod = ref('week')
 const fallbackSongs = ref([])
 const fallbackPaused = ref(false)
 const bannerText = ref('')
@@ -43,6 +45,24 @@ const selectedTable = ref(null)
 const addUrl = ref('')
 const loading = ref(false)
 const addMode = ref('search')
+// Per-button loading states
+const loadingSkip = ref(false)
+const loadingPause = ref(false)
+const loadingResume = ref(false)
+const loadingStart = ref(false)
+const loadingPlayNow = ref({})
+const loadingRemove = ref({})
+const loadingClearQueue = ref(false)
+const loadingKick = ref({})
+const loadingResetLimit = ref({})
+const loadingFallbackPlay = ref(false)
+const loadingFallbackToggle = ref(false)
+const loadingFallbackSkip = ref(false)
+const loadingBanner = ref(false)
+const loadingBrand = ref(false)
+const loadingQr = ref(false)
+const showQr = ref(false)
+const loadingAddFromLib = ref({})
 const ytSearch = ref('')
 const ytResults = ref([])
 const ytSearching = ref(false)
@@ -89,6 +109,9 @@ onEvent((event) => {
     fetchTables()
   } else if (event.event === 'playback_status_changed') {
     playbackStatus.value = event.data.status
+  } else if (event.event === 'song_error') {
+    showAdminToast(`Error de video: ${event.data.title || 'desconocido'} (codigo ${event.data.error_code})`)
+    fetchQueue()
   }
 })
 
@@ -102,6 +125,7 @@ onMounted(async () => {
     const cfg = typeof auth.adminInfo?.config === 'string' ? JSON.parse(auth.adminInfo.config) : auth.adminInfo?.config
     bannerText.value = cfg?.banner_text || ''
     showBrand.value = cfg?.show_brand !== false
+    showQr.value = cfg?.show_qr === true
   } catch { /* */ }
   await Promise.all([fetchQueue(), fetchTables(), fetchAnalytics(), fetchFallbackPlaylist()])
   adminPoll = setInterval(() => {
@@ -141,7 +165,7 @@ async function fetchTables() {
 }
 
 async function fetchAnalytics() {
-  const res = await fetch(`${API}/api/admin/analytics?period=week`, { headers: auth.adminHeaders() })
+  const res = await fetch(`${API}/api/admin/analytics?period=${analyticsPeriod.value}`, { headers: auth.adminHeaders() })
   if (res.ok) analytics.value = await res.json()
 }
 
@@ -158,39 +182,68 @@ async function fetchLibrary() {
 
 // ===== PLAYBACK =====
 async function startPlayback() {
-  await fetch(`${API}/api/admin/playback/start`, { method: 'POST', headers: auth.adminHeaders() })
-  await fetchQueue()
+  loadingStart.value = true
+  try {
+    await fetch(`${API}/api/admin/playback/start`, { method: 'POST', headers: auth.adminHeaders() })
+    trackAdminAction('start_playback')
+    await fetchQueue()
+  } finally { loadingStart.value = false }
 }
 async function skipSong() {
-  await fetch(`${API}/api/admin/queue/skip`, { method: 'POST', headers: auth.adminHeaders() })
-  await fetchQueue()
+  loadingSkip.value = true
+  try {
+    await fetch(`${API}/api/admin/queue/skip`, { method: 'POST', headers: auth.adminHeaders() })
+    trackAdminAction('skip_song')
+    await fetchQueue()
+  } finally { loadingSkip.value = false }
 }
 async function pausePlayback() {
+  loadingPause.value = true
   playbackStatus.value = 'paused'
-  fetch(`${API}/api/admin/playback/pause`, { method: 'POST', headers: auth.adminHeaders() })
+  try {
+    await fetch(`${API}/api/admin/playback/pause`, { method: 'POST', headers: auth.adminHeaders() })
+    trackAdminAction('pause_playback')
+  } finally { loadingPause.value = false }
 }
 async function resumePlayback() {
+  loadingResume.value = true
   playbackStatus.value = 'playing'
-  fetch(`${API}/api/admin/playback/resume`, { method: 'POST', headers: auth.adminHeaders() })
+  try {
+    await fetch(`${API}/api/admin/playback/resume`, { method: 'POST', headers: auth.adminHeaders() })
+    trackAdminAction('resume_playback')
+  } finally { loadingResume.value = false }
 }
 
 // ===== VOLUME =====
 async function playFallbackNow() {
-  fallbackPaused.value = false
-  await fetch(`${API}/api/admin/fallback-status?paused=false`, {
-    method: 'POST', headers: auth.adminHeaders(),
-  })
-  // Broadcast to kiosk to start fallback now
-  await fetch(`${API}/api/admin/fallback-play`, {
-    method: 'POST', headers: auth.adminHeaders(),
-  })
+  loadingFallbackPlay.value = true
+  try {
+    fallbackPaused.value = false
+    await fetch(`${API}/api/admin/fallback-status?paused=false`, {
+      method: 'POST', headers: auth.adminHeaders(),
+    })
+    await fetch(`${API}/api/admin/fallback-play`, {
+      method: 'POST', headers: auth.adminHeaders(),
+    })
+  } finally { loadingFallbackPlay.value = false }
+}
+
+async function skipFallbackSong() {
+  loadingFallbackSkip.value = true
+  try {
+    await fetch(`${API}/api/admin/fallback-skip`, { method: 'POST', headers: auth.adminHeaders() })
+    trackAdminAction('skip_fallback')
+  } finally { loadingFallbackSkip.value = false }
 }
 
 async function toggleFallback() {
-  fallbackPaused.value = !fallbackPaused.value
-  await fetch(`${API}/api/admin/fallback-status?paused=${fallbackPaused.value}`, {
-    method: 'POST', headers: auth.adminHeaders(),
-  })
+  loadingFallbackToggle.value = true
+  try {
+    fallbackPaused.value = !fallbackPaused.value
+    await fetch(`${API}/api/admin/fallback-status?paused=${fallbackPaused.value}`, {
+      method: 'POST', headers: auth.adminHeaders(),
+    })
+  } finally { loadingFallbackToggle.value = false }
 }
 
 let volumeDebounce = null
@@ -208,45 +261,77 @@ function toggleMute() {
 }
 
 // ===== BANNER & BRANDING =====
-function activateBanner() {
+async function activateBanner() {
   if (!bannerText.value) return
-  bannerActive.value = true
-  fetch(`${API}/api/admin/banner?text=${encodeURIComponent(bannerText.value)}`, {
-    method: 'POST', headers: auth.adminHeaders(),
-  })
-  showAdminToast('Banner activado (3 min)')
+  loadingBanner.value = true
+  try {
+    bannerActive.value = true
+    await fetch(`${API}/api/admin/banner?text=${encodeURIComponent(bannerText.value)}`, {
+      method: 'POST', headers: auth.adminHeaders(),
+    })
+    showAdminToast('Banner activado (3 min)')
+  } finally { loadingBanner.value = false }
 }
-function deactivateBanner() {
-  bannerActive.value = false
-  fetch(`${API}/api/admin/banner?text=`, {
-    method: 'POST', headers: auth.adminHeaders(),
-  })
-  showAdminToast('Banner desactivado')
+async function deactivateBanner() {
+  loadingBanner.value = true
+  try {
+    bannerActive.value = false
+    await fetch(`${API}/api/admin/banner?text=`, {
+      method: 'POST', headers: auth.adminHeaders(),
+    })
+    showAdminToast('Banner desactivado')
+  } finally { loadingBanner.value = false }
 }
-function toggleBrand() {
-  showBrand.value = !showBrand.value
-  fetch(`${API}/api/admin/banner?text=${encodeURIComponent(bannerActive.value ? bannerText.value : '')}&show_brand=${showBrand.value}`, {
-    method: 'POST', headers: auth.adminHeaders(),
-  })
-  showAdminToast(showBrand.value ? 'Logo visible' : 'Logo oculto')
+async function toggleQr() {
+  loadingQr.value = true
+  try {
+    showQr.value = !showQr.value
+    await fetch(`${API}/api/admin/show-qr?show=${showQr.value}`, {
+      method: 'POST', headers: auth.adminHeaders(),
+    })
+    showAdminToast(showQr.value ? 'QR visible en pantalla' : 'QR oculto')
+  } finally { loadingQr.value = false }
+}
+
+async function toggleBrand() {
+  loadingBrand.value = true
+  try {
+    showBrand.value = !showBrand.value
+    await fetch(`${API}/api/admin/banner?text=${encodeURIComponent(bannerActive.value ? bannerText.value : '')}&show_brand=${showBrand.value}`, {
+      method: 'POST', headers: auth.adminHeaders(),
+    })
+    showAdminToast(showBrand.value ? 'Logo visible' : 'Logo oculto')
+  } finally { loadingBrand.value = false }
 }
 
 // ===== QUEUE ACTIONS =====
 async function playNow(songId) {
-  await fetch(`${API}/api/admin/queue/songs/${songId}/play-now`, { method: 'POST', headers: auth.adminHeaders() })
-  await fetchQueue()
+  loadingPlayNow.value = { ...loadingPlayNow.value, [songId]: true }
+  try {
+    await fetch(`${API}/api/admin/queue/songs/${songId}/play-now`, { method: 'POST', headers: auth.adminHeaders() })
+    trackAdminAction('play_now', { song_id: songId })
+    await fetchQueue()
+  } finally { loadingPlayNow.value = { ...loadingPlayNow.value, [songId]: false } }
 }
 async function clearQueue() {
   if (!confirm('Vaciar toda la cola?')) return
-  for (const song of queue.value) {
-    await fetch(`${API}/api/admin/queue/songs/${song.id}`, { method: 'DELETE', headers: auth.adminHeaders() })
-  }
-  await fetchQueue()
+  loadingClearQueue.value = true
+  try {
+    for (const song of queue.value) {
+      await fetch(`${API}/api/admin/queue/songs/${song.id}`, { method: 'DELETE', headers: auth.adminHeaders() })
+    }
+    trackAdminAction('clear_queue', { songs_cleared: queue.value.length })
+    await fetchQueue()
+  } finally { loadingClearQueue.value = false }
 }
 
 async function removeSong(songId) {
-  await fetch(`${API}/api/admin/queue/songs/${songId}`, { method: 'DELETE', headers: auth.adminHeaders() })
-  await fetchQueue()
+  loadingRemove.value = { ...loadingRemove.value, [songId]: true }
+  try {
+    await fetch(`${API}/api/admin/queue/songs/${songId}`, { method: 'DELETE', headers: auth.adminHeaders() })
+    trackAdminAction('remove_song', { song_id: songId })
+    await fetchQueue()
+  } finally { loadingRemove.value = { ...loadingRemove.value, [songId]: false } }
 }
 async function moveSong(songId, newPosition) {
   // Optimistic: reorder locally so UI feels instant
@@ -290,8 +375,8 @@ async function addSong() {
 const addError = ref('')
 
 async function addFromLibrary(youtubeId) {
-  if (loading.value) return
-  loading.value = true
+  if (loadingAddFromLib.value[youtubeId]) return
+  loadingAddFromLib.value = { ...loadingAddFromLib.value, [youtubeId]: true }
   addError.value = ''
   try {
     const res = await fetch(`${API}/api/admin/queue/songs`, {
@@ -306,7 +391,7 @@ async function addFromLibrary(youtubeId) {
     } else {
       await fetchQueue()
     }
-  } finally { loading.value = false }
+  } finally { loadingAddFromLib.value = { ...loadingAddFromLib.value, [youtubeId]: false } }
 }
 async function requeueSong(youtubeId) {
   await addFromLibrary(youtubeId)
@@ -327,14 +412,22 @@ function onDragEnd() { dragIdx.value = null; dropIdx.value = null }
 
 // ===== TABLES =====
 async function kickTable(tableNumber) {
-  await fetch(`${API}/api/admin/tables/${tableNumber}/kick`, { method: 'POST', headers: auth.adminHeaders() })
-  await fetchTables()
-  showAdminToast(`Usuario #${tableNumber} expulsado`)
+  loadingKick.value = { ...loadingKick.value, [tableNumber]: true }
+  try {
+    await fetch(`${API}/api/admin/tables/${tableNumber}/kick`, { method: 'POST', headers: auth.adminHeaders() })
+    await fetchTables()
+    trackAdminAction('kick_table', { table_number: tableNumber })
+    showAdminToast(`Usuario #${tableNumber} expulsado`)
+  } finally { loadingKick.value = { ...loadingKick.value, [tableNumber]: false } }
 }
 async function resetTableLimit(tableNumber) {
-  await fetch(`${API}/api/admin/tables/${tableNumber}/reset-limit`, { method: 'POST', headers: auth.adminHeaders() })
-  await fetchTables()
-  showAdminToast(`Limite de #${tableNumber} reseteado`)
+  loadingResetLimit.value = { ...loadingResetLimit.value, [tableNumber]: true }
+  try {
+    await fetch(`${API}/api/admin/tables/${tableNumber}/reset-limit`, { method: 'POST', headers: auth.adminHeaders() })
+    await fetchTables()
+    trackAdminAction('reset_limit', { table_number: tableNumber })
+    showAdminToast(`Limite de #${tableNumber} reseteado`)
+  } finally { loadingResetLimit.value = { ...loadingResetLimit.value, [tableNumber]: false } }
 }
 
 function onYtSearch() {
@@ -505,8 +598,8 @@ function logout() {
                 <span v-if="table.songs_played" class="ts-badge ts-played">{{ table.songs_played }} reproducidas</span>
               </div>
               <div class="table-btns">
-                <button class="t-btn t-btn-reset" @click="resetTableLimit(table.table_number)">Resetear</button>
-                <button class="t-btn t-btn-kick" @click="kickTable(table.table_number)">Expulsar</button>
+                <button class="t-btn t-btn-reset" @click="resetTableLimit(table.table_number)" :disabled="loadingResetLimit[table.table_number]">{{ loadingResetLimit[table.table_number] ? '...' : 'Resetear' }}</button>
+                <button class="t-btn t-btn-kick" @click="kickTable(table.table_number)" :disabled="loadingKick[table.table_number]">{{ loadingKick[table.table_number] ? '...' : 'Expulsar' }}</button>
               </div>
             </div>
           </div>
@@ -566,14 +659,31 @@ function logout() {
             </div>
           </div>
           <div class="np-controls">
-            <button v-if="playbackStatus === 'playing'" class="ctrl-labeled ctrl-pause" @click="pausePlayback">
-              <span class="ctrl-icon">&#10074;&#10074;</span><span class="ctrl-text">Pausar</span>
+            <button v-if="playbackStatus === 'playing'" class="ctrl-labeled ctrl-pause" @click="pausePlayback" :disabled="loadingPause">
+              <span class="ctrl-icon">&#10074;&#10074;</span><span class="ctrl-text">{{ loadingPause ? 'Pausando...' : 'Pausar' }}</span>
             </button>
-            <button v-else class="ctrl-labeled ctrl-play" @click="resumePlayback">
-              <span class="ctrl-icon">&#9654;</span><span class="ctrl-text">Reanudar</span>
+            <button v-else class="ctrl-labeled ctrl-play" @click="resumePlayback" :disabled="loadingResume">
+              <span class="ctrl-icon">&#9654;</span><span class="ctrl-text">{{ loadingResume ? 'Reanudando...' : 'Reanudar' }}</span>
             </button>
-            <button class="ctrl-labeled ctrl-skip" @click="skipSong">
-              <span class="ctrl-icon">&#9197;</span><span class="ctrl-text">Siguiente</span>
+            <button class="ctrl-labeled ctrl-skip" @click="skipSong" :disabled="loadingSkip">
+              <span class="ctrl-icon">&#9197;</span><span class="ctrl-text">{{ loadingSkip ? 'Saltando...' : 'Siguiente' }}</span>
+            </button>
+          </div>
+        </div>
+        <div v-else-if="!nowPlaying && !queue.length && fallbackSongs.length && !fallbackPaused" class="card np-card np-fallback">
+          <div class="np-left">
+            <span class="np-fallback-icon">&#9835;</span>
+            <div class="np-info">
+              <p class="section-title">PLAYLIST DE RESPALDO</p>
+              <p class="np-title">Sonando automaticamente</p>
+            </div>
+          </div>
+          <div class="np-controls">
+            <button class="ctrl-labeled ctrl-pause" @click="toggleFallback" :disabled="loadingFallbackToggle">
+              <span class="ctrl-icon">&#10074;&#10074;</span><span class="ctrl-text">{{ loadingFallbackToggle ? '...' : 'Pausar' }}</span>
+            </button>
+            <button class="ctrl-labeled ctrl-skip" @click="skipFallbackSong" :disabled="loadingFallbackSkip">
+              <span class="ctrl-icon">&#9197;</span><span class="ctrl-text">{{ loadingFallbackSkip ? 'Saltando...' : 'Siguiente' }}</span>
             </button>
           </div>
         </div>
@@ -581,7 +691,7 @@ function logout() {
           <p class="np-empty-text" v-if="!queue.length">Sin reproduccion &mdash; agrega una cancion</p>
           <div v-else class="np-start">
             <p class="np-empty-text">{{ queue.length }} canciones en cola</p>
-            <button class="ctrl-btn-lg ctrl-play" @click="startPlayback">&#9654; REPRODUCIR</button>
+            <button class="ctrl-btn-lg ctrl-play" @click="startPlayback" :disabled="loadingStart">{{ loadingStart ? 'Iniciando...' : '&#9654; REPRODUCIR' }}</button>
           </div>
         </div>
 
@@ -606,8 +716,16 @@ function logout() {
           <!-- Logo/Nombre toggle -->
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
             <span style="font-size:13px;font-weight:600;">Logo / Nombre del bar</span>
-            <button class="t-btn" :class="showBrand ? 't-btn-kick' : 't-btn-reset'" @click="toggleBrand" style="padding:5px 12px;font-size:11px;">
-              {{ showBrand ? 'Ocultar' : 'Mostrar' }}
+            <button class="t-btn" :class="showBrand ? 't-btn-kick' : 't-btn-reset'" @click="toggleBrand" :disabled="loadingBrand" style="padding:5px 12px;font-size:11px;">
+              {{ loadingBrand ? '...' : (showBrand ? 'Ocultar' : 'Mostrar') }}
+            </button>
+          </div>
+
+          <!-- QR en pantalla -->
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <span style="font-size:13px;font-weight:600;">QR en pantalla</span>
+            <button class="t-btn" :class="showQr ? 't-btn-kick' : 't-btn-reset'" @click="toggleQr" :disabled="loadingQr" style="padding:5px 12px;font-size:11px;">
+              {{ loadingQr ? '...' : (showQr ? 'Ocultar' : 'Mostrar') }}
             </button>
           </div>
 
@@ -617,11 +735,11 @@ function logout() {
             <input type="text" v-model="bannerText" class="input-field"
               placeholder="Escribe el texto del banner..." />
             <div style="display:flex;gap:8px;margin-top:8px;">
-              <button class="btn btn-primary" style="flex:1;" @click="activateBanner" :disabled="!bannerText || bannerActive">
-                Mostrar (3 min)
+              <button class="btn btn-primary" style="flex:1;" @click="activateBanner" :disabled="!bannerText || bannerActive || loadingBanner">
+                {{ loadingBanner ? '...' : 'Mostrar (3 min)' }}
               </button>
-              <button class="btn btn-danger" style="flex:1;" @click="deactivateBanner" :disabled="!bannerActive">
-                Apagar
+              <button class="btn btn-danger" style="flex:1;" @click="deactivateBanner" :disabled="!bannerActive || loadingBanner">
+                {{ loadingBanner ? '...' : 'Apagar' }}
               </button>
             </div>
           </div>
@@ -646,7 +764,7 @@ function logout() {
                   <p class="lib-title">{{ r.title }}</p>
                   <p class="lib-artist">{{ r.duration }}</p>
                 </div>
-                <button class="ctrl-add-sm" :disabled="loading" @click.stop="addFromLibrary(r.youtube_id)">+</button>
+                <button class="ctrl-add-sm" :disabled="loadingAddFromLib[r.youtube_id]" @click.stop="addFromLibrary(r.youtube_id)">{{ loadingAddFromLib[r.youtube_id] ? '...' : '+' }}</button>
               </div>
             </div>
           </div>
@@ -667,7 +785,7 @@ function logout() {
                   <p class="lib-title">{{ song.title }}</p>
                   <p class="lib-artist">{{ song.artist }} &middot; {{ formatDuration(song.duration_sec) }}</p>
                 </div>
-                <button class="ctrl-add-sm" @click="addFromLibrary(song.youtube_id)" :disabled="loading">+</button>
+                <button class="ctrl-add-sm" @click="addFromLibrary(song.youtube_id)" :disabled="loadingAddFromLib[song.youtube_id]">{{ loadingAddFromLib[song.youtube_id] ? '...' : '+' }}</button>
               </div>
               <p v-if="!library.length" class="text-muted">Sin canciones guardadas</p>
             </div>
@@ -679,7 +797,7 @@ function logout() {
         <div class="card">
           <div style="display:flex;justify-content:space-between;align-items:center;">
             <p class="section-title">COLA ({{ queue.length }})</p>
-            <button v-if="queue.length" class="q-btn-label q-btn-remove" style="font-size:11px;" @click="clearQueue">Vaciar cola</button>
+            <button v-if="queue.length" class="q-btn-label q-btn-remove" style="font-size:11px;" @click="clearQueue" :disabled="loadingClearQueue">{{ loadingClearQueue ? 'Vaciando...' : 'Vaciar cola' }}</button>
           </div>
           <div class="q-list">
             <div v-for="(song, idx) in queue" :key="song.id" class="q-item"
@@ -693,8 +811,8 @@ function logout() {
                 <p class="q-title">{{ song.title }}</p>
                 <p class="q-meta">{{ song.user_name }} &middot; #{{ song.table_number }} &middot; {{ formatDuration(song.duration_sec) }}</p>
               </div>
-              <button class="q-btn-label q-btn-play" @click="playNow(song.id)">&#9654; Play</button>
-              <button class="q-btn-label q-btn-remove" @click="removeSong(song.id)">&#10005; Quitar</button>
+              <button class="q-btn-label q-btn-play" @click="playNow(song.id)" :disabled="loadingPlayNow[song.id]">{{ loadingPlayNow[song.id] ? '...' : '&#9654; Play' }}</button>
+              <button class="q-btn-label q-btn-remove" @click="removeSong(song.id)" :disabled="loadingRemove[song.id]">{{ loadingRemove[song.id] ? '...' : '&#10005; Quitar' }}</button>
             </div>
           </div>
           <p v-if="!queue.length" class="text-muted">Cola vacia</p>
@@ -710,7 +828,7 @@ function logout() {
                 <p class="q-title">{{ song.title }}</p>
                 <p class="q-meta">{{ song.user_name }} &middot; {{ song.played_at_label }}</p>
               </div>
-              <button class="q-btn-label q-btn-requeue" @click="requeueSong(song.youtube_id)">&#8634; Encolar</button>
+              <button class="q-btn-label q-btn-requeue" @click="requeueSong(song.youtube_id)" :disabled="loadingAddFromLib[song.youtube_id]">{{ loadingAddFromLib[song.youtube_id] ? '...' : '&#8634; Encolar' }}</button>
             </div>
           </div>
           <p v-else class="text-muted">Sin historial de hoy</p>
@@ -721,11 +839,11 @@ function logout() {
           <div class="fb-header">
             <p class="section-title">PLAYLIST DE RESPALDO ({{ fallbackSongs.length }})</p>
             <div class="fb-btns" v-if="fallbackSongs.length">
-              <button class="fb-toggle fb-play-now" @click="playFallbackNow" v-if="!nowPlaying && queue.length === 0">
-                &#9654; Reproducir
+              <button class="fb-toggle fb-play-now" @click="playFallbackNow" v-if="!nowPlaying && queue.length === 0" :disabled="loadingFallbackPlay">
+                {{ loadingFallbackPlay ? '...' : '&#9654; Reproducir' }}
               </button>
-              <button class="fb-toggle" :class="fallbackPaused ? 'fb-paused' : 'fb-playing'" @click="toggleFallback">
-                {{ fallbackPaused ? '&#9654; Activar' : '&#10074;&#10074; Pausar' }}
+              <button class="fb-toggle" :class="fallbackPaused ? 'fb-paused' : 'fb-playing'" @click="toggleFallback" :disabled="loadingFallbackToggle">
+                {{ loadingFallbackToggle ? '...' : (fallbackPaused ? '&#9654; Activar' : '&#10074;&#10074; Pausar') }}
               </button>
             </div>
           </div>
@@ -775,8 +893,8 @@ function logout() {
                   <p class="td-user-detail">{{ selectedTable.user_name }} &middot; {{ selectedTable.user_phone }}</p>
                 </div>
                 <div class="td-actions">
-                  <button class="t-btn t-btn-reset" @click="resetTableLimit(selectedTable.table_number)">Resetear limite</button>
-                  <button class="t-btn t-btn-kick" @click="kickTable(selectedTable.table_number); selectedTable = null">Expulsar</button>
+                  <button class="t-btn t-btn-reset" @click="resetTableLimit(selectedTable.table_number)" :disabled="loadingResetLimit[selectedTable.table_number]">{{ loadingResetLimit[selectedTable.table_number] ? '...' : 'Resetear limite' }}</button>
+                  <button class="t-btn t-btn-kick" @click="kickTable(selectedTable.table_number); selectedTable = null" :disabled="loadingKick[selectedTable.table_number]">{{ loadingKick[selectedTable.table_number] ? '...' : 'Expulsar' }}</button>
                 </div>
               </div>
             </div>
@@ -798,20 +916,41 @@ function logout() {
 
         <!-- ========== ANALYTICS TAB ========== -->
         <template v-if="rightTab === 'analytics'">
+          <!-- Period selector -->
+          <div class="an-period">
+            <button v-for="p in [{k:'day',l:'Hoy'},{k:'week',l:'Semana'},{k:'month',l:'Mes'},{k:'all',l:'Todo'}]" :key="p.k"
+              class="an-period-btn" :class="{ active: analyticsPeriod === p.k }"
+              @click="analyticsPeriod = p.k; fetchAnalytics()">{{ p.l }}</button>
+          </div>
+
           <div v-if="analytics">
             <div class="an-grid">
               <div class="an-card"><p class="an-val">{{ analytics.summary.total_songs_played }}</p><p class="an-label">Canciones</p></div>
               <div class="an-card"><p class="an-val">{{ analytics.summary.unique_users }}</p><p class="an-label">Usuarios</p></div>
               <div class="an-card"><p class="an-val">{{ analytics.summary.unique_songs }}</p><p class="an-label">Unicas</p></div>
               <div class="an-card"><p class="an-val">{{ analytics.summary.avg_queue_length }}</p><p class="an-label">Prom. Cola</p></div>
+              <div class="an-card" v-if="analytics.summary.active_days !== undefined"><p class="an-val">{{ analytics.summary.active_days }}</p><p class="an-label">Dias activos</p></div>
+              <div class="an-card" v-if="analytics.summary.skip_count !== undefined"><p class="an-val">{{ analytics.summary.skip_count }} <small>({{ analytics.summary.skip_rate }}%)</small></p><p class="an-label">Skips</p></div>
+              <div class="an-card" v-if="analytics.summary.error_count !== undefined"><p class="an-val">{{ analytics.summary.error_count }} <small>({{ analytics.summary.error_rate }}%)</small></p><p class="an-label">Errores</p></div>
+              <div class="an-card" v-if="analytics.summary.fallback_activations !== undefined"><p class="an-val">{{ analytics.summary.fallback_activations }}</p><p class="an-label">Fallbacks</p></div>
+              <div class="an-card" v-if="analytics.summary.new_users !== undefined"><p class="an-val">{{ analytics.summary.new_users }}</p><p class="an-label">Nuevos</p></div>
+              <div class="an-card" v-if="analytics.summary.returning_users !== undefined"><p class="an-val">{{ analytics.summary.returning_users }}</p><p class="an-label">Recurrentes</p></div>
             </div>
             <div class="card" v-if="analytics.top_songs.length">
-              <p class="section-title">TOP CANCIONES (SEMANA)</p>
+              <p class="section-title">TOP CANCIONES</p>
               <div v-for="(s, i) in analytics.top_songs" :key="s.youtube_id" class="an-song">
                 <span class="an-pos">{{ i + 1 }}</span>
                 <img :src="`https://i.ytimg.com/vi/${s.youtube_id}/mqdefault.jpg`" class="an-thumb" />
                 <span class="an-title">{{ s.title }}</span>
                 <span class="an-count">{{ s.times_played }}x</span>
+              </div>
+            </div>
+            <div class="card" v-if="analytics.top_artists && analytics.top_artists.length" style="margin-top:12px;">
+              <p class="section-title">TOP ARTISTAS</p>
+              <div v-for="(a, i) in analytics.top_artists" :key="a.artist" class="an-song">
+                <span class="an-pos">{{ i + 1 }}</span>
+                <span class="an-title">{{ a.artist }}</span>
+                <span class="an-count">{{ a.count }}x</span>
               </div>
             </div>
             <div class="card" v-if="analytics.peak_hours.length" style="margin-top:12px;">
@@ -893,7 +1032,7 @@ function logout() {
   max-height: calc(100vh - 80px); overflow-y: auto;
   min-width: 0;
 }
-.sidebar-info { text-align: center; overflow: hidden; }
+.sidebar-info { text-align: center; }
 .sidebar-logo { width: 64px; height: 64px; border-radius: 12px; object-fit: cover; margin: 0 auto 8px; }
 .bar-name { font-size: 22px; margin-bottom: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .info-stats { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; }
@@ -997,6 +1136,8 @@ function logout() {
 .np-title { font-weight: 700; font-size: 15px; }
 .np-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
 .np-controls { display: flex; gap: 8px; flex-shrink: 0; }
+.np-fallback { border-left-color: var(--warning, #f59e0b); }
+.np-fallback-icon { font-size: 32px; flex-shrink: 0; }
 .np-empty { text-align: center; padding: 24px; }
 .np-empty-text { color: var(--text-muted); font-size: 14px; }
 .np-start { display: flex; flex-direction: column; align-items: center; gap: 16px; }
@@ -1169,7 +1310,10 @@ function logout() {
 .td-song-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 
 /* Analytics Tab */
-.an-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+.an-period { display: flex; gap: 6px; margin-bottom: 12px; }
+.an-period-btn { padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border); cursor: pointer; }
+.an-period-btn.active { background: var(--primary); color: var(--text-on-primary, #fff); border-color: var(--primary); }
+.an-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 12px; }
 .an-card { background: var(--bg-card); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); padding: 16px; text-align: center; }
 .an-val { font-size: 26px; font-weight: 700; }
 .an-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
@@ -1242,7 +1386,7 @@ function logout() {
   .table-item { padding: 6px; }
   .table-btns { flex-wrap: wrap; }
   .table-songs-mini { max-height: none; }
-  .an-grid { grid-template-columns: repeat(2, 1fr); }
+  .an-grid { grid-template-columns: repeat(3, 1fr); }
   .td-header { flex-direction: column; }
   .td-actions { width: 100%; }
   .td-actions .t-btn { flex: 1; text-align: center; }

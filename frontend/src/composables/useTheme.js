@@ -9,6 +9,7 @@ function safeSetItem(key, value) {
 }
 
 const currentMode = ref(safeGetItem('bq_theme') || 'dark')
+let lastVenueConfig = null
 
 export function useTheme() {
 
@@ -19,7 +20,26 @@ export function useTheme() {
   }
 
   function toggleMode() {
+    clearVenueTheme()
     applyMode(currentMode.value === 'dark' ? 'light' : 'dark')
+    // Re-apply venue accent/colors with the new mode
+    if (lastVenueConfig) {
+      const theme = lastVenueConfig
+      if (theme.accent) applyAccent(theme.accent)
+      if (theme.bg) {
+        const el = document.documentElement
+        el.style.setProperty('--bg', theme.bg)
+        el.style.setProperty('--bg-card', adjustBrightness(theme.bg, currentMode.value === 'dark' ? 15 : -5))
+        el.style.setProperty('--bg-elevated', adjustBrightness(theme.bg, currentMode.value === 'dark' ? 25 : -10))
+        el.style.setProperty('--border', adjustBrightness(theme.bg, currentMode.value === 'dark' ? 40 : -25))
+        const { r, g, b } = hexToRgb(theme.bg)
+        el.style.setProperty('--border-soft', `rgba(${r}, ${g}, ${b}, 0.3)`)
+      }
+      if (theme.text) {
+        document.documentElement.style.setProperty('--text', theme.text)
+        document.documentElement.style.setProperty('--text-muted', adjustBrightness(theme.text, currentMode.value === 'dark' ? -80 : 80))
+      }
+    }
   }
 
   function applyVenueTheme(config) {
@@ -30,6 +50,8 @@ export function useTheme() {
     }
     const theme = parsed?.theme
     if (!theme) return
+
+    lastVenueConfig = theme
 
     // Apply mode
     if (theme.mode) applyMode(theme.mode)

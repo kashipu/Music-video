@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, Header
+from fastapi import APIRouter, HTTPException, Depends, Header, Query
 
 from app.models.schemas import RegisterRequest, ProfileUpdateRequest
 from app.services import auth_service, queue_service
@@ -26,6 +26,27 @@ async def register(req: RegisterRequest):
     phone = req.phone.strip()
     if len(phone) < 8:
         raise HTTPException(status_code=422, detail="Formato de telefono invalido", headers={"X-Error-Code": "INVALID_PHONE"})
+
+    # Verify daily PIN if required
+    db = await get_db()
+    venue_rows = await db.execute_fetchall(
+        "SELECT id FROM venues WHERE slug = ?", (req.venue_slug,)
+    )
+    if venue_rows:
+        venue_id = venue_rows[0][0]
+        if await auth_service.is_pin_required(venue_id):
+            if not req.pin:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Codigo PIN requerido. Miralo en la pantalla del bar.",
+                    headers={"X-Error-Code": "PIN_REQUIRED"},
+                )
+            if not await auth_service.verify_daily_pin(venue_id, req.pin):
+                raise HTTPException(
+                    status_code=403,
+                    detail="Codigo PIN incorrecto",
+                    headers={"X-Error-Code": "PIN_INVALID"},
+                )
 
     try:
         result = await auth_service.register_user(
@@ -99,3 +120,35 @@ async def update_profile(req: ProfileUpdateRequest, user: dict = Depends(get_cur
     )
     u = user_rows[0]
     return {"id": u[0], "phone": u[1], "display_name": u[2]}
+
+
+@router.get("/venue-info")
+async def venue_info(venue_slug: str = Query(...)):
+    """Public endpoint to check venue status and PIN requirement."""
+    db = await get_db()
+    rows = await db.execute_fetchall(
+        "SELECT id, name, active, logo_url, config FROM venues WHERE slug = ?", (venue_slug,)
+    )
+    if not rows:
+        raise HTTPException(status_code=404, detail="Bar no encontrado")
+
+    venue_id = rows[0][0]
+    pin_required = await auth_service.is_pin_required(venue_id)
+
+    # Parse theme from config
+    theme = None
+    if rows[0][4]:
+        try:
+            import json
+            cfg = json.loads(rows[0][4])
+            theme = cfg.get("theme")
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+    return {
+        "venue_name": rows[0][1],
+        "active": bool(rows[0][2]),
+        "logo_url": rows[0][3],
+        "pin_required": pin_required,
+        "theme": theme,
+    }

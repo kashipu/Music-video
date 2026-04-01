@@ -34,6 +34,11 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/admin',
+    name: 'admin-login-global',
+    component: () => import('../views/AdminLogin.vue'),
+  },
+  {
     path: '/:venueSlug/admin/login',
     name: 'admin-login',
     component: () => import('../views/AdminLogin.vue'),
@@ -51,10 +56,11 @@ const routes = [
     meta: { requiresAdmin: true },
   },
 
-  // Legacy / root
+  // Root — no redirect, blank or landing
   {
     path: '/',
-    redirect: '/superadmin',
+    name: 'home',
+    component: () => import('../views/AdminLogin.vue'),
   },
 ]
 
@@ -81,7 +87,11 @@ router.beforeEach((to, from, next) => {
 
   if (to.meta.requiresAdmin) {
     if (!auth.adminToken) {
-      next({ name: 'admin-login', params: { venueSlug } })
+      if (venueSlug) {
+        next({ name: 'admin-login', params: { venueSlug } })
+      } else {
+        next({ name: 'admin-login-global' })
+      }
       return
     }
     // Verify admin token matches this venue

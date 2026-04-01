@@ -39,6 +39,7 @@ async def get_now_playing(venue_id: int) -> dict:
     volume = 80
     banner_text = ""
     show_brand = True
+    show_qr = False
     fallback_active = song is None
     fallback_mode = "playlist"
     fallback_playlist = []
@@ -50,6 +51,7 @@ async def get_now_playing(venue_id: int) -> dict:
             volume = config.get("volume", 80)
             banner_text = config.get("banner_text", "")
             show_brand = config.get("show_brand", True)
+            show_qr = config.get("show_qr", False)
         except (json.JSONDecodeError, TypeError):
             pass
 
@@ -66,6 +68,7 @@ async def get_now_playing(venue_id: int) -> dict:
         "volume": volume,
         "banner_text": banner_text,
         "show_brand": show_brand,
+        "show_qr": show_qr,
         "venue_name": venue_name,
         "venue_logo": venue_logo,
         "fallback_active": fallback_active,
@@ -104,6 +107,16 @@ async def finish_song(song_id: int, venue_id: int) -> dict:
     # Advance to next song
     next_song = await _advance_queue(venue_id)
     await db.commit()
+
+    # Log analytics events
+    try:
+        from app.services.analytics_service import log_event
+        if rows:
+            await log_event(venue_id, "song_played", {"youtube_id": rows[0][2], "title": rows[0][3]}, finished_user_id)
+        if next_song is None:
+            await log_event(venue_id, "fallback_activated")
+    except Exception:
+        pass
 
     return {
         "next_song": next_song,
@@ -152,9 +165,56 @@ async def skip_song(venue_id: int) -> dict:
     next_song = await _advance_queue(venue_id)
     await db.commit()
 
+    # Log skip event
+    try:
+        from app.services.analytics_service import log_event
+        if skipped:
+            await log_event(venue_id, "song_skipped", {"title": skipped["title"]}, skipped.get("user_id"))
+    except Exception:
+        pass
+
     return {
         "skipped": skipped,
         "now_playing": next_song,
+    }
+
+
+async def error_song(song_id: int, venue_id: int, error_code: int) -> dict:
+    db = await get_db()
+
+    # Get song info before marking as error
+    rows = await db.execute_fetchall(
+        "SELECT venue_id, user_id, youtube_id, title, duration_sec FROM queue_songs WHERE id = ?",
+        (song_id,),
+    )
+    finished_user_id = None
+    error_title = ""
+    if rows:
+        finished_user_id = rows[0][1]
+        error_title = rows[0][3]
+
+    # Mark as played (error songs count as played)
+    await db.execute(
+        "UPDATE queue_songs SET status = 'played', played_at = CURRENT_TIMESTAMP "
+        "WHERE id = ? AND venue_id = ?",
+        (song_id, venue_id),
+    )
+
+    next_song = await _advance_queue(venue_id)
+    await db.commit()
+
+    # Log error event
+    try:
+        from app.services.analytics_service import log_event
+        await log_event(venue_id, "song_error", {"error_code": error_code, "title": error_title}, finished_user_id)
+    except Exception:
+        pass
+
+    return {
+        "next_song": next_song,
+        "fallback_active": next_song is None,
+        "finished_user_id": finished_user_id,
+        "error_title": error_title,
     }
 
 

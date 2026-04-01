@@ -150,7 +150,13 @@ async def confirm_song(req: SongConfirmRequest, user: dict = Depends(get_current
             "UPDATE queue_songs SET status = 'playing', played_at = CURRENT_TIMESTAMP WHERE id = ?",
             (result["id"],),
         )
+        from app.services import playback_service
+        await playback_service.set_playback_status(venue_id, "playing")
         await db.commit()
+        await manager.broadcast(venue_id, {
+            "event": "playback_status_changed",
+            "data": {"status": "playing"},
+        })
         await manager.broadcast(venue_id, {
             "event": "now_playing_changed",
             "data": {"song": {"id": result["id"], "youtube_id": req.youtube_id, "title": title}},

@@ -1,4 +1,18 @@
+import json
+
 from app.database import get_db
+
+
+async def log_event(venue_id: int, event_type: str, event_data: dict = None,
+                    user_id: int = None, session_id: str = None):
+    """Log an analytics event."""
+    db = await get_db()
+    await db.execute(
+        "INSERT INTO analytics_events (venue_id, event_type, event_data, user_id, session_id) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (venue_id, event_type, json.dumps(event_data or {}), user_id, session_id),
+    )
+    await db.commit()
 
 
 async def get_analytics(venue_id: int, period: str = "week") -> dict:
@@ -68,10 +82,76 @@ async def get_analytics(venue_id: int, period: str = "week") -> dict:
     )
     top_tables = [{"table_number": r[0], "total_songs": r[1]} for r in table_rows]
 
+    # Enhanced metrics from analytics_events (if table exists)
+    try:
+        skip_rows = await db.execute_fetchall(
+            "SELECT COUNT(*) FROM analytics_events "
+            "WHERE venue_id = ? AND event_type = 'song_skipped' AND created_at > datetime('now', ?)",
+            (venue_id, period_filter),
+        )
+        error_rows = await db.execute_fetchall(
+            "SELECT COUNT(*) FROM analytics_events "
+            "WHERE venue_id = ? AND event_type = 'song_error' AND created_at > datetime('now', ?)",
+            (venue_id, period_filter),
+        )
+        fallback_rows = await db.execute_fetchall(
+            "SELECT COUNT(*) FROM analytics_events "
+            "WHERE venue_id = ? AND event_type = 'fallback_activated' AND created_at > datetime('now', ?)",
+            (venue_id, period_filter),
+        )
+        new_users_rows = await db.execute_fetchall(
+            "SELECT COUNT(*) FROM analytics_events "
+            "WHERE venue_id = ? AND event_type = 'user_registered' AND created_at > datetime('now', ?)",
+            (venue_id, period_filter),
+        )
+        returning_rows = await db.execute_fetchall(
+            "SELECT COUNT(*) FROM analytics_events "
+            "WHERE venue_id = ? AND event_type = 'user_returned' AND created_at > datetime('now', ?)",
+            (venue_id, period_filter),
+        )
+
+        total_played = summary["total_songs_played"]
+        summary["skip_count"] = skip_rows[0][0]
+        summary["skip_rate"] = round((skip_rows[0][0] / total_played * 100) if total_played else 0, 1)
+        summary["error_count"] = error_rows[0][0]
+        summary["error_rate"] = round((error_rows[0][0] / total_played * 100) if total_played else 0, 1)
+        summary["fallback_activations"] = fallback_rows[0][0]
+        summary["new_users"] = new_users_rows[0][0]
+        summary["returning_users"] = returning_rows[0][0]
+    except Exception:
+        # analytics_events table may not exist yet
+        pass
+
+    # Top artists from song_metadata
+    try:
+        artist_rows = await db.execute_fetchall(
+            "SELECT sm.artist, COUNT(*) as cnt "
+            "FROM play_history ph JOIN song_metadata sm ON ph.youtube_id = sm.youtube_id "
+            "WHERE ph.venue_id = ? AND ph.played_at > datetime('now', ?) "
+            "AND sm.artist IS NOT NULL AND sm.artist != '' "
+            "GROUP BY sm.artist ORDER BY cnt DESC LIMIT 10",
+            (venue_id, period_filter),
+        )
+        top_artists = [{"artist": r[0], "count": r[1]} for r in artist_rows]
+    except Exception:
+        top_artists = []
+
+    # Active days
+    try:
+        active_days_rows = await db.execute_fetchall(
+            "SELECT COUNT(DISTINCT date(played_at)) FROM play_history "
+            "WHERE venue_id = ? AND played_at > datetime('now', ?)",
+            (venue_id, period_filter),
+        )
+        summary["active_days"] = active_days_rows[0][0]
+    except Exception:
+        pass
+
     return {
         "period": period,
         "summary": summary,
         "top_songs": top_songs,
+        "top_artists": top_artists,
         "peak_hours": peak_hours,
         "top_tables": top_tables,
     }

@@ -1,5 +1,7 @@
+import json
+import random
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date
 
 import jwt
 import bcrypt
@@ -61,6 +63,15 @@ async def register_user(phone: str, table_number: str | None, venue_slug: str,
     await db.commit()
 
     token = create_token(user_id, phone, venue_id, table_number, session_id)
+
+    # Log analytics event
+    try:
+        from app.services.analytics_service import log_event
+        event_type = "user_returned" if existing else "user_registered"
+        await log_event(venue_id, event_type, {"phone": phone}, user_id, session_id)
+        await log_event(venue_id, "session_started", {"table_number": table_number}, user_id, session_id)
+    except Exception:
+        pass
 
     return {
         "token": token,
@@ -159,6 +170,54 @@ async def verify_admin(username: str, password: str) -> dict | None:
         "qr_url": admin[7],
         "config": admin[8],
     }
+
+
+async def get_or_create_daily_pin(venue_id: int) -> str:
+    """Get today's PIN for a venue, or create one if it doesn't exist."""
+    db = await get_db()
+    today = date.today().isoformat()
+
+    rows = await db.execute_fetchall(
+        "SELECT pin FROM venue_daily_pins WHERE venue_id = ? AND valid_date = ?",
+        (venue_id, today),
+    )
+    if rows:
+        return rows[0][0]
+
+    pin = ''.join(random.choices('0123456789', k=4))
+    await db.execute(
+        "INSERT INTO venue_daily_pins (venue_id, pin, valid_date) VALUES (?, ?, ?)",
+        (venue_id, pin, today),
+    )
+    await db.commit()
+    return pin
+
+
+async def verify_daily_pin(venue_id: int, pin: str) -> bool:
+    """Verify a PIN matches today's PIN for the venue."""
+    db = await get_db()
+    today = date.today().isoformat()
+
+    rows = await db.execute_fetchall(
+        "SELECT id FROM venue_daily_pins WHERE venue_id = ? AND pin = ? AND valid_date = ?",
+        (venue_id, pin, today),
+    )
+    return len(rows) > 0
+
+
+async def is_pin_required(venue_id: int) -> bool:
+    """Check if PIN verification is required for this venue."""
+    db = await get_db()
+    rows = await db.execute_fetchall(
+        "SELECT config FROM venues WHERE id = ?", (venue_id,),
+    )
+    if rows and rows[0][0]:
+        try:
+            config = json.loads(rows[0][0])
+            return config.get("require_pin", False)
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return False
 
 
 async def get_session_info(user_id: int, venue_id: int) -> dict | None:

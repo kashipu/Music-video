@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onUnmounted, watch } from 'vue'
 import { useQueueStore } from '../stores/queue.js'
+import { trackSongSearched, trackSongSubmitted } from '../utils/analytics.js'
 
 const API = import.meta.env.VITE_API_URL || ''
 
@@ -66,6 +67,7 @@ async function doSearch() {
     if (res.ok) {
       const data = await res.json()
       searchResults.value = data.results
+      trackSongSearched(searchQuery.value, data.results.length)
     }
   } catch { /* ignore */ }
   finally { searching.value = false }
@@ -77,6 +79,7 @@ async function selectResult(result) {
   loading.value = true
   try {
     const preview = await queueStore.submitSong(result.url)
+    trackSongSubmitted(preview.youtube_id, preview.title)
     emit('preview', preview)
     searchQuery.value = ''
     searchResults.value = []
@@ -92,6 +95,7 @@ async function handlePaste() {
   loading.value = true
   try {
     const preview = await queueStore.submitSong(url.value)
+    trackSongSubmitted(preview.youtube_id, preview.title)
     emit('preview', preview)
     url.value = ''
   } catch (e) {

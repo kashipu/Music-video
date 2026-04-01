@@ -143,6 +143,11 @@ async def remove_song(song_id: int, admin: dict = Depends(get_current_admin)):
         "event": "song_removed",
         "data": {"id": song_id, "removed_by": "admin"},
     })
+    try:
+        from app.services.analytics_service import log_event
+        await log_event(venue_id, "song_removed", {"song_id": song_id})
+    except Exception:
+        pass
     return {"message": "Song removed", "song_id": song_id}
 
 
@@ -408,6 +413,12 @@ async def start_playback(admin: dict = Depends(get_current_admin)):
     await playback_service.set_playback_status(venue_id, "playing")
     await db.commit()
 
+    # Ensure kiosk knows playback is active
+    await manager.broadcast(venue_id, {
+        "event": "playback_status_changed",
+        "data": {"status": "playing"},
+    })
+
     now_playing = {"id": song[0], "youtube_id": song[1], "title": song[2]}
     await manager.broadcast(venue_id, {
         "event": "now_playing_changed",
@@ -454,6 +465,17 @@ async def play_fallback_now(admin: dict = Depends(get_current_admin)):
         "data": {"fallback_songs": songs},
     })
     return {"message": "Playlist de respaldo iniciada"}
+
+
+@router.post("/fallback-skip")
+async def skip_fallback_song(admin: dict = Depends(get_current_admin)):
+    """Tell the kiosk to skip the current fallback song."""
+    venue_id = admin["venue_id"]
+    await manager.broadcast(venue_id, {
+        "event": "fallback_skip",
+        "data": {},
+    })
+    return {"message": "Cancion de playlist saltada"}
 
 
 @router.post("/playback/pause")
@@ -591,6 +613,30 @@ async def set_banner(
     return {"banner_text": text}
 
 
+@router.post("/show-qr")
+async def toggle_show_qr(
+    show: bool = Query(...),
+    admin: dict = Depends(get_current_admin),
+):
+    """Toggle QR visibility on kiosk screen."""
+    venue_id = admin["venue_id"]
+    db = await get_db()
+    import json
+    rows = await db.execute_fetchall("SELECT config FROM venues WHERE id = ?", (venue_id,))
+    config = {}
+    if rows and rows[0][0]:
+        try: config = json.loads(rows[0][0])
+        except: pass
+    config["show_qr"] = show
+    await db.execute("UPDATE venues SET config = ? WHERE id = ?", (json.dumps(config), venue_id))
+    await db.commit()
+    await manager.broadcast(venue_id, {
+        "event": "qr_visibility_changed",
+        "data": {"show_qr": show},
+    })
+    return {"show_qr": show}
+
+
 @router.get("/tables")
 async def get_tables(admin: dict = Depends(get_current_admin)):
     """Get all active tables with their song history for today."""
@@ -683,6 +729,14 @@ async def kick_table(table_number: str, admin: dict = Depends(get_current_admin)
         "data": {"id": None, "removed_by": "admin"},
     })
 
+    # Log analytics events
+    try:
+        from app.services.analytics_service import log_event
+        for session in sessions:
+            await log_event(venue_id, "session_kicked", {"table_number": table_number}, session[1], session[0])
+    except Exception:
+        pass
+
     return {"message": f"Mesa {table_number} expulsada"}
 
 
@@ -718,3 +772,51 @@ async def reset_table_limit(table_number: str, admin: dict = Depends(get_current
         })
 
     return {"message": f"Limite de {table_number} reseteado"}
+
+
+# ===== DAILY PIN =====
+
+@router.get("/daily-pin")
+async def get_daily_pin(admin: dict = Depends(get_current_admin)):
+    """Get today's PIN for this venue (creates one if it doesn't exist)."""
+    pin = await auth_service.get_or_create_daily_pin(admin["venue_id"])
+    pin_required = await auth_service.is_pin_required(admin["venue_id"])
+    return {"pin": pin, "require_pin": pin_required}
+
+
+@router.post("/daily-pin/regenerate")
+async def regenerate_daily_pin(admin: dict = Depends(get_current_admin)):
+    """Delete today's PIN and generate a new one."""
+    from datetime import date
+    venue_id = admin["venue_id"]
+    db = await get_db()
+    today = date.today().isoformat()
+    await db.execute(
+        "DELETE FROM venue_daily_pins WHERE venue_id = ? AND valid_date = ?",
+        (venue_id, today),
+    )
+    await db.commit()
+    pin = await auth_service.get_or_create_daily_pin(venue_id)
+    return {"pin": pin}
+
+
+@router.post("/settings/pin")
+async def toggle_pin_requirement(
+    require: bool = Query(...),
+    admin: dict = Depends(get_current_admin),
+):
+    """Enable or disable PIN requirement for this venue."""
+    import json
+    venue_id = admin["venue_id"]
+    db = await get_db()
+    rows = await db.execute_fetchall("SELECT config FROM venues WHERE id = ?", (venue_id,))
+    config = {}
+    if rows and rows[0][0]:
+        try:
+            config = json.loads(rows[0][0])
+        except (json.JSONDecodeError, TypeError):
+            pass
+    config["require_pin"] = require
+    await db.execute("UPDATE venues SET config = ? WHERE id = ?", (json.dumps(config), venue_id))
+    await db.commit()
+    return {"require_pin": require}

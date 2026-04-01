@@ -8,7 +8,7 @@ const route = useRoute()
 const { currentMode, toggleMode } = useTheme()
 const router = useRouter()
 const auth = useAuthStore()
-const venueSlug = route.params.venueSlug
+const venueSlug = route.params.venueSlug || null
 
 const username = ref('')
 const password = ref('')
@@ -19,8 +19,10 @@ async function handleLogin() {
   error.value = ''
   loading.value = true
   try {
-    await auth.adminLogin(username.value, password.value, venueSlug)
-    router.push({ name: 'admin', params: { venueSlug } })
+    const data = await auth.adminLogin(username.value, password.value, venueSlug)
+    // Redirect to the admin's venue (works whether venueSlug was in URL or not)
+    const slug = data.admin?.venue_slug || venueSlug
+    router.push({ name: 'admin', params: { venueSlug: slug } })
   } catch (e) {
     error.value = e.message
   } finally {
@@ -34,7 +36,7 @@ async function handleLogin() {
     <button class="theme-toggle" style="position:fixed;top:16px;right:16px;" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button>
     <div class="container">
       <div class="login-header">
-        <h1>{{ venueSlug.replace(/-/g, ' ') }}</h1>
+        <h1>{{ venueSlug ? venueSlug.replace(/-/g, ' ') : 'Repitela' }}</h1>
         <p class="subtitle">Panel de administracion</p>
       </div>
 

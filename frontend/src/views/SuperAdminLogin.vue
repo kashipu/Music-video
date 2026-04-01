@@ -25,8 +25,12 @@ async function handleLogin() {
       body: JSON.stringify({ username: username.value, password: password.value }),
     })
     if (!res.ok) {
-      const err = await res.json()
-      throw new Error(err.detail || 'Login failed')
+      let msg = 'Login failed'
+      try {
+        const err = await res.json()
+        msg = err.detail || msg
+      } catch { /* non-JSON response */ }
+      throw new Error(msg)
     }
     const data = await res.json()
     localStorage.setItem('bq_super_token', data.token)

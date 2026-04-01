@@ -32,17 +32,19 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => !!token.value)
   const isAdmin = computed(() => !!adminToken.value)
 
-  async function register(phone, tableNumber, venueSlug, dataConsent, displayName) {
+  async function register(phone, tableNumber, venueSlug, dataConsent, displayName, pin = null) {
+    const body = {
+      phone,
+      table_number: tableNumber || null,
+      venue_slug: venueSlug,
+      data_consent: dataConsent,
+      display_name: displayName || null,
+    }
+    if (pin) body.pin = pin
     const res = await fetch(`${API}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        phone,
-        table_number: tableNumber || null,
-        venue_slug: venueSlug,
-        data_consent: dataConsent,
-        display_name: displayName || null,
-      }),
+      body: JSON.stringify(body),
     })
     if (!res.ok) {
       let msg = 'Registration failed'

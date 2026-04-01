@@ -10,6 +10,7 @@ class RegisterRequest(BaseModel):
     venue_slug: str
     data_consent: bool
     display_name: str | None = None
+    pin: str | None = None
 
 
 class RegisterResponse(BaseModel):
@@ -87,3 +88,9 @@ class AdminReorderRequest(BaseModel):
 class PlaybackFinishedRequest(BaseModel):
     song_id: int
     venue_slug: str
+
+
+class PlaybackErrorRequest(BaseModel):
+    song_id: int
+    venue_slug: str
+    error_code: int

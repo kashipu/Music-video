@@ -1,44 +1,91 @@
-# BarQueue - La Musica la Pones Tu
+# Repitela - La Musica la Pones Tu
 
 Plataforma SaaS multi-tenant para bares que permite a los clientes encolar canciones de YouTube desde su celular. Cada bar tiene su propia cola, panel de admin, y pantalla de video.
 
 ## Como Funciona
 
 ### Para el Cliente
-1. Escanea el **QR de la mesa** con el celular
+1. Escanea el **QR** (visible en la pantalla del bar o impreso en la mesa)
 2. Se registra con **numero de celular** y nombre
-3. Pega un **link de YouTube**, ve el preview de la cancion
+3. Busca una cancion o pega un **link de YouTube**
 4. **Confirma** y la cancion entra a la cola
-5. Puede pedir hasta **5 canciones cada 30 minutos** (configurable)
+5. Puede pedir hasta **5 canciones cada 30 minutos** (configurable por bar)
 6. Ve en que posicion esta su cancion y recibe notificacion cuando suena
+7. Puede cancelar canciones pendientes
 
 ### Para el Administrador del Bar
-1. Accede al **panel de admin** con username/password
-2. Layout de **2 columnas**: info del bar a la izquierda, musica a la derecha
-3. Controles: **pausar, siguiente, play, mute, volumen** con labels
+1. Accede al **panel de admin** desde `app.repitela.com/admin` (login global, redirige a su bar)
+2. Layout de **2 columnas**: info del bar a la izquierda, musica/mesas/analytics a la derecha
+3. Controles de reproduccion: **pausar, siguiente, play, mute, volumen** con estados de carga
 4. **Drag & drop** para reordenar canciones en la cola
-5. **Biblioteca** de canciones ya reproducidas para re-encolar
-6. **Playlist de respaldo** que suena automaticamente cuando la cola esta vacia
-7. Gestion de **mesas**: ver actividad, resetear limites, expulsar
-8. **QR dinamico** con descarga e impresion
-9. **Analytics**: canciones populares, horas pico, mesas activas
+5. **Buscar en YouTube** o re-encolar desde **biblioteca** de canciones ya reproducidas
+6. **Playlist de respaldo** que suena cuando la cola esta vacia (con skip y pause)
+7. Gestion de **mesas/usuarios**: ver actividad, resetear limites, expulsar
+8. **QR dinamico** con descarga e impresion + toggle para mostrar QR en pantalla del Kiosk
+9. **Banner publicitario** scrollable con auto-hide de 3 minutos
+10. **Logo/nombre del bar** toggle en la pantalla de video
+11. **Analytics** con selector de periodo (hoy/semana/mes/todo): canciones, usuarios, skips, errores, top artistas, horas pico, mesas activas
 
-### La Pantalla de Video (Kiosco)
-- Reproduce las canciones en **pantalla completa**
-- Overlay con nombre de la cancion que aparece 15 segundos y desaparece
-- Barra sutil inferior con cancion actual y siguiente
-- **Playlist de respaldo** suena automaticamente sin repetir cuando la cola esta vacia
-- Indicador visual "PLAYLIST" cuando suena musica de respaldo
-- Control de volumen y pausa remotos desde el admin
+### La Pantalla de Video (Kiosk)
+- Reproduce canciones en **pantalla completa** sin UI de YouTube visible
+- **Controles propios**: barra de progreso con tiempo, play/pause, adelantar/retroceder (-10s, +10s)
+- La barra aparece al pasar el mouse y se contrae automaticamente
+- **Playlist de respaldo** suena cuando la cola esta vacia, sin interrumpir al agregar canciones
+- **QR en pantalla**: grande en overlay de espera, mini QR durante reproduccion (ciclo 2min visible / 1min oculto, controlado desde admin)
+- **Deteccion de errores de video**: salta automaticamente si un video esta bloqueado/removido
+- **Deteccion de audio bloqueado**: muestra boton "ACTIVAR SONIDO" si el browser bloquea autoplay
+- **Pre-buffering**: segundo player oculto pre-carga el siguiente video para transiciones rapidas
+- Overlay con nombre de cancion (15s), barra inferior con cancion actual/siguiente
+- Hereda el **tema/colores** del venue
 
 ### Super Admin (Dueno de la plataforma)
 - Crea y gestiona **multiples bares** desde un solo panel
-- Configura por bar: nombre, logo, slug, QR URL, rate limits
+- Configura por bar: nombre, logo, slug, QR URL, rate limits, tema
 - Importa **playlists de YouTube** como musica de respaldo por bar
 - Gestiona **administradores** por bar
 - Ve **usuarios registrados** con nombre y telefono
 - Activa, desactiva o elimina bares
-- Ve estadisticas globales de todos los bares
+
+## Funcionalidades v1.0.2
+
+### Reproduccion
+- Playlist sin interrupciones: cuando un usuario agrega cancion durante fallback, espera a que termine la cancion actual
+- Deteccion de errores de YouTube (codigos 101, 150, 100): salta automaticamente + notifica al admin
+- Pre-buffering de siguiente cancion con segundo player oculto
+- Controles de video propios: barra de progreso, seek, play/pause (YouTube UI deshabilitada)
+- Deteccion de audio bloqueado por el browser con overlay de activacion
+
+### Admin
+- Estados de carga individuales por boton (skip, pause, play, kick, etc.)
+- Skip y pause para playlist de respaldo
+- Toggle para mostrar/ocultar QR en pantalla del Kiosk (ciclo 2min on / 1min off)
+- Login global en `/admin` (sin necesidad de saber el slug del bar)
+
+### Analytics
+- Tabla `analytics_events` para tracking granular de eventos
+- `play_history` ya no se borra (retencion permanente para analytics)
+- Eventos trackeados: song_played, song_skipped, song_removed, song_error, fallback_activated, user_registered, user_returned, session_started, session_kicked
+- Metricas: skip rate, error rate, activaciones de fallback, usuarios nuevos vs recurrentes, top artistas, dias activos
+- Selector de periodo: hoy, semana, mes, todo
+
+### Google Analytics (GTM + GA4)
+- Google Tag Manager integrado (GTM-PPVKNTZB)
+- 13 eventos custom enviados al dataLayer (`repitela_*`)
+- Contenedor GTM importable en `docs/gtm-container.json`
+- Documentacion completa en `docs/ANALYTICS.md`
+
+### UX
+- Registro de usuario muestra logo y nombre del bar (no "BarQueue")
+- Texto "por Repitela" en registro
+- Herencia de tema/colores del venue en todas las vistas (registro, usuario, admin, kiosk)
+- Toggle tema claro/oscuro funcional con preservacion de colores del venue
+- Contraste mejorado en ambos temas
+- PIN diario opcional para verificar presencia fisica (desactivado por defecto)
+
+### Seguridad
+- Slugs de venue unicos (constraint UNIQUE en DB)
+- Usernames de admin unicos
+- Error handling robusto en super admin login
 
 ## Arquitectura Multi-Tenant
 
@@ -48,7 +95,6 @@ Super Admin (/superadmin)
   |-- Bar La Esquina (/bar-la-esquina/*)
   |     |-- /registro     (cliente se registra)
   |     |-- /usuario      (cliente encola canciones)
-  |     |-- /admin/login  (admin del bar)
   |     |-- /admin        (panel de administracion)
   |     |-- /video        (pantalla de reproduccion)
   |
@@ -56,6 +102,10 @@ Super Admin (/superadmin)
   |     |-- (mismas rutas)
   |
   |-- ... (N bares)
+
+Rutas globales:
+  /admin          (login admin universal)
+  /superadmin     (gestion de la plataforma)
 ```
 
 Todos los bares comparten la misma base de datos SQLite, aislados por `venue_id`.
@@ -65,13 +115,14 @@ Todos los bares comparten la misma base de datos SQLite, aislados por `venue_id`
 | Componente | Tecnologia |
 |------------|-----------|
 | Backend | Python 3.11+ / FastAPI |
-| Frontend | Vue.js 3 + Vite |
+| Frontend | Vue.js 3 + Pinia + Vite |
 | Base de datos | SQLite (WAL mode) |
 | Tiempo real | WebSockets nativo |
 | Contenedores | Docker + Docker Compose |
 | Deploy | Dokploy (VPS) |
 | Reproduccion | YouTube IFrame Player API |
-| QR | api.qrserver.com (sin dependencias) |
+| QR | api.qrserver.com |
+| Analytics | Google Tag Manager + GA4 |
 
 ## Estructura del Proyecto
 
@@ -79,71 +130,63 @@ Todos los bares comparten la misma base de datos SQLite, aislados por `venue_id`
 Music-video/
 ├── README.md
 ├── docker-compose.yml
-├── .gitignore
 ├── backend/
 │   ├── Dockerfile
 │   ├── .env.example
 │   ├── requirements.txt
-│   ├── requirements-dev.txt
 │   └── app/
 │       ├── main.py              # FastAPI app, CORS, lifespan
 │       ├── config.py            # Settings desde .env
 │       ├── database.py          # SQLite connection + migrations
 │       ├── routers/
-│       │   ├── auth.py          # Registro, sesiones, JWT
+│       │   ├── auth.py          # Registro, sesiones, JWT, venue-info
 │       │   ├── queue.py         # Cola de canciones (cliente)
-│       │   ├── admin.py         # Panel admin del bar
-│       │   ├── playback.py      # Control de reproduccion
+│       │   ├── admin.py         # Panel admin + daily-pin + show-qr
+│       │   ├── playback.py      # Control de reproduccion + error handling
 │       │   ├── websocket.py     # WebSocket manager
 │       │   └── superadmin.py    # CRUD de bares, playlists, usuarios
 │       ├── services/
-│       │   ├── auth_service.py
+│       │   ├── auth_service.py      # + daily PIN
 │       │   ├── queue_service.py
 │       │   ├── youtube_service.py
-│       │   ├── playback_service.py
+│       │   ├── playback_service.py  # + error_song()
 │       │   ├── playlist_service.py
-│       │   └── analytics_service.py
+│       │   └── analytics_service.py # + log_event() + enhanced metrics
 │       ├── models/
-│       │   └── schemas.py       # Pydantic models
+│       │   └── schemas.py
 │       └── db/
-│           ├── migrations/      # SQL migrations (001-005)
-│           ├── seed.py          # Datos iniciales
-│           └── update_titles.py # Actualizar titulos de YouTube
+│           └── migrations/      # SQL migrations (001-007)
 ├── frontend/
 │   ├── Dockerfile
-│   ├── .env.example
-│   ├── package.json
-│   ├── vite.config.js
-│   ├── nginx.conf
-│   ├── index.html
+│   ├── index.html               # GTM container
 │   └── src/
-│       ├── main.js
-│       ├── App.vue
-│       ├── style.css            # Variables CSS, tema oscuro
-│       ├── router/index.js      # Vue Router con guards
+│       ├── style.css            # Temas dark/light con buen contraste
+│       ├── router/index.js      # + /admin login global
 │       ├── stores/
-│       │   ├── auth.js          # Pinia: auth state
-│       │   └── queue.js         # Pinia: queue state
+│       │   ├── auth.js          # + PIN support
+│       │   └── queue.js
 │       ├── composables/
-│       │   └── useWebSocket.js  # WebSocket con reconnect
+│       │   ├── useWebSocket.js
+│       │   └── useTheme.js      # + venue theme preservation on toggle
 │       ├── utils/
-│       │   └── youtube.js       # Parseo URLs YouTube
+│       │   ├── youtube.js
+│       │   └── analytics.js     # GTM dataLayer helper
 │       ├── views/
-│       │   ├── QRLanding.vue          # Registro del cliente
-│       │   ├── CustomerDashboard.vue  # Dashboard del cliente
-│       │   ├── AdminLogin.vue         # Login admin
-│       │   ├── AdminDashboard.vue     # Panel admin (2 columnas)
-│       │   ├── Kiosk.vue              # Pantalla video fullscreen
-│       │   ├── SuperAdminLogin.vue    # Login super admin
-│       │   ├── SuperAdminPanel.vue    # Listado de bares
-│       │   └── SuperAdminVenueDetail.vue  # Detalle/config de un bar
+│       │   ├── QRLanding.vue          # + venue logo/name/theme
+│       │   ├── CustomerDashboard.vue  # + loading states
+│       │   ├── AdminLogin.vue         # + global login (sin slug)
+│       │   ├── AdminDashboard.vue     # + per-button loading + QR toggle + fallback skip
+│       │   ├── Kiosk.vue              # + progress bar + controls + QR + error detection + pre-buffer
+│       │   ├── SuperAdminLogin.vue    # + error handling
+│       │   ├── SuperAdminPanel.vue
+│       │   └── SuperAdminVenueDetail.vue
 │       └── components/
-│           ├── NowPlaying.vue
-│           ├── QueueList.vue
-│           ├── SongCard.vue
-│           ├── SongSubmit.vue
-│           └── SongPreview.vue
-└── docs/                        # Documentacion de diseno
+│           ├── SongSubmit.vue         # + analytics tracking
+│           └── SongPreview.vue        # + loading state
+└── docs/
+    ├── ANALYTICS.md             # Plan de medicion completo
+    ├── gtm-container.json       # Contenedor GTM importable
+    └── ...                      # Arquitectura, API, flujos
 ```
 
 ## Quickstart
@@ -158,7 +201,6 @@ venv\Scripts\activate          # Windows
 # source venv/bin/activate     # Linux/Mac
 pip install -r requirements.txt
 copy .env.example .env
-python -m app.db.seed
 uvicorn app.main:app --reload --port 8000
 
 # Frontend (otra terminal)
@@ -169,8 +211,8 @@ npm run dev
 ```
 
 Accede a:
-- Super Admin: http://localhost:5173/superadmin/login (william / super123)
-- Crea un bar desde el super admin y usa las URLs generadas
+- Admin login: http://localhost:5173/admin
+- Super Admin: http://localhost:5173/superadmin/login
 
 ### Docker
 
@@ -180,81 +222,22 @@ docker compose up --build
 
 ## Base de Datos
 
-SQLite con WAL mode. 9 tablas:
+SQLite con WAL mode. 11 tablas:
 
 | Tabla | Descripcion |
 |-------|-------------|
-| `venues` | Bares (name, slug, logo, config, QR URL) |
+| `venues` | Bares (name, slug, logo, config JSON, QR URL) |
 | `users` | Usuarios (phone, name, consent) |
 | `user_sessions` | Sesiones por venue (table_number) |
 | `queue_songs` | Cola de canciones (FIFO, status) |
 | `submission_log` | Rate limiting (rolling window) |
 | `admins` | Admins por venue (bcrypt) |
 | `super_admins` | Super administradores |
-| `play_history` | Historial de reproduccion |
+| `play_history` | Historial de reproduccion (permanente) |
 | `song_metadata` | Cache de metadata YouTube |
 | `fallback_songs` | Playlist de respaldo por venue |
-
-## API Endpoints
-
-### Auth
-- `POST /api/auth/register` — Registro cliente
-- `GET /api/auth/session` — Info sesion actual
-- `PATCH /api/auth/profile` — Actualizar nombre
-
-### Queue (Cliente)
-- `GET /api/queue?venue=slug` — Cola actual
-- `POST /api/queue/songs` — Validar URL (preview)
-- `POST /api/queue/songs/confirm` — Confirmar y encolar
-- `GET /api/queue/my-songs` — Mis canciones
-- `DELETE /api/queue/my-songs/{id}` — Cancelar mi cancion
-- `GET /api/queue/remaining-slots` — Rate limit info
-
-### Admin
-- `POST /api/admin/login` — Login admin
-- `GET /api/admin/queue` — Cola completa
-- `POST /api/admin/queue/songs` — Agregar cancion
-- `POST /api/admin/queue/songs/{id}/play-now` — Reproducir ahora
-- `DELETE /api/admin/queue/songs/{id}` — Remover
-- `PATCH /api/admin/queue/songs/{id}` — Reordenar
-- `POST /api/admin/queue/skip` — Saltar cancion
-- `POST /api/admin/playback/start` — Iniciar reproduccion
-- `POST /api/admin/playback/pause` — Pausar
-- `POST /api/admin/playback/resume` — Reanudar
-- `POST /api/admin/volume?volume=N` — Cambiar volumen
-- `POST /api/admin/fallback-status?paused=bool` — Pausar/activar playlist
-- `POST /api/admin/fallback-play` — Reproducir playlist ahora
-- `GET /api/admin/played` — Canciones ya reproducidas
-- `GET /api/admin/playlist` — Playlist de respaldo
-- `GET /api/admin/library?search=` — Buscar en biblioteca
-- `GET /api/admin/tables` — Mesas activas
-- `POST /api/admin/tables/{n}/kick` — Expulsar mesa
-- `POST /api/admin/tables/{n}/reset-limit` — Resetear limite
-- `GET /api/admin/analytics?period=` — Analytics
-- `GET /api/admin/history` — Historial
-
-### Playback
-- `GET /api/playback/now-playing?venue=slug` — Que esta sonando
-- `POST /api/playback/finished` — Cancion termino
-
-### Super Admin
-- `POST /api/superadmin/login` — Login
-- `GET /api/superadmin/venues` — Listar bares
-- `POST /api/superadmin/venues` — Crear bar
-- `PATCH /api/superadmin/venues/{id}` — Editar bar
-- `DELETE /api/superadmin/venues/{id}` — Eliminar bar
-- `GET /api/superadmin/venues/{id}/stats` — Estadisticas
-- `GET /api/superadmin/venues/{id}/users` — Usuarios del bar
-- `POST /api/superadmin/venues/{id}/admins` — Agregar admin
-- `DELETE /api/superadmin/venues/{id}/admins/{id}` — Quitar admin
-- `GET /api/superadmin/venues/{id}/playlist` — Playlist
-- `POST /api/superadmin/venues/{id}/playlist/import` — Importar playlist YouTube
-- `POST /api/superadmin/venues/{id}/playlist/add` — Agregar cancion
-- `DELETE /api/superadmin/venues/{id}/playlist/{id}` — Quitar cancion
-- `PATCH /api/superadmin/venues/{id}/playlist/{id}/toggle` — Activar/desactivar
-
-### WebSocket
-- `ws://host/ws/queue?venue=slug&user_id=N` — Tiempo real
+| `venue_daily_pins` | PINs diarios por venue |
+| `analytics_events` | Eventos de analytics granulares |
 
 ## Variables de Entorno
 
@@ -262,7 +245,7 @@ SQLite con WAL mode. 9 tablas:
 ```
 APP_SECRET_KEY=cambiar-en-produccion
 DATABASE_PATH=data/barqueue.db
-YOUTUBE_API_KEY=              # Opcional, usa oEmbed sin key
+YOUTUBE_API_KEY=              # Opcional
 CORS_ORIGINS=http://localhost:5173
 MAX_SONGS_PER_WINDOW=5
 WINDOW_MINUTES=30
