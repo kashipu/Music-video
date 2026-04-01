@@ -9,23 +9,14 @@ from app.routers import auth, queue, admin, playback, websocket, superadmin
 
 
 async def cleanup_old_data():
-    """Clean up transient data while preserving analytics-critical history."""
+    """Delete data older than 7 days to keep DB small."""
     from app.database import get_db
     try:
         db = await get_db()
-        # Transient queue data: clean after 30 days (played/removed songs only)
-        await db.execute(
-            "DELETE FROM queue_songs WHERE status IN ('played', 'removed') "
-            "AND added_at < datetime('now', '-30 days')"
-        )
-        # Rate-limit log: only needed short-term
+        await db.execute("DELETE FROM queue_songs WHERE added_at < datetime('now', '-7 days')")
         await db.execute("DELETE FROM submission_log WHERE submitted_at < datetime('now', '-7 days')")
-        # Ended sessions: keep 90 days for user analytics
-        await db.execute(
-            "DELETE FROM user_sessions WHERE ended_at IS NOT NULL "
-            "AND ended_at < datetime('now', '-90 days')"
-        )
-        # play_history: NEVER auto-delete — this is the core analytics table
+        await db.execute("DELETE FROM play_history WHERE played_at < datetime('now', '-7 days')")
+        await db.execute("DELETE FROM user_sessions WHERE ended_at IS NOT NULL AND ended_at < datetime('now', '-7 days')")
         await db.commit()
     except Exception:
         pass
