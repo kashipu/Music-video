@@ -94,37 +94,52 @@ async def playback_error(req: PlaybackErrorRequest, authorization: str = Header(
             raise HTTPException(status_code=404, detail="Bar no encontrado")
         venue_id = rows[0][0]
 
-    result = await playback_service.error_song(req.song_id, venue_id, req.error_code)
+    # Read song info first (read-only, always works even if DB is locked for writes)
+    db = await get_db()
+    song_rows = await db.execute_fetchall(
+        "SELECT user_id, youtube_id, title FROM queue_songs WHERE id = ?",
+        (req.song_id,),
+    )
+    finished_user_id = song_rows[0][0] if song_rows else None
+    error_youtube_id = song_rows[0][1] if song_rows else None
+    error_title = song_rows[0][2] if song_rows else ""
 
-    # Notify admin about the error
+    # Try DB writes (mark played, advance queue, save blocked video)
+    # These may fail with "database is locked" — notifications still go out
+    result = {"next_song": None, "fallback_active": True}
+    try:
+        result = await playback_service.error_song(req.song_id, venue_id, req.error_code)
+    except Exception:
+        pass
+
+    # Always notify admin about the error
     await manager.broadcast(venue_id, {
         "event": "song_error",
         "data": {
             "song_id": req.song_id,
             "error_code": req.error_code,
-            "title": result.get("error_title", ""),
+            "title": error_title,
             "message": f"Video error (code {req.error_code})",
         },
     })
 
-    # Notify the user whose song errored
-    if result.get("finished_user_id"):
-        error_title = result.get("error_title", "tu cancion")
-        await manager.send_to_user(venue_id, result["finished_user_id"], {
+    # Always notify the user whose song errored
+    if finished_user_id:
+        await manager.send_to_user(venue_id, finished_user_id, {
             "event": "song_error_notification",
             "data": {
                 "title": error_title,
-                "youtube_id": result.get("error_youtube_id", ""),
+                "youtube_id": error_youtube_id or "",
                 "error_code": req.error_code,
-                "message": f"\"{error_title}\" no pudo ser reproducida por restricciones del video. Busca otra version o cancion diferente.",
+                "message": f"\"{error_title or 'tu cancion'}\" no pudo ser reproducida por restricciones del video. Busca otra version o cancion diferente.",
             },
         })
-        await manager.send_to_user(venue_id, result["finished_user_id"], {
+        await manager.send_to_user(venue_id, finished_user_id, {
             "event": "rate_limit_reset",
             "data": {"message": "Slot liberado por error de video"},
         })
 
-    if result["next_song"]:
+    if result.get("next_song"):
         await manager.broadcast(venue_id, {
             "event": "now_playing_changed",
             "data": {"song": result["next_song"]},

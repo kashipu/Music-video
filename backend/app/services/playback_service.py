@@ -1,6 +1,20 @@
+import asyncio
 import json
 
 from app.database import get_db
+
+
+async def _commit_with_retry(db, retries: int = 3, delay: float = 0.3):
+    """Commit with retries to handle transient 'database is locked' errors."""
+    for attempt in range(retries):
+        try:
+            await _commit_with_retry(db)
+            return
+        except Exception as e:
+            if "locked" in str(e) and attempt < retries - 1:
+                await asyncio.sleep(delay * (attempt + 1))
+            else:
+                raise
 
 
 async def get_now_playing(venue_id: int) -> dict:
@@ -106,7 +120,7 @@ async def finish_song(song_id: int, venue_id: int) -> dict:
 
     # Advance to next song
     next_song = await _advance_queue(venue_id)
-    await db.commit()
+    await _commit_with_retry(db)
 
     # Log analytics events
     try:
@@ -163,7 +177,7 @@ async def skip_song(venue_id: int) -> dict:
         )
 
     next_song = await _advance_queue(venue_id)
-    await db.commit()
+    await _commit_with_retry(db)
 
     # Log skip event
     try:
@@ -201,7 +215,7 @@ async def error_song(song_id: int, venue_id: int, error_code: int) -> dict:
     )
 
     next_song = await _advance_queue(venue_id)
-    await db.commit()
+    await _commit_with_retry(db)
 
     # Save to blocked_videos so it's filtered from future searches
     error_youtube_id = rows[0][2] if rows else None
@@ -212,7 +226,7 @@ async def error_song(song_id: int, venue_id: int, error_code: int) -> dict:
                 "VALUES (?, ?, ?, ?)",
                 (error_youtube_id, venue_id, error_code, error_title),
             )
-            await db.commit()
+            await _commit_with_retry(db)
         except Exception:
             pass
 
@@ -246,7 +260,7 @@ async def set_playback_status(venue_id: int, status: str) -> None:
         "UPDATE venues SET config = ? WHERE id = ?",
         (json.dumps(config), venue_id),
     )
-    await db.commit()
+    await _commit_with_retry(db)
 
 
 async def remove_song(song_id: int, venue_id: int) -> None:
@@ -255,7 +269,7 @@ async def remove_song(song_id: int, venue_id: int) -> None:
         "UPDATE queue_songs SET status = 'removed' WHERE id = ? AND venue_id = ?",
         (song_id, venue_id),
     )
-    await db.commit()
+    await _commit_with_retry(db)
 
 
 async def reorder_song(song_id: int, venue_id: int, new_position: int) -> None:
@@ -288,4 +302,4 @@ async def reorder_song(song_id: int, venue_id: int, new_position: int) -> None:
         "UPDATE queue_songs SET position = ? WHERE id = ?",
         (new_position, song_id),
     )
-    await db.commit()
+    await _commit_with_retry(db)
