@@ -24,7 +24,7 @@ async def init_db() -> None:
 
     await _db.execute("PRAGMA journal_mode = WAL")
     await _db.execute("PRAGMA foreign_keys = ON")
-    await _db.execute("PRAGMA busy_timeout = 5000")
+    await _db.execute("PRAGMA busy_timeout = 15000")
     await _db.execute("PRAGMA cache_size = -64000")
     await _db.execute("PRAGMA synchronous = NORMAL")
 
