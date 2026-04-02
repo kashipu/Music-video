@@ -203,6 +203,19 @@ async def error_song(song_id: int, venue_id: int, error_code: int) -> dict:
     next_song = await _advance_queue(venue_id)
     await db.commit()
 
+    # Save to blocked_videos so it's filtered from future searches
+    error_youtube_id = rows[0][2] if rows else None
+    if error_youtube_id:
+        try:
+            await db.execute(
+                "INSERT OR IGNORE INTO blocked_videos (youtube_id, venue_id, error_code, title) "
+                "VALUES (?, ?, ?, ?)",
+                (error_youtube_id, venue_id, error_code, error_title),
+            )
+            await db.commit()
+        except Exception:
+            pass
+
     # Log error event
     try:
         from app.services.analytics_service import log_event
@@ -215,6 +228,7 @@ async def error_song(song_id: int, venue_id: int, error_code: int) -> dict:
         "fallback_active": next_song is None,
         "finished_user_id": finished_user_id,
         "error_title": error_title,
+        "error_youtube_id": error_youtube_id,
     }
 
 

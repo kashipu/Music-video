@@ -23,6 +23,7 @@ const cancelLoading = ref({})
 const toast = ref('')
 const toastTimeout = ref(null)
 const mySongPlaying = ref(false)
+const songError = ref(null) // { title, youtube_id, message }
 const supportsNotifications = 'Notification' in window && typeof Notification.requestPermission === 'function'
 const notificationPermission = ref(supportsNotifications ? Notification.permission : 'denied')
 
@@ -65,7 +66,11 @@ onEvent((event) => {
     mySongPlaying.value = false
   }
   if (event.event === 'song_error_notification') {
-    showToast(event.data.message || 'Tu cancion no pudo ser reproducida')
+    songError.value = {
+      title: event.data.title || 'Tu cancion',
+      youtube_id: event.data.youtube_id || '',
+      message: event.data.message || 'Tu cancion no pudo ser reproducida',
+    }
     queueStore.fetchMySongs()
     queueStore.fetchRemainingSlots()
   }
@@ -150,6 +155,8 @@ function handleLogout() {
   router.push({ name: 'registro', params: { venueSlug } })
 }
 
+function dismissError() { songError.value = null }
+
 function onPreview(data) { preview.value = data }
 function onCancelPreview() { preview.value = null }
 
@@ -187,6 +194,20 @@ async function cancelSong(songId) {
     <!-- Toast -->
     <Transition name="fade">
       <div v-if="toast" class="toast">{{ toast }}</div>
+    </Transition>
+
+    <!-- Song Error Modal -->
+    <Transition name="fade">
+      <div v-if="songError" class="error-overlay" @click.self="dismissError">
+        <div class="error-modal">
+          <div class="error-icon">&#9888;</div>
+          <p class="error-title">No se pudo reproducir</p>
+          <p class="error-song-name">{{ songError.title }}</p>
+          <p class="error-msg">Este video tiene restricciones de derechos de autor y no puede reproducirse en este momento.</p>
+          <p class="error-hint">Busca otra version o una cancion diferente. Tu turno fue liberado.</p>
+          <button class="error-btn" @click="dismissError">Buscar otra cancion</button>
+        </div>
+      </div>
     </Transition>
 
     <!-- Header -->
@@ -426,4 +447,52 @@ async function cancelSong(songId) {
   transition: all 0.15s; opacity: 0.6;
 }
 .cancel-btn:hover { background: var(--danger); color: white; opacity: 1; }
+
+/* Error Modal */
+.error-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+.error-modal {
+  background: var(--bg-card);
+  border-radius: 16px;
+  padding: 28px 24px;
+  max-width: 340px; width: 100%;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+.error-icon {
+  font-size: 40px; margin-bottom: 8px;
+  color: var(--warning);
+}
+.error-title {
+  font-size: 17px; font-weight: 700;
+  margin-bottom: 6px;
+}
+.error-song-name {
+  font-size: 14px; font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+  display: -webkit-box; -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden;
+}
+.error-msg {
+  font-size: 13px; color: var(--text-muted);
+  line-height: 1.5; margin-bottom: 6px;
+}
+.error-hint {
+  font-size: 13px; color: var(--success);
+  font-weight: 600; margin-bottom: 20px;
+}
+.error-btn {
+  width: 100%; padding: 12px;
+  border: none; border-radius: 10px;
+  background: var(--primary);
+  color: white; font-size: 15px; font-weight: 700;
+  cursor: pointer; transition: opacity 0.15s;
+}
+.error-btn:active { opacity: 0.8; }
 </style>

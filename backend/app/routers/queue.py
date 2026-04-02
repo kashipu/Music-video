@@ -14,6 +14,23 @@ async def search_songs(q: str = Query(..., min_length=2)):
     from app.services.youtube_search import search_youtube
     results = await search_youtube(q)
 
+    # Filter out videos that have been blocked (copyright, playback errors)
+    if results:
+        try:
+            from app.database import get_db
+            db = await get_db()
+            ids = [r["youtube_id"] for r in results]
+            placeholders = ",".join("?" * len(ids))
+            blocked_rows = await db.execute_fetchall(
+                f"SELECT youtube_id FROM blocked_videos WHERE youtube_id IN ({placeholders})",
+                ids,
+            )
+            blocked_ids = {r[0] for r in blocked_rows}
+            if blocked_ids:
+                results = [r for r in results if r["youtube_id"] not in blocked_ids]
+        except Exception:
+            pass
+
     # Log search event to backend analytics (best-effort)
     try:
         from app.services.analytics_service import log_event
@@ -69,6 +86,19 @@ async def submit_song(req: SongSubmitRequest, user: dict = Depends(get_current_u
     if metadata.get("embeddable") is False:
         raise HTTPException(status_code=400, detail="Este video no permite ser reproducido",
                             headers={"X-Error-Code": "VIDEO_NOT_EMBEDDABLE"})
+
+    # Check if this video was previously blocked (copyright/playback error)
+    from app.database import get_db as _get_db
+    _db = await _get_db()
+    blocked = await _db.execute_fetchall(
+        "SELECT 1 FROM blocked_videos WHERE youtube_id = ?", (video_id,)
+    )
+    if blocked:
+        raise HTTPException(
+            status_code=400,
+            detail="Este video tiene restricciones de derechos y no puede ser reproducido. Busca otra version o cancion.",
+            headers={"X-Error-Code": "VIDEO_BLOCKED"},
+        )
 
     # Check duration limit
     max_duration = await queue_service.check_duration_limit(venue_id, metadata["duration_sec"])

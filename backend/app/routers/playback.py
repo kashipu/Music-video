@@ -109,11 +109,14 @@ async def playback_error(req: PlaybackErrorRequest, authorization: str = Header(
 
     # Notify the user whose song errored
     if result.get("finished_user_id"):
+        error_title = result.get("error_title", "tu cancion")
         await manager.send_to_user(venue_id, result["finished_user_id"], {
             "event": "song_error_notification",
             "data": {
-                "title": result.get("error_title", ""),
-                "message": f"No pudimos reproducir \"{result.get('error_title', 'tu cancion')}\" porque el video no esta disponible. Puedes pedir otra.",
+                "title": error_title,
+                "youtube_id": result.get("error_youtube_id", ""),
+                "error_code": req.error_code,
+                "message": f"\"{error_title}\" no pudo ser reproducida por restricciones del video. Busca otra version o cancion diferente.",
             },
         })
         await manager.send_to_user(venue_id, result["finished_user_id"], {
