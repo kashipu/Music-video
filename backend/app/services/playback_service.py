@@ -8,7 +8,7 @@ async def _commit_with_retry(db, retries: int = 3, delay: float = 0.3):
     """Commit with retries to handle transient 'database is locked' errors."""
     for attempt in range(retries):
         try:
-            await _commit_with_retry(db)
+            await db.commit()
             return
         except Exception as e:
             if "locked" in str(e) and attempt < retries - 1:
@@ -213,6 +213,18 @@ async def error_song(song_id: int, venue_id: int, error_code: int) -> dict:
         "WHERE id = ? AND venue_id = ?",
         (song_id, venue_id),
     )
+
+    # Free the rate limit slot — delete the most recent submission_log entry
+    # so the user can request another song
+    if finished_user_id:
+        await db.execute(
+            "DELETE FROM submission_log WHERE id = ("
+            "  SELECT id FROM submission_log "
+            "  WHERE user_id = ? AND venue_id = ? "
+            "  ORDER BY submitted_at DESC LIMIT 1"
+            ")",
+            (finished_user_id, venue_id),
+        )
 
     next_song = await _advance_queue(venue_id)
     await _commit_with_retry(db)

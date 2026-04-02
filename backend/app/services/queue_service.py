@@ -21,19 +21,34 @@ async def _commit_with_retry(db, retries: int = 3, delay: float = 0.3):
 
 async def get_rate_limit_info(user_id: int, venue_id: int) -> dict:
     db = await get_db()
+
+    # Load venue-specific rate limit config, fall back to global defaults
+    window_minutes = settings.window_minutes
+    max_songs = settings.max_songs_per_window
+    venue_rows = await db.execute_fetchall(
+        "SELECT config FROM venues WHERE id = ?", (venue_id,)
+    )
+    if venue_rows and venue_rows[0][0]:
+        try:
+            config = json.loads(venue_rows[0][0])
+            window_minutes = config.get("window_minutes", window_minutes)
+            max_songs = config.get("max_songs_per_window", max_songs)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
     rows = await db.execute_fetchall(
         "SELECT COUNT(*) FROM submission_log "
         "WHERE user_id = ? AND venue_id = ? AND submitted_at > datetime('now', ?)",
-        (user_id, venue_id, f"-{settings.window_minutes} minutes"),
+        (user_id, venue_id, f"-{window_minutes} minutes"),
     )
     recent = rows[0][0] if rows else 0
-    remaining = max(0, settings.max_songs_per_window - recent)
+    remaining = max(0, max_songs - recent)
 
     # Get oldest submission time for reset calculation
     oldest_rows = await db.execute_fetchall(
         "SELECT MIN(submitted_at) FROM submission_log "
         "WHERE user_id = ? AND venue_id = ? AND submitted_at > datetime('now', ?)",
-        (user_id, venue_id, f"-{settings.window_minutes} minutes"),
+        (user_id, venue_id, f"-{window_minutes} minutes"),
     )
 
     now = datetime.now(timezone.utc)
@@ -45,14 +60,14 @@ async def get_rate_limit_info(user_id: int, venue_id: int) -> dict:
                 oldest_dt = oldest_dt.replace(tzinfo=timezone.utc)
         except (ValueError, TypeError):
             oldest_dt = now
-        resets_at = oldest_dt + timedelta(minutes=settings.window_minutes)
+        resets_at = oldest_dt + timedelta(minutes=window_minutes)
     else:
-        resets_at = now + timedelta(minutes=settings.window_minutes)
+        resets_at = now + timedelta(minutes=window_minutes)
 
     return {
         "songs_remaining": remaining,
-        "max_songs": settings.max_songs_per_window,
-        "window_minutes": settings.window_minutes,
+        "max_songs": max_songs,
+        "window_minutes": window_minutes,
         "window_resets_at": resets_at.isoformat(),
         "recent_submissions": recent,
     }
