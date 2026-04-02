@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onUnmounted, watch } from 'vue'
 import { useQueueStore } from '../stores/queue.js'
-import { trackSongSearched, trackSongSubmitted } from '../utils/analytics.js'
+import { trackSongSearched, trackSongSubmitted, trackSearchResultSelected } from '../utils/analytics.js'
 
 const API = import.meta.env.VITE_API_URL || ''
 
@@ -22,6 +22,7 @@ const searching = ref(false)
 const countdown = ref('')
 let countdownInterval = null
 let searchTimeout = null
+let searchStartedAt = null
 
 const remaining = () => props.rateLimit?.songs_remaining ?? 5
 const isBlocked = computed(() => remaining() <= 0)
@@ -62,24 +63,30 @@ async function doSearch() {
   if (searchQuery.value.length < 2) return
   searching.value = true
   error.value = ''
+  searchStartedAt = Date.now()
   try {
     const res = await fetch(`${API}/api/queue/search?q=${encodeURIComponent(searchQuery.value)}`)
     if (res.ok) {
       const data = await res.json()
       searchResults.value = data.results
-      trackSongSearched(searchQuery.value, data.results.length)
+      const searchDurationMs = Date.now() - searchStartedAt
+      trackSongSearched(searchQuery.value, data.results.length, searchDurationMs)
     }
   } catch { /* ignore */ }
   finally { searching.value = false }
 }
 
-async function selectResult(result) {
+async function selectResult(result, index) {
   error.value = ''
   if (remaining() <= 0) { error.value = 'Ya usaste tus canciones'; return }
   loading.value = true
   try {
+    trackSearchResultSelected(
+      searchQuery.value, index, searchResults.value.length,
+      result.youtube_id, result.title,
+    )
     const preview = await queueStore.submitSong(result.url)
-    trackSongSubmitted(preview.youtube_id, preview.title)
+    trackSongSubmitted(preview.youtube_id, preview.title, 'search', index)
     emit('preview', preview)
     searchQuery.value = ''
     searchResults.value = []
@@ -95,7 +102,7 @@ async function handlePaste() {
   loading.value = true
   try {
     const preview = await queueStore.submitSong(url.value)
-    trackSongSubmitted(preview.youtube_id, preview.title)
+    trackSongSubmitted(preview.youtube_id, preview.title, 'paste')
     emit('preview', preview)
     url.value = ''
   } catch (e) {
@@ -154,7 +161,7 @@ async function pasteFromClipboard() {
         <p v-if="searching" class="search-status">Buscando...</p>
 
         <div v-if="searchResults.length" class="search-results">
-          <div v-for="r in searchResults" :key="r.youtube_id" class="result-item" @click="selectResult(r)">
+          <div v-for="(r, i) in searchResults" :key="r.youtube_id" class="result-item" @click="selectResult(r, i)">
             <img :src="r.thumbnail_url" class="result-thumb" />
             <div class="result-info">
               <p class="result-title">{{ r.title }}</p>

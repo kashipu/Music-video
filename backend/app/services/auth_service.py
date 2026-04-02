@@ -233,6 +233,86 @@ async def is_pin_required(venue_id: int) -> bool:
     return False
 
 
+async def update_session_activity(session_id: str) -> None:
+    """Update last_activity_at for the session (heartbeat)."""
+    db = await get_db()
+    await db.execute(
+        "UPDATE user_sessions SET last_activity_at = CURRENT_TIMESTAMP "
+        "WHERE id = ? AND ended_at IS NULL",
+        (session_id,),
+    )
+    await db.commit()
+
+
+async def is_session_expired(session_id: str) -> bool:
+    """Check if session should be expired (inactivity or max duration)."""
+    db = await get_db()
+    rows = await db.execute_fetchall(
+        "SELECT started_at, last_activity_at, ended_at FROM user_sessions WHERE id = ?",
+        (session_id,),
+    )
+    if not rows:
+        return True
+    started_at, last_activity, ended_at = rows[0][0], rows[0][1], rows[0][2]
+    if ended_at:
+        return True
+
+    now = datetime.now(timezone.utc)
+
+    # Hard max duration (default 24h)
+    if started_at:
+        try:
+            started = datetime.fromisoformat(str(started_at))
+            if started.tzinfo is None:
+                started = started.replace(tzinfo=timezone.utc)
+            if (now - started).total_seconds() > settings.session_max_hours * 3600:
+                return True
+        except (ValueError, TypeError):
+            pass
+
+    # Inactivity timeout (default 2h)
+    activity_ts = last_activity or started_at
+    if activity_ts:
+        try:
+            last = datetime.fromisoformat(str(activity_ts))
+            if last.tzinfo is None:
+                last = last.replace(tzinfo=timezone.utc)
+            if (now - last).total_seconds() > settings.session_inactivity_minutes * 60:
+                return True
+        except (ValueError, TypeError):
+            pass
+
+    return False
+
+
+async def expire_session(session_id: str) -> None:
+    """Mark a session as ended."""
+    db = await get_db()
+    await db.execute(
+        "UPDATE user_sessions SET ended_at = CURRENT_TIMESTAMP WHERE id = ? AND ended_at IS NULL",
+        (session_id,),
+    )
+    await db.commit()
+
+
+async def expire_stale_sessions() -> int:
+    """Expire all sessions that exceed max duration or inactivity timeout. Returns count expired."""
+    db = await get_db()
+    inactivity_minutes = settings.session_inactivity_minutes
+    max_hours = settings.session_max_hours
+
+    result = await db.execute(
+        "UPDATE user_sessions SET ended_at = CURRENT_TIMESTAMP "
+        "WHERE ended_at IS NULL AND ("
+        "  started_at < datetime('now', ? || ' hours') OR "
+        "  COALESCE(last_activity_at, started_at) < datetime('now', ? || ' minutes')"
+        ")",
+        (f"-{max_hours}", f"-{inactivity_minutes}"),
+    )
+    await db.commit()
+    return result.rowcount
+
+
 async def get_session_info(user_id: int, venue_id: int) -> dict | None:
     db = await get_db()
     rows = await db.execute_fetchall(

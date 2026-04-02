@@ -15,6 +15,13 @@ async def get_current_user(authorization: str = Header(...)) -> dict:
         payload = auth_service.decode_token(token)
     except Exception:
         raise HTTPException(status_code=401, detail="Sesion expirada, vuelve a iniciar")
+
+    # Check session not expired by inactivity or max duration
+    session_id = payload.get("session_id")
+    if session_id and await auth_service.is_session_expired(session_id):
+        await auth_service.expire_session(session_id)
+        raise HTTPException(status_code=401, detail="Sesion expirada por inactividad, vuelve a registrarte")
+
     return payload
 
 
@@ -90,6 +97,11 @@ async def get_session(user: dict = Depends(get_current_user)):
     )
     if not user_rows:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    # Update session activity (heartbeat)
+    session_id = user.get("session_id")
+    if session_id:
+        await auth_service.update_session_activity(session_id)
 
     u = user_rows[0]
     session_info = await auth_service.get_session_info(user["user_id"], user["venue_id"])

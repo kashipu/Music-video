@@ -17,7 +17,7 @@ def get_logos_dir():
 
 
 async def cleanup_old_data():
-    """Delete data older than 7 days to keep DB small."""
+    """Delete data older than 7 days to keep DB small, and expire stale sessions."""
     from app.database import get_db
     try:
         db = await get_db()
@@ -26,6 +26,16 @@ async def cleanup_old_data():
         # play_history is now preserved for long-term analytics
         await db.execute("DELETE FROM user_sessions WHERE ended_at IS NOT NULL AND ended_at < datetime('now', '-7 days')")
         await db.commit()
+    except Exception:
+        pass
+
+    # Expire sessions that exceed inactivity or max duration limits
+    try:
+        from app.services.auth_service import expire_stale_sessions
+        expired = await expire_stale_sessions()
+        if expired:
+            import logging
+            logging.getLogger(__name__).info(f"Expired {expired} stale sessions on startup")
     except Exception:
         pass
 

@@ -149,6 +149,79 @@ async def get_analytics(venue_id: int, period: str = "week") -> dict:
     except Exception:
         pass
 
+    # Search analytics from analytics_events
+    top_searches = []
+    search_stats = {"total_searches": 0, "searches_with_results": 0, "avg_results": 0}
+    try:
+        search_rows = await db.execute_fetchall(
+            "SELECT json_extract(event_data, '$.query') as q, COUNT(*) as cnt, "
+            "AVG(json_extract(event_data, '$.results_count')) as avg_res "
+            "FROM analytics_events "
+            "WHERE event_type = 'song_searched' AND created_at > datetime('now', ?) "
+            "AND json_extract(event_data, '$.query') IS NOT NULL "
+            "GROUP BY q ORDER BY cnt DESC LIMIT 20",
+            (period_filter,),
+        )
+        top_searches = [{"query": r[0], "count": r[1], "avg_results": round(r[2] or 0, 1)} for r in search_rows]
+
+        stats_rows = await db.execute_fetchall(
+            "SELECT COUNT(*) as total, "
+            "SUM(CASE WHEN json_extract(event_data, '$.results_count') > 0 THEN 1 ELSE 0 END) as with_results, "
+            "AVG(json_extract(event_data, '$.results_count')) as avg_res "
+            "FROM analytics_events "
+            "WHERE event_type = 'song_searched' AND created_at > datetime('now', ?)",
+            (period_filter,),
+        )
+        if stats_rows and stats_rows[0][0]:
+            search_stats = {
+                "total_searches": stats_rows[0][0],
+                "searches_with_results": stats_rows[0][1] or 0,
+                "avg_results": round(stats_rows[0][2] or 0, 1),
+            }
+    except Exception:
+        pass
+
+    # Funnel: sessions → searches → confirmations
+    funnel = {}
+    try:
+        sessions_count = await db.execute_fetchall(
+            "SELECT COUNT(*) FROM analytics_events "
+            "WHERE venue_id = ? AND event_type = 'session_started' AND created_at > datetime('now', ?)",
+            (venue_id, period_filter),
+        )
+        confirms_count = await db.execute_fetchall(
+            "SELECT COUNT(*) FROM analytics_events "
+            "WHERE venue_id = ? AND event_type = 'song_confirmed' AND created_at > datetime('now', ?)",
+            (venue_id, period_filter),
+        )
+        total_sessions = sessions_count[0][0] if sessions_count else 0
+        total_confirms = confirms_count[0][0] if confirms_count else 0
+        funnel = {
+            "sessions": total_sessions,
+            "confirmations": total_confirms,
+            "conversion_rate": round((total_confirms / total_sessions * 100) if total_sessions else 0, 1),
+        }
+    except Exception:
+        pass
+
+    # Session duration stats
+    session_duration = {}
+    try:
+        dur_rows = await db.execute_fetchall(
+            "SELECT AVG((julianday(COALESCE(ended_at, CURRENT_TIMESTAMP)) - julianday(started_at)) * 86400) as avg_sec, "
+            "MAX((julianday(COALESCE(ended_at, CURRENT_TIMESTAMP)) - julianday(started_at)) * 86400) as max_sec "
+            "FROM user_sessions "
+            "WHERE venue_id = ? AND started_at > datetime('now', ?)",
+            (venue_id, period_filter),
+        )
+        if dur_rows and dur_rows[0][0]:
+            session_duration = {
+                "avg_duration_min": round((dur_rows[0][0] or 0) / 60, 1),
+                "max_duration_min": round((dur_rows[0][1] or 0) / 60, 1),
+            }
+    except Exception:
+        pass
+
     return {
         "period": period,
         "summary": summary,
@@ -156,6 +229,10 @@ async def get_analytics(venue_id: int, period: str = "week") -> dict:
         "top_artists": top_artists,
         "peak_hours": peak_hours,
         "top_tables": top_tables,
+        "top_searches": top_searches,
+        "search_stats": search_stats,
+        "funnel": funnel,
+        "session_duration": session_duration,
     }
 
 

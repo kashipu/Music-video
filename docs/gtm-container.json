@@ -1,6 +1,6 @@
 {
     "exportFormatVersion": 2,
-    "exportTime": "2026-04-01 22:30:00",
+    "exportTime": "2026-04-02 12:00:00",
     "containerVersion": {
         "path": "accounts/6347537026/containers/248122299/versions/0",
         "accountId": "6347537026",
@@ -62,6 +62,10 @@
                         { "type": "MAP", "map": [
                             { "type": "TEMPLATE", "key": "name", "value": "venue_slug" },
                             { "type": "TEMPLATE", "key": "value", "value": "{{dlv - venue_slug}}" }
+                        ]},
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "registration_time_sec" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - registration_time_sec}}" }
                         ]}
                     ]}
                 ],
@@ -84,6 +88,10 @@
                         { "type": "MAP", "map": [
                             { "type": "TEMPLATE", "key": "name", "value": "venue_slug" },
                             { "type": "TEMPLATE", "key": "value", "value": "{{dlv - venue_slug}}" }
+                        ]},
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "registration_time_sec" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - registration_time_sec}}" }
                         ]}
                     ]}
                 ],
@@ -154,6 +162,18 @@
                         { "type": "MAP", "map": [
                             { "type": "TEMPLATE", "key": "name", "value": "results_count" },
                             { "type": "TEMPLATE", "key": "value", "value": "{{dlv - results_count}}" }
+                        ]},
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "has_results" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - has_results}}" }
+                        ]},
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "search_duration_ms" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - search_duration_ms}}" }
+                        ]},
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "venue_slug" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - venue_slug}}" }
                         ]}
                     ]}
                 ],
@@ -180,6 +200,18 @@
                         { "type": "MAP", "map": [
                             { "type": "TEMPLATE", "key": "name", "value": "song_title" },
                             { "type": "TEMPLATE", "key": "value", "value": "{{dlv - song_title}}" }
+                        ]},
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "submission_source" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - submission_source}}" }
+                        ]},
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "result_position" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - result_position}}" }
+                        ]},
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "venue_slug" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - venue_slug}}" }
                         ]}
                     ]}
                 ],
@@ -210,6 +242,14 @@
                         { "type": "MAP", "map": [
                             { "type": "TEMPLATE", "key": "name", "value": "queue_position" },
                             { "type": "TEMPLATE", "key": "value", "value": "{{dlv - queue_position}}" }
+                        ]},
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "time_to_confirm_sec" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - time_to_confirm_sec}}" }
+                        ]},
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "venue_slug" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - venue_slug}}" }
                         ]}
                     ]}
                 ],
@@ -232,6 +272,10 @@
                         { "type": "MAP", "map": [
                             { "type": "TEMPLATE", "key": "name", "value": "song_id" },
                             { "type": "TEMPLATE", "key": "value", "value": "{{dlv - song_id}}" }
+                        ]},
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "venue_slug" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - venue_slug}}" }
                         ]}
                     ]}
                 ],
@@ -262,6 +306,10 @@
                         { "type": "MAP", "map": [
                             { "type": "TEMPLATE", "key": "name", "value": "is_fallback" },
                             { "type": "TEMPLATE", "key": "value", "value": "{{dlv - is_fallback}}" }
+                        ]},
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "venue_slug" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - venue_slug}}" }
                         ]}
                     ]}
                 ],
@@ -288,6 +336,10 @@
                         { "type": "MAP", "map": [
                             { "type": "TEMPLATE", "key": "name", "value": "song_title" },
                             { "type": "TEMPLATE", "key": "value", "value": "{{dlv - song_title}}" }
+                        ]},
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "venue_slug" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - venue_slug}}" }
                         ]}
                     ]}
                 ],
@@ -314,6 +366,10 @@
                         { "type": "MAP", "map": [
                             { "type": "TEMPLATE", "key": "name", "value": "error_code" },
                             { "type": "TEMPLATE", "key": "value", "value": "{{dlv - error_code}}" }
+                        ]},
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "venue_slug" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - venue_slug}}" }
                         ]}
                     ]}
                 ],
@@ -370,11 +426,91 @@
                         { "type": "MAP", "map": [
                             { "type": "TEMPLATE", "key": "name", "value": "songs_cleared" },
                             { "type": "TEMPLATE", "key": "value", "value": "{{dlv - songs_cleared}}" }
+                        ]},
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "venue_slug" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - venue_slug}}" }
                         ]}
                     ]}
                 ],
                 "fingerprint": "1775082300013",
                 "firingTriggerId": ["26"],
+                "tagFiringOption": "ONCE_PER_EVENT",
+                "monitoringMetadata": { "type": "MAP" },
+                "consentSettings": { "consentStatus": "NOT_SET" }
+            },
+            {
+                "accountId": "6347537026",
+                "containerId": "248122299",
+                "tagId": "28",
+                "name": "GA4 - Search Result Selected",
+                "type": "gaawe",
+                "parameter": [
+                    { "type": "TEMPLATE", "key": "eventName", "value": "repitela_search_result_selected" },
+                    { "type": "TEMPLATE", "key": "measurementIdOverride", "value": "G-JFQN47GREE" },
+                    { "type": "LIST", "key": "eventParameters", "list": [
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "search_query" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - search_query}}" }
+                        ]},
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "result_position" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - result_position}}" }
+                        ]},
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "total_results" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - total_results}}" }
+                        ]},
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "youtube_id" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - youtube_id}}" }
+                        ]},
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "song_title" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - song_title}}" }
+                        ]},
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "time_to_select_sec" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - time_to_select_sec}}" }
+                        ]},
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "venue_slug" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - venue_slug}}" }
+                        ]}
+                    ]}
+                ],
+                "fingerprint": "1775082400001",
+                "firingTriggerId": ["27"],
+                "tagFiringOption": "ONCE_PER_EVENT",
+                "monitoringMetadata": { "type": "MAP" },
+                "consentSettings": { "consentStatus": "NOT_SET" }
+            },
+            {
+                "accountId": "6347537026",
+                "containerId": "248122299",
+                "tagId": "29",
+                "name": "GA4 - Session Expired",
+                "type": "gaawe",
+                "parameter": [
+                    { "type": "TEMPLATE", "key": "eventName", "value": "repitela_session_expired" },
+                    { "type": "TEMPLATE", "key": "measurementIdOverride", "value": "G-JFQN47GREE" },
+                    { "type": "LIST", "key": "eventParameters", "list": [
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "venue_slug" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - venue_slug}}" }
+                        ]},
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "expiry_reason" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - expiry_reason}}" }
+                        ]},
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "session_duration_sec" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - session_duration_sec}}" }
+                        ]}
+                    ]}
+                ],
+                "fingerprint": "1775082400002",
+                "firingTriggerId": ["28"],
                 "tagFiringOption": "ONCE_PER_EVENT",
                 "monitoringMetadata": { "type": "MAP" },
                 "consentSettings": { "consentStatus": "NOT_SET" }
@@ -393,7 +529,9 @@
             { "accountId": "6347537026", "containerId": "248122299", "triggerId": "23", "name": "CE - Song Ended", "type": "CUSTOM_EVENT", "customEventFilter": [{ "type": "EQUALS", "parameter": [{ "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" }, { "type": "TEMPLATE", "key": "arg1", "value": "repitela_song_ended" }] }], "fingerprint": "1775082300109" },
             { "accountId": "6347537026", "containerId": "248122299", "triggerId": "24", "name": "CE - Song Error", "type": "CUSTOM_EVENT", "customEventFilter": [{ "type": "EQUALS", "parameter": [{ "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" }, { "type": "TEMPLATE", "key": "arg1", "value": "repitela_song_error" }] }], "fingerprint": "1775082300110" },
             { "accountId": "6347537026", "containerId": "248122299", "triggerId": "25", "name": "CE - Fallback Activated", "type": "CUSTOM_EVENT", "customEventFilter": [{ "type": "EQUALS", "parameter": [{ "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" }, { "type": "TEMPLATE", "key": "arg1", "value": "repitela_fallback_activated" }] }], "fingerprint": "1775082300111" },
-            { "accountId": "6347537026", "containerId": "248122299", "triggerId": "26", "name": "CE - Admin Action", "type": "CUSTOM_EVENT", "customEventFilter": [{ "type": "EQUALS", "parameter": [{ "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" }, { "type": "TEMPLATE", "key": "arg1", "value": "repitela_admin_action" }] }], "fingerprint": "1775082300112" }
+            { "accountId": "6347537026", "containerId": "248122299", "triggerId": "26", "name": "CE - Admin Action", "type": "CUSTOM_EVENT", "customEventFilter": [{ "type": "EQUALS", "parameter": [{ "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" }, { "type": "TEMPLATE", "key": "arg1", "value": "repitela_admin_action" }] }], "fingerprint": "1775082300112" },
+            { "accountId": "6347537026", "containerId": "248122299", "triggerId": "27", "name": "CE - Search Result Selected", "type": "CUSTOM_EVENT", "customEventFilter": [{ "type": "EQUALS", "parameter": [{ "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" }, { "type": "TEMPLATE", "key": "arg1", "value": "repitela_search_result_selected" }] }], "fingerprint": "1775082400101" },
+            { "accountId": "6347537026", "containerId": "248122299", "triggerId": "28", "name": "CE - Session Expired", "type": "CUSTOM_EVENT", "customEventFilter": [{ "type": "EQUALS", "parameter": [{ "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" }, { "type": "TEMPLATE", "key": "arg1", "value": "repitela_session_expired" }] }], "fingerprint": "1775082400102" }
         ],
         "variable": [
             { "accountId": "6347537026", "containerId": "248122299", "variableId": "5", "name": "dlv - venue_slug", "type": "v", "parameter": [{ "type": "INTEGER", "key": "dataLayerVersion", "value": "2" }, { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" }, { "type": "TEMPLATE", "key": "name", "value": "venue_slug" }], "fingerprint": "1775081677779", "formatValue": {} },
@@ -407,7 +545,17 @@
             { "accountId": "6347537026", "containerId": "248122299", "variableId": "13", "name": "dlv - admin_action", "type": "v", "parameter": [{ "type": "INTEGER", "key": "dataLayerVersion", "value": "2" }, { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" }, { "type": "TEMPLATE", "key": "name", "value": "admin_action" }], "fingerprint": "1775081811484", "formatValue": {} },
             { "accountId": "6347537026", "containerId": "248122299", "variableId": "14", "name": "dlv - song_id", "type": "v", "parameter": [{ "type": "INTEGER", "key": "dataLayerVersion", "value": "2" }, { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" }, { "type": "TEMPLATE", "key": "name", "value": "song_id" }], "fingerprint": "1775082300201", "formatValue": {} },
             { "accountId": "6347537026", "containerId": "248122299", "variableId": "15", "name": "dlv - table_number", "type": "v", "parameter": [{ "type": "INTEGER", "key": "dataLayerVersion", "value": "2" }, { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" }, { "type": "TEMPLATE", "key": "name", "value": "table_number" }], "fingerprint": "1775082300202", "formatValue": {} },
-            { "accountId": "6347537026", "containerId": "248122299", "variableId": "16", "name": "dlv - songs_cleared", "type": "v", "parameter": [{ "type": "INTEGER", "key": "dataLayerVersion", "value": "2" }, { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" }, { "type": "TEMPLATE", "key": "name", "value": "songs_cleared" }], "fingerprint": "1775082300203", "formatValue": {} }
+            { "accountId": "6347537026", "containerId": "248122299", "variableId": "16", "name": "dlv - songs_cleared", "type": "v", "parameter": [{ "type": "INTEGER", "key": "dataLayerVersion", "value": "2" }, { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" }, { "type": "TEMPLATE", "key": "name", "value": "songs_cleared" }], "fingerprint": "1775082300203", "formatValue": {} },
+            { "accountId": "6347537026", "containerId": "248122299", "variableId": "17", "name": "dlv - registration_time_sec", "type": "v", "parameter": [{ "type": "INTEGER", "key": "dataLayerVersion", "value": "2" }, { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" }, { "type": "TEMPLATE", "key": "name", "value": "registration_time_sec" }], "fingerprint": "1775082400201", "formatValue": {} },
+            { "accountId": "6347537026", "containerId": "248122299", "variableId": "18", "name": "dlv - session_duration_sec", "type": "v", "parameter": [{ "type": "INTEGER", "key": "dataLayerVersion", "value": "2" }, { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" }, { "type": "TEMPLATE", "key": "name", "value": "session_duration_sec" }], "fingerprint": "1775082400202", "formatValue": {} },
+            { "accountId": "6347537026", "containerId": "248122299", "variableId": "19", "name": "dlv - search_duration_ms", "type": "v", "parameter": [{ "type": "INTEGER", "key": "dataLayerVersion", "value": "2" }, { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" }, { "type": "TEMPLATE", "key": "name", "value": "search_duration_ms" }], "fingerprint": "1775082400203", "formatValue": {} },
+            { "accountId": "6347537026", "containerId": "248122299", "variableId": "20", "name": "dlv - has_results", "type": "v", "parameter": [{ "type": "INTEGER", "key": "dataLayerVersion", "value": "2" }, { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" }, { "type": "TEMPLATE", "key": "name", "value": "has_results" }], "fingerprint": "1775082400204", "formatValue": {} },
+            { "accountId": "6347537026", "containerId": "248122299", "variableId": "21", "name": "dlv - result_position", "type": "v", "parameter": [{ "type": "INTEGER", "key": "dataLayerVersion", "value": "2" }, { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" }, { "type": "TEMPLATE", "key": "name", "value": "result_position" }], "fingerprint": "1775082400205", "formatValue": {} },
+            { "accountId": "6347537026", "containerId": "248122299", "variableId": "22", "name": "dlv - total_results", "type": "v", "parameter": [{ "type": "INTEGER", "key": "dataLayerVersion", "value": "2" }, { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" }, { "type": "TEMPLATE", "key": "name", "value": "total_results" }], "fingerprint": "1775082400206", "formatValue": {} },
+            { "accountId": "6347537026", "containerId": "248122299", "variableId": "23", "name": "dlv - time_to_select_sec", "type": "v", "parameter": [{ "type": "INTEGER", "key": "dataLayerVersion", "value": "2" }, { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" }, { "type": "TEMPLATE", "key": "name", "value": "time_to_select_sec" }], "fingerprint": "1775082400207", "formatValue": {} },
+            { "accountId": "6347537026", "containerId": "248122299", "variableId": "24", "name": "dlv - submission_source", "type": "v", "parameter": [{ "type": "INTEGER", "key": "dataLayerVersion", "value": "2" }, { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" }, { "type": "TEMPLATE", "key": "name", "value": "submission_source" }], "fingerprint": "1775082400208", "formatValue": {} },
+            { "accountId": "6347537026", "containerId": "248122299", "variableId": "25", "name": "dlv - time_to_confirm_sec", "type": "v", "parameter": [{ "type": "INTEGER", "key": "dataLayerVersion", "value": "2" }, { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" }, { "type": "TEMPLATE", "key": "name", "value": "time_to_confirm_sec" }], "fingerprint": "1775082400209", "formatValue": {} },
+            { "accountId": "6347537026", "containerId": "248122299", "variableId": "26", "name": "dlv - expiry_reason", "type": "v", "parameter": [{ "type": "INTEGER", "key": "dataLayerVersion", "value": "2" }, { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" }, { "type": "TEMPLATE", "key": "name", "value": "expiry_reason" }], "fingerprint": "1775082400210", "formatValue": {} }
         ],
         "builtInVariable": [
             { "accountId": "6347537026", "containerId": "248122299", "type": "PAGE_URL", "name": "Page URL" },
@@ -416,7 +564,7 @@
             { "accountId": "6347537026", "containerId": "248122299", "type": "REFERRER", "name": "Referrer" },
             { "accountId": "6347537026", "containerId": "248122299", "type": "EVENT", "name": "Event" }
         ],
-        "fingerprint": "1775082400000",
+        "fingerprint": "1775082500000",
         "tagManagerUrl": "https://tagmanager.google.com/#/versions/accounts/6347537026/containers/248122299/versions/0?apiLink=version"
     }
 }

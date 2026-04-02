@@ -8,7 +8,7 @@ import { formatDuration } from '../utils/youtube.js'
 import { useTheme } from '../composables/useTheme.js'
 import SongSubmit from '../components/SongSubmit.vue'
 import SongPreview from '../components/SongPreview.vue'
-import { trackSongConfirmed, trackSongCancelled, trackSessionKicked } from '../utils/analytics.js'
+import { trackSongConfirmed, trackSongCancelled, trackSessionKicked, trackSessionExpired, setAnalyticsContext } from '../utils/analytics.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -88,6 +88,7 @@ async function syncAll() {
       headers: auth.authHeaders(),
     })
     if (res.status === 401 || res.status === 404) {
+      trackSessionExpired(venueSlug, res.status === 401 ? 'expired' : 'not_found')
       auth.logout()
       router.push({ name: 'registro', params: { venueSlug } })
       return
@@ -113,6 +114,7 @@ let syncPoll = null
 onMounted(async () => {
   document.title = `${auth.session?.venue_name || venueSlug} - Repitela`
   applyVenueTheme(auth.session?.config)
+  setAnalyticsContext(venueSlug)
   await Promise.all([
     queueStore.fetchQueue(venueSlug),
     queueStore.fetchMySongs(),

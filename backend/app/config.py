@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     jwt_expiration_hours: int = 24
     jwt_admin_expiration_hours: int = 8
 
+    session_inactivity_minutes: int = 120  # expire after 2h of inactivity
+    session_max_hours: int = 24            # hard max session duration
+
     model_config = {"env_file": ".env", "extra": "ignore"}
 
 

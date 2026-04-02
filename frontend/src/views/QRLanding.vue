@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
 import { useTheme } from '../composables/useTheme.js'
-import { trackUserRegistered, trackSessionStarted } from '../utils/analytics.js'
+import { trackUserRegistered, trackSessionStarted, setAnalyticsContext } from '../utils/analytics.js'
 
 const { currentMode, toggleMode, applyVenueTheme } = useTheme()
 
@@ -23,6 +23,7 @@ const venueName = ref('')
 const venueLogo = ref(null)
 const error = ref('')
 const loading = ref(false)
+const pageOpenedAt = Date.now()
 
 onMounted(async () => {
   if (auth.isAuthenticated && auth.session?.venue_slug === venueSlug) {
@@ -56,7 +57,8 @@ async function handleRegister() {
   loading.value = true
   try {
     const data = await auth.register(phone.value, null, venueSlug, dataConsent.value, displayName.value, pinRequired.value ? pin.value : null)
-    trackUserRegistered(venueSlug, !!data.user?.id)
+    const registrationTimeSec = Math.round((Date.now() - pageOpenedAt) / 1000)
+    trackUserRegistered(venueSlug, !!data.user?.id, registrationTimeSec)
     trackSessionStarted(venueSlug)
     router.push({ name: 'usuario', params: { venueSlug } })
   } catch (e) {

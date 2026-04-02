@@ -13,6 +13,18 @@ async def search_songs(q: str = Query(..., min_length=2)):
     """Search YouTube for songs (no API key needed)."""
     from app.services.youtube_search import search_youtube
     results = await search_youtube(q)
+
+    # Log search event to backend analytics (best-effort)
+    try:
+        from app.services.analytics_service import log_event
+        await log_event(
+            venue_id=0,  # no auth required for search
+            event_type="song_searched",
+            event_data={"query": q, "results_count": len(results)},
+        )
+    except Exception:
+        pass
+
     return {"results": results}
 
 
@@ -127,6 +139,16 @@ async def confirm_song(req: SongConfirmRequest, user: dict = Depends(get_current
         thumbnail_url=thumbnail_url,
         duration_sec=duration_sec,
     )
+
+    # Log analytics
+    try:
+        from app.services.analytics_service import log_event
+        await log_event(venue_id, "song_confirmed", {
+            "youtube_id": req.youtube_id, "title": title,
+            "queue_position": result["position"],
+        }, user_id, session_id)
+    except Exception:
+        pass
 
     # Broadcast to all clients
     await manager.broadcast(venue_id, {
