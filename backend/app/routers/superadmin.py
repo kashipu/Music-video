@@ -403,7 +403,8 @@ async def upload_venue_logo(
     filename = f"{venue_id}_{uuid.uuid4().hex[:8]}.{ext}"
 
     # Save file
-    logos_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "logos")
+    from app.config import settings
+    logos_dir = os.path.join(os.path.dirname(settings.database_path), "logos")
     os.makedirs(logos_dir, exist_ok=True)
 
     # Delete old logo files for this venue

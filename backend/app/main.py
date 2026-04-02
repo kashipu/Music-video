@@ -50,7 +50,7 @@ app.add_middleware(
 )
 
 # Static files (logos)
-logos_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "logos")
+logos_dir = os.path.join(os.path.dirname(settings.database_path), "logos")
 os.makedirs(logos_dir, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=logos_dir), name="uploads")
 
