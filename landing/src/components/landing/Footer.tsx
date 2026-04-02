@@ -1,4 +1,4 @@
-import { Music, Phone, MessageCircle } from "lucide-react";
+import { Music, Phone, MessageCircle, Instagram } from "lucide-react";
 
 const Footer = () => {
   return (
@@ -18,6 +18,10 @@ const Footer = () => {
           </div>
 
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <a href="https://instagram.com/repitela.musica" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:text-primary transition-colors">
+              <Instagram className="h-4 w-4" />
+              @repitela.musica
+            </a>
             <a href="https://wa.me/573028336170" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:text-primary transition-colors">
               <MessageCircle className="h-4 w-4" />
               WhatsApp
