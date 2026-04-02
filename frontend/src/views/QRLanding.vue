@@ -147,10 +147,11 @@ async function handleRegister() {
   margin-bottom: 32px;
 }
 .venue-logo {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  object-fit: cover;
+  max-width: 200px;
+  max-height: 120px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
   margin-bottom: 12px;
 }
 .music-icon {
