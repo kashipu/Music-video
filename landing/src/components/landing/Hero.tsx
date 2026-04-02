@@ -4,7 +4,7 @@ import Particles from "./Particles";
 
 const Hero = () => {
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
+    <section aria-label="Repitela - jukebox digital para bares" className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
       <div className="absolute inset-0 bg-gradient-to-b from-background via-background to-muted/20" />
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[500px] h-[500px] rounded-full bg-primary/8 blur-[120px]" />
 
@@ -27,9 +27,11 @@ const Hero = () => {
         </p>
 
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-up" style={{ animationDelay: "0.3s" }}>
-          <Button size="lg" className="bg-primary text-primary-foreground text-lg px-8 py-6">
-            <QrCode className="h-5 w-5 mr-2" />
-            Escanea el QR del Bar
+          <Button size="lg" className="bg-primary text-primary-foreground text-lg px-8 py-6" asChild>
+            <a href="#como-funciona">
+              <QrCode className="h-5 w-5 mr-2" />
+              Descubre como funciona
+            </a>
           </Button>
         </div>
 

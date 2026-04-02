@@ -13,7 +13,7 @@ const Navbar = () => {
   ];
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-border/30">
+    <nav aria-label="Navegacion principal" className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-border/30">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <a href="#" className="flex items-center gap-2">
           <Music className="h-6 w-6 text-primary" />
@@ -26,8 +26,8 @@ const Navbar = () => {
               {link.label}
             </a>
           ))}
-          <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
-            Quiero Repitela en mi Bar
+          <Button className="bg-primary hover:bg-primary/90 text-primary-foreground" asChild>
+            <a href="#precio">Quiero Repitela en mi Bar</a>
           </Button>
         </div>
 
@@ -43,7 +43,9 @@ const Navbar = () => {
               {link.label}
             </a>
           ))}
-          <Button className="w-full mt-2 bg-primary text-primary-foreground">Quiero Repitela</Button>
+          <Button className="w-full mt-2 bg-primary text-primary-foreground" asChild>
+            <a href="#precio">Quiero Repitela</a>
+          </Button>
         </div>
       )}
     </nav>

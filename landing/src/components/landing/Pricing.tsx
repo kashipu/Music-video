@@ -57,8 +57,10 @@ const Pricing = () => {
               ))}
             </ul>
 
-            <Button size="lg" className="w-full bg-primary text-primary-foreground text-lg py-6">
-              Contratar Ahora
+            <Button size="lg" className="w-full bg-primary text-primary-foreground text-lg py-6" asChild>
+              <a href="https://wa.me/573001234567?text=Hola%2C%20quiero%20Repitela%20en%20mi%20bar" target="_blank" rel="noopener noreferrer">
+                Contratar Ahora
+              </a>
             </Button>
 
             <div className="mt-6 glass-card rounded-xl p-4 text-center border-border/30">

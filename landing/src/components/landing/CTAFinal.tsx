@@ -16,9 +16,11 @@ const CTAFinal = () => {
         <p className="text-muted-foreground max-w-lg mx-auto mb-10 text-lg">
           Contrata Repitela para tu bar. Tus clientes lo usan gratis desde su celular.
         </p>
-        <Button size="lg" className="bg-primary text-primary-foreground text-lg px-10 py-7">
-          <Music className="h-5 w-5 mr-2" />
-          Quiero Repitela — $60.000/mes
+        <Button size="lg" className="bg-primary text-primary-foreground text-lg px-10 py-7" asChild>
+          <a href="https://wa.me/573001234567?text=Hola%2C%20quiero%20Repitela%20en%20mi%20bar" target="_blank" rel="noopener noreferrer">
+            <Music className="h-5 w-5 mr-2" />
+            Quiero Repitela — $60.000/mes
+          </a>
         </Button>
         <p className="text-sm text-muted-foreground mt-4">
           Pago a la llave <span className="text-foreground font-mono font-bold">@WMV645</span>
