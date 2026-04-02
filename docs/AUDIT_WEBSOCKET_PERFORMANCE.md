@@ -67,13 +67,17 @@ Dos queries separadas a submission_log con el mismo WHERE. Se pueden combinar en
 | # | Issue | Severidad | Archivo | Status |
 |---|-------|-----------|---------|--------|
 | 6 | Backoff de reconexion WS calculado despues del schedule | MEDIA | useWebSocket.js:61-67 | Funcional (el efecto es minimo) |
-| 7 | clearQueue() hace N DELETE secuenciales | MEDIA | AdminDashboard.vue:330 | No critico, pocos songs |
+| 7 | clearQueue() hace N DELETE secuenciales | MEDIA | AdminDashboard.vue:330 | CORREGIDO - Promise.all |
 | 8 | Venue config consultada multiples veces por request | MEDIA | queue_service.py, auth_service.py | Futuro: cache en memoria |
 | 9 | Analytics hace 15+ queries | MEDIA | analytics_service.py | Futuro: pre-computar metricas |
-| 10 | Sin code splitting en Vite | BAJA | vite.config.js | Futuro: lazy loading de rutas |
+| 10 | Sin code splitting en Vite | BAJA | router/index.js | Ya usa lazy loading |
 | 11 | Ping interval 30s puede ser largo para WiFi inestable | BAJA | useWebSocket.js:114 | Aceptable para produccion |
-| 12 | ConnectionManager sin lock de asyncio | BAJA | websocket.py | Python GIL protege suficiente en single-worker |
-| 13 | handleWsEvent() en queue.js nunca se usa | BAJA | queue.js:93-129 | Codigo muerto, limpiar despues |
+| 12 | ConnectionManager sin cleanup de listas vacias | BAJA | websocket.py | CORREGIDO - delete on empty |
+| 13 | handleWsEvent() en queue.js nunca se usa | BAJA | queue.js | CORREGIDO - eliminado |
+| 14 | WS venue lookup sin error handling | MEDIA | websocket.py | CORREGIDO - try/except |
+| 15 | Kiosk error retry delay 1.5s muy largo | MEDIA | Kiosk.vue | CORREGIDO - 500ms |
+| 16 | AdminDashboard polling redundante 10s | ALTA | AdminDashboard.vue | CORREGIDO - 30s |
+| 17 | Variable failedSong sin usar en Kiosk | BAJA | Kiosk.vue | CORREGIDO - eliminada |
 
 ---
 

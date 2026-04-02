@@ -447,7 +447,6 @@ async function onPlayerError(event) {
   // User song failed — notify backend to skip and advance (max 2 attempts)
   if (song.value && song.value.id) {
     const songId = song.value.id
-    const failedSong = { ...song.value }
     let adminToken = null
     try { adminToken = localStorage.getItem('bq_admin_token') } catch { /* */ }
     const hdrs = { 'Content-Type': 'application/json' }
@@ -455,7 +454,7 @@ async function onPlayerError(event) {
 
     let handled = false
     for (let attempt = 0; attempt < 2 && !handled; attempt++) {
-      if (attempt > 0) await new Promise(r => setTimeout(r, 1500))
+      if (attempt > 0) await new Promise(r => setTimeout(r, 500))
       try {
         const res = await fetch(`${API}/api/playback/error`, {
           method: 'POST',

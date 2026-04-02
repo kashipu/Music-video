@@ -90,44 +90,6 @@ export const useQueueStore = defineStore('queue', () => {
     rateLimit.value = await res.json()
   }
 
-  function handleWsEvent(event) {
-    const { event: eventType, data } = event
-    switch (eventType) {
-      case 'song_added':
-        queue.value.push(data)
-        totalInQueue.value = queue.value.length
-        break
-      case 'song_removed':
-        queue.value = queue.value.filter(s => s.id !== data.id)
-        totalInQueue.value = queue.value.length
-        break
-      case 'now_playing_changed':
-        nowPlaying.value = data.song
-        if (data.song) {
-          queue.value = queue.value.filter(s => s.id !== data.song.id)
-          totalInQueue.value = queue.value.length
-        }
-        fallbackActive.value = data.fallback_active || false
-        break
-      case 'queue_reordered':
-        if (data.queue) {
-          const posMap = {}
-          data.queue.forEach(q => { posMap[q.id] = q.position })
-          queue.value.forEach(s => {
-            if (posMap[s.id] !== undefined) s.position = posMap[s.id]
-          })
-          queue.value.sort((a, b) => a.position - b.position)
-        }
-        break
-      case 'song_skipped':
-        nowPlaying.value = data.now_playing
-        break
-      case 'playback_status_changed':
-        // handled in kiosk view
-        break
-    }
-  }
-
   async function cancelMySong(songId) {
     const auth = useAuthStore()
     const res = await fetch(`${API}/api/queue/my-songs/${songId}`, {
@@ -150,6 +112,5 @@ export const useQueueStore = defineStore('queue', () => {
     mySongs, rateLimit, recentHistory, loading,
     fetchQueue, submitSong, confirmSong, cancelMySong,
     fetchMySongs, fetchRecentHistory, fetchRemainingSlots,
-    handleWsEvent,
   }
 })

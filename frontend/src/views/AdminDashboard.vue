@@ -145,7 +145,7 @@ onMounted(async () => {
   adminPoll = setInterval(() => {
     fetchQueue()
     fetchTables()
-  }, 10000)
+  }, 30000)
 })
 
 onUnmounted(() => { if (adminPoll) clearInterval(adminPoll) })
@@ -331,10 +331,11 @@ async function clearQueue() {
   if (!confirm('Vaciar toda la cola?')) return
   loadingClearQueue.value = true
   try {
-    for (const song of queue.value) {
-      await fetch(`${API}/api/admin/queue/songs/${song.id}`, { method: 'DELETE', headers: auth.adminHeaders() })
-    }
-    trackAdminAction('clear_queue', { songs_cleared: queue.value.length })
+    const count = queue.value.length
+    await Promise.all(queue.value.map(song =>
+      fetch(`${API}/api/admin/queue/songs/${song.id}`, { method: 'DELETE', headers: auth.adminHeaders() })
+    ))
+    trackAdminAction('clear_queue', { songs_cleared: count })
     await fetchQueue()
   } finally { loadingClearQueue.value = false }
 }

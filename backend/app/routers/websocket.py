@@ -20,6 +20,8 @@ class ConnectionManager:
             self.active_connections[venue_id] = [
                 (ws, uid) for ws, uid in self.active_connections[venue_id] if ws != websocket
             ]
+            if not self.active_connections[venue_id]:
+                del self.active_connections[venue_id]
 
     async def broadcast(self, venue_id: int, message: dict):
         if venue_id not in self.active_connections:
@@ -60,10 +62,14 @@ async def websocket_endpoint(
 ):
     from app.database import get_db
 
-    db = await get_db()
-    rows = await db.execute_fetchall(
-        "SELECT id FROM venues WHERE slug = ?", (venue,)
-    )
+    try:
+        db = await get_db()
+        rows = await db.execute_fetchall(
+            "SELECT id FROM venues WHERE slug = ?", (venue,)
+        )
+    except Exception:
+        await websocket.close(code=4011, reason="Database error")
+        return
     if not rows:
         await websocket.close(code=4004, reason="Venue not found")
         return
