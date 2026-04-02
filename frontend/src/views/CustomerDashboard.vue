@@ -31,7 +31,7 @@ const isMyNowPlaying = computed(() => {
   return queueStore.mySongs.some(s => s.id === queueStore.nowPlaying.id) || mySongPlaying.value
 })
 
-const nextThree = computed(() => queueStore.queue.slice(0, 3))
+const nextFive = computed(() => queueStore.queue.slice(0, 5))
 
 // Refresh all data from server
 function refreshAll() {
@@ -64,9 +64,13 @@ onEvent((event) => {
   if (event.event === 'now_playing_changed') {
     mySongPlaying.value = false
   }
+  if (event.event === 'song_error_notification') {
+    showToast(event.data.message || 'Tu cancion no pudo ser reproducida')
+    queueStore.fetchMySongs()
+    queueStore.fetchRemainingSlots()
+  }
   if (event.event === 'rate_limit_reset') {
     queueStore.fetchRemainingSlots()
-    showToast('Tu limite fue reseteado. Puedes pedir mas canciones!')
   }
   if (event.event === 'session_kicked') {
     trackSessionKicked(venueSlug)
@@ -254,9 +258,9 @@ async function cancelSong(songId) {
       </div>
 
       <!-- 4. NEXT UP (only 3) -->
-      <div class="card section" v-if="nextThree.length">
+      <div class="card section" v-if="nextFive.length">
         <p class="section-title">SIGUIENTE ({{ queueStore.totalInQueue }} en cola)</p>
-        <div v-for="(song, i) in nextThree" :key="song.id" class="q-item">
+        <div v-for="(song, i) in nextFive" :key="song.id" class="q-item">
           <span class="q-pos">{{ i + 1 }}</span>
           <img :src="song.thumbnail_url || `https://i.ytimg.com/vi/${song.youtube_id}/mqdefault.jpg`" class="q-thumb" />
           <div class="q-info">
@@ -264,7 +268,7 @@ async function cancelSong(songId) {
             <p class="q-meta">{{ song.added_by }}</p>
           </div>
         </div>
-        <p v-if="queueStore.totalInQueue > 3" class="more-text">y {{ queueStore.totalInQueue - 3 }} mas...</p>
+        <p v-if="queueStore.totalInQueue > 5" class="more-text">y {{ queueStore.totalInQueue - 5 }} mas...</p>
       </div>
 
 

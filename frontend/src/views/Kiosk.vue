@@ -356,7 +356,7 @@ async function fetchQueuePreview() {
   const res = await fetch(`${API}/api/queue?venue=${venueSlug}`)
   if (!res.ok) return
   const data = await res.json()
-  queue.value = data.queue.slice(0, 3)
+  queue.value = data.queue.slice(0, 5)
   preloadNextSong()
 }
 

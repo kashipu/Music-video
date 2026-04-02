@@ -107,11 +107,18 @@ async def playback_error(req: PlaybackErrorRequest, authorization: str = Header(
         },
     })
 
-    # Notify the user whose song errored — their rate limit slot freed up
+    # Notify the user whose song errored
     if result.get("finished_user_id"):
         await manager.send_to_user(venue_id, result["finished_user_id"], {
+            "event": "song_error_notification",
+            "data": {
+                "title": result.get("error_title", ""),
+                "message": f"No pudimos reproducir \"{result.get('error_title', 'tu cancion')}\" porque el video no esta disponible. Puedes pedir otra.",
+            },
+        })
+        await manager.send_to_user(venue_id, result["finished_user_id"], {
             "event": "rate_limit_reset",
-            "data": {"message": "Tu cancion tuvo un error, puedes pedir otra"},
+            "data": {"message": "Slot liberado por error de video"},
         })
 
     if result["next_song"]:
