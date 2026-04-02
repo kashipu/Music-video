@@ -11,6 +11,7 @@ const router = useRouter()
 const API = import.meta.env.VITE_API_URL || ''
 const venueId = route.params.venueId
 
+document.title = 'Repitela - Detalle Venue'
 const detail = ref(null)
 const editName = ref('')
 const editLogoUrl = ref('')

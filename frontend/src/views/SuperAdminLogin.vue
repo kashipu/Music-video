@@ -15,6 +15,8 @@ const password = ref('')
 const error = ref('')
 const loading = ref(false)
 
+document.title = 'Repitela - Super Admin'
+
 async function handleLogin() {
   error.value = ''
   loading.value = true
@@ -49,7 +51,7 @@ async function handleLogin() {
     <button class="theme-toggle" style="position:fixed;top:16px;right:16px;" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button>
     <div class="container">
       <div class="login-header">
-        <h1>BarQueue</h1>
+        <h1>Repitela</h1>
         <p class="subtitle">Super Administrador</p>
       </div>
       <form class="login-form" @submit.prevent="handleLogin">

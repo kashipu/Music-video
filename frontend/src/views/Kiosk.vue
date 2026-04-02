@@ -261,6 +261,7 @@ onMounted(async () => {
   await fetchNowPlaying()
   await fetchQueuePreview()
   await fetchDailyPin()
+  document.title = venueName.value ? `${venueName.value} - Repitela` : 'Repitela'
   pollInterval = setInterval(syncNowPlaying, 10000)
 })
 

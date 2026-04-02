@@ -7,6 +7,7 @@ const router = useRouter()
 const { currentMode, toggleMode } = useTheme()
 const API = import.meta.env.VITE_API_URL || ''
 
+document.title = 'Repitela - Super Admin'
 const venues = ref([])
 const showCreate = ref(false)
 const loading = ref(false)
@@ -88,7 +89,7 @@ function forceLogout() {
   <div class="sa">
     <header class="sa-header">
       <div>
-        <h1>BarQueue</h1>
+        <h1>Repitela</h1>
         <span class="sa-badge">Super Admin</span>
       </div>
       <div style="display:flex;gap:8px;align-items:center;">

@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="BarQueue API",
+    title="Repitela API",
     description="Music queue system for bars",
     version="1.0.0",
     lifespan=lifespan,

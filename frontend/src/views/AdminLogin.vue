@@ -9,6 +9,7 @@ const { currentMode, toggleMode } = useTheme()
 const router = useRouter()
 const auth = useAuthStore()
 const venueSlug = route.params.venueSlug || null
+document.title = venueSlug ? `${venueSlug.replace(/-/g, ' ')} - Admin` : 'Repitela - Admin'
 
 const username = ref('')
 const password = ref('')

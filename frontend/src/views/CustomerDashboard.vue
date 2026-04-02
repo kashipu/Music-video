@@ -111,6 +111,7 @@ async function syncAll() {
 let syncPoll = null
 
 onMounted(async () => {
+  document.title = `${auth.session?.venue_name || venueSlug} - Repitela`
   applyVenueTheme(auth.session?.config)
   await Promise.all([
     queueStore.fetchQueue(venueSlug),
@@ -131,7 +132,7 @@ function showToast(msg) {
 
 function sendBrowserNotification(title) {
   if (notificationPermission.value === 'granted') {
-    new Notification('BarQueue', { body: title })
+    new Notification('Repitela', { body: title })
   }
 }
 

@@ -37,6 +37,7 @@ onMounted(async () => {
       pinRequired.value = data.pin_required
       venueName.value = data.venue_name || ''
       venueLogo.value = data.logo_url || null
+      if (venueName.value) document.title = `${venueName.value} - Repitela`
       if (data.theme) applyVenueTheme({ theme: data.theme })
     }
   } catch { /* */ }

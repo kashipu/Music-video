@@ -14,6 +14,7 @@ const { currentMode, toggleMode, applyVenueTheme } = useTheme()
 
 const API = import.meta.env.VITE_API_URL || ''
 const venueSlug = route.params.venueSlug || auth.adminInfo?.venue_slug || 'default'
+document.title = `${auth.adminInfo?.venue_name || venueSlug} - Admin`
 
 // State
 const adminToast = ref('')
