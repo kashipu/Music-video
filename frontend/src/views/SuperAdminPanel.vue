@@ -29,7 +29,8 @@ async function fetchVenues() {
   const res = await fetch(`${API}/api/superadmin/venues`, { headers: headers() })
   if (!res.ok) { forceLogout(); return }
   const data = await res.json()
-  venues.value = data.venues
+  const order = { suspended: 0, overdue: 1, active: 2 }
+  venues.value = data.venues.sort((a, b) => (order[a.payment_status] ?? 2) - (order[b.payment_status] ?? 2))
 }
 
 async function createVenue() {
@@ -105,6 +106,7 @@ function forceLogout() {
         <div class="ov-card"><p class="ov-value">{{ venues.filter(v => v.active).length }}</p><p class="ov-label">Activos</p></div>
         <div class="ov-card"><p class="ov-value">{{ venues.reduce((s, v) => s + v.active_sessions, 0) }}</p><p class="ov-label">Sesiones</p></div>
         <div class="ov-card"><p class="ov-value">{{ venues.reduce((s, v) => s + v.queue_count, 0) }}</p><p class="ov-label">En cola</p></div>
+        <div class="ov-card" :class="{ 'ov-alert': venues.some(v => v.payment_status !== 'active') }"><p class="ov-value">{{ venues.filter(v => v.payment_status === 'overdue' || v.payment_status === 'suspended').length }}</p><p class="ov-label">Pago pendiente</p></div>
       </div>
 
       <!-- Create -->
@@ -169,12 +171,15 @@ function forceLogout() {
               <span class="venue-status" :class="venue.active ? 'active' : 'inactive'">
                 {{ venue.active ? 'Activo' : 'Inactivo' }}
               </span>
+              <span v-if="venue.payment_status === 'overdue'" class="venue-status payment-overdue">Pago vencido</span>
+              <span v-if="venue.payment_status === 'suspended'" class="venue-status payment-suspended">Suspendido</span>
             </div>
             <p class="venue-slug">/{{ venue.slug }}</p>
             <p class="venue-meta">
               {{ venue.admin_count }} admin(s) &middot;
               {{ venue.active_sessions }} sesiones &middot;
               {{ venue.queue_count }} en cola
+              <template v-if="venue.paid_until"> &middot; Pago hasta: {{ venue.paid_until }}</template>
             </p>
           </div>
           <div class="venue-actions">
@@ -232,6 +237,9 @@ function forceLogout() {
 .venue-status { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
 .venue-status.active { background: var(--success-soft); color: var(--success); }
 .venue-status.inactive { background: var(--danger-soft); color: var(--danger); }
+.venue-status.payment-overdue { background: var(--warning-soft); color: var(--warning); }
+.venue-status.payment-suspended { background: var(--danger-soft); color: var(--danger); }
+.ov-alert { border: 1px solid var(--warning); }
 .venue-slug { font-size: 13px; color: var(--primary); margin-top: 2px; }
 .venue-meta { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
 .venue-actions { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; }

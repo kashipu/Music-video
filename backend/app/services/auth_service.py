@@ -15,12 +15,25 @@ async def register_user(phone: str, table_number: str | None, venue_slug: str,
     db = await get_db()
 
     row = await db.execute_fetchall(
-        "SELECT id, name, config, active FROM venues WHERE slug = ?", (venue_slug,)
+        "SELECT id, name, config, active, paid_until FROM venues WHERE slug = ?", (venue_slug,)
     )
     if not row:
         raise ValueError("VENUE_NOT_FOUND")
     if not row[0][3]:
         raise ValueError("VENUE_INACTIVE")
+
+    # Auto-suspend if payment overdue past grace period
+    paid_until = row[0][4]
+    if paid_until:
+        try:
+            paid_date = date.fromisoformat(paid_until)
+            if paid_date < date.today() - timedelta(days=5):
+                await db.execute("UPDATE venues SET active = FALSE WHERE id = ?", (row[0][0],))
+                await db.commit()
+                raise ValueError("VENUE_INACTIVE")
+        except ValueError as e:
+            if str(e) == "VENUE_INACTIVE":
+                raise
 
     venue_id = row[0][0]
     venue_name = row[0][1]

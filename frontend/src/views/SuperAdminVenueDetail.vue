@@ -16,6 +16,8 @@ const detail = ref(null)
 const editName = ref('')
 const editLogoUrl = ref('')
 const uploadingLogo = ref(false)
+const markingPaid = ref(false)
+const paymentNotes = ref('')
 const editQrUrl = ref('')
 const editConfig = ref({ max_duration_sec: 600, max_songs_per_window: 5, window_minutes: 30 })
 const THEME_PRESETS = [
@@ -156,6 +158,23 @@ async function saveVenue() {
       setTimeout(() => { saveMsg.value = '' }, 2000)
     }
   } finally { saving.value = false }
+}
+
+async function markAsPaid() {
+  markingPaid.value = true
+  try {
+    const res = await fetch(`${API}/api/superadmin/venues/${venueId}/mark-paid`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...headers() },
+      body: JSON.stringify({ months: 1, notes: paymentNotes.value || null }),
+    })
+    if (res.ok) {
+      saveMsg.value = 'Pago registrado'
+      paymentNotes.value = ''
+      await fetchDetail()
+      setTimeout(() => { saveMsg.value = '' }, 3000)
+    }
+  } finally { markingPaid.value = false }
 }
 
 async function uploadLogo(event) {
@@ -314,6 +333,37 @@ async function deleteVenue() {
             <div class="sg"><strong>{{ detail.stats.total_users }}</strong><span>Usuarios</span></div>
             <div class="sg"><strong>{{ detail.stats.active_sessions }}</strong><span>Sesiones</span></div>
             <div class="sg"><strong>{{ detail.stats.songs_in_queue }}</strong><span>En cola</span></div>
+          </div>
+        </div>
+
+        <!-- Billing -->
+        <div class="card" :class="{
+          'billing-overdue': detail.venue.payment_status === 'overdue',
+          'billing-suspended': detail.venue.payment_status === 'suspended'
+        }">
+          <p class="section-title">FACTURACION</p>
+          <div class="billing-info">
+            <div class="billing-row">
+              <span class="billing-label">Estado</span>
+              <span class="billing-value" :class="'ps-' + detail.venue.payment_status">
+                {{ detail.venue.payment_status === 'active' ? 'Al dia' :
+                   detail.venue.payment_status === 'overdue' ? 'Vencido (periodo de gracia)' : 'Suspendido por falta de pago' }}
+              </span>
+            </div>
+            <div class="billing-row">
+              <span class="billing-label">Pagado hasta</span>
+              <span class="billing-value">{{ detail.venue.paid_until || 'Sin registro de pago' }}</span>
+            </div>
+            <div v-if="detail.venue.payment_notes" class="billing-row">
+              <span class="billing-label">Notas</span>
+              <span class="billing-value">{{ detail.venue.payment_notes }}</span>
+            </div>
+          </div>
+          <div class="billing-action">
+            <input v-model="paymentNotes" class="input-field" placeholder="Nota del pago (opcional)..." style="flex:1;" />
+            <button class="btn btn-primary" style="width:auto;white-space:nowrap;" :disabled="markingPaid" @click="markAsPaid">
+              {{ markingPaid ? 'Registrando...' : 'Marcar pagado (+1 mes)' }}
+            </button>
           </div>
         </div>
 
@@ -513,6 +563,16 @@ async function deleteVenue() {
 .form-stack { display: flex; flex-direction: column; gap: 12px; }
 .form-group { display: flex; flex-direction: column; gap: 4px; }
 .form-group label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.billing-overdue { border-color: var(--warning) !important; }
+.billing-suspended { border-color: var(--danger) !important; }
+.billing-info { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.billing-row { display: flex; justify-content: space-between; align-items: center; }
+.billing-label { font-size: 12px; color: var(--text-muted); }
+.billing-value { font-size: 14px; font-weight: 600; }
+.ps-active { color: var(--success); }
+.ps-overdue { color: var(--warning); }
+.ps-suspended { color: var(--danger); }
+.billing-action { display: flex; gap: 8px; align-items: center; }
 .logo-upload { display: flex; align-items: center; gap: 16px; margin-top: 4px; }
 .logo-preview { width: 64px; height: 64px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
 .logo-actions { display: flex; flex-direction: column; gap: 4px; }

@@ -1,6 +1,7 @@
 import json
 import os
 import uuid
+from datetime import date, timedelta
 
 import bcrypt
 from fastapi import APIRouter, HTTPException, Depends, Header, Query, UploadFile, File
@@ -8,6 +9,23 @@ from pydantic import BaseModel
 
 from app.services import auth_service
 from app.database import get_db
+
+GRACE_PERIOD_DAYS = 5
+
+
+def compute_payment_status(paid_until: str | None) -> str:
+    if paid_until is None:
+        return "active"
+    try:
+        paid_date = date.fromisoformat(paid_until)
+    except (ValueError, TypeError):
+        return "active"
+    today = date.today()
+    if paid_date >= today:
+        return "active"
+    if paid_date >= today - timedelta(days=GRACE_PERIOD_DAYS):
+        return "overdue"
+    return "suspended"
 
 router = APIRouter(prefix="/api/superadmin", tags=["superadmin"])
 
@@ -27,6 +45,11 @@ class CreateVenueRequest(BaseModel):
     max_duration_sec: int = 600
     max_songs_per_window: int = 5
     window_minutes: int = 30
+
+
+class MarkPaidRequest(BaseModel):
+    months: int = 1
+    notes: str | None = None
 
 
 class UpdateVenueRequest(BaseModel):
@@ -69,7 +92,8 @@ async def list_venues(admin: dict = Depends(get_current_super_admin)):
         "SELECT v.id, v.name, v.slug, v.active, v.config, v.created_at, v.logo_url, v.qr_url, "
         "(SELECT COUNT(*) FROM admins a WHERE a.venue_id = v.id) as admin_count, "
         "(SELECT COUNT(*) FROM queue_songs qs WHERE qs.venue_id = v.id AND qs.status IN ('pending','playing')) as queue_count, "
-        "(SELECT COUNT(*) FROM user_sessions us WHERE us.venue_id = v.id AND us.ended_at IS NULL) as active_sessions "
+        "(SELECT COUNT(*) FROM user_sessions us WHERE us.venue_id = v.id AND us.ended_at IS NULL) as active_sessions, "
+        "v.paid_until, v.payment_notes "
         "FROM venues v ORDER BY v.created_at DESC"
     )
     venues = []
@@ -84,6 +108,8 @@ async def list_venues(admin: dict = Depends(get_current_super_admin)):
             "active": bool(r[3]), "config": config,
             "created_at": r[5], "logo_url": r[6], "qr_url": r[7],
             "admin_count": r[8], "queue_count": r[9], "active_sessions": r[10],
+            "paid_until": r[11], "payment_notes": r[12],
+            "payment_status": compute_payment_status(r[11]),
         })
     return {"venues": venues}
 
@@ -195,7 +221,7 @@ async def delete_venue(venue_id: int, admin: dict = Depends(get_current_super_ad
 async def venue_stats(venue_id: int, admin: dict = Depends(get_current_super_admin)):
     db = await get_db()
 
-    rows = await db.execute_fetchall("SELECT name, slug, active, created_at, logo_url, qr_url, config FROM venues WHERE id = ?", (venue_id,))
+    rows = await db.execute_fetchall("SELECT name, slug, active, created_at, logo_url, qr_url, config, paid_until, payment_notes FROM venues WHERE id = ?", (venue_id,))
     if not rows:
         raise HTTPException(status_code=404, detail="Bar no encontrado")
 
@@ -216,7 +242,7 @@ async def venue_stats(venue_id: int, admin: dict = Depends(get_current_super_adm
     )
 
     return {
-        "venue": {"id": venue_id, "name": v[0], "slug": v[1], "active": bool(v[2]), "created_at": v[3], "logo_url": v[4], "qr_url": v[5], "config": v[6]},
+        "venue": {"id": venue_id, "name": v[0], "slug": v[1], "active": bool(v[2]), "created_at": v[3], "logo_url": v[4], "qr_url": v[5], "config": v[6], "paid_until": v[7], "payment_notes": v[8], "payment_status": compute_payment_status(v[7])},
         "stats": {
             "total_songs_played": s[0], "total_users": s[1],
             "active_sessions": s[2], "songs_in_queue": s[3],
@@ -422,3 +448,50 @@ async def upload_venue_logo(
     await db.commit()
 
     return {"logo_url": logo_url}
+
+
+@router.post("/venues/{venue_id}/mark-paid")
+async def mark_venue_paid(venue_id: int, req: MarkPaidRequest,
+                          admin: dict = Depends(get_current_super_admin)):
+    """Mark a venue as paid, extending paid_until by N months."""
+    db = await get_db()
+    rows = await db.execute_fetchall(
+        "SELECT paid_until, active FROM venues WHERE id = ?", (venue_id,)
+    )
+    if not rows:
+        raise HTTPException(status_code=404, detail="Bar no encontrado")
+
+    current_paid_until = rows[0][0]
+    today = date.today()
+
+    # Extend from current paid_until if still in the future, otherwise from today
+    base = today
+    if current_paid_until:
+        try:
+            paid_date = date.fromisoformat(current_paid_until)
+            if paid_date > today:
+                base = paid_date
+        except (ValueError, TypeError):
+            pass
+
+    new_paid_until = base + timedelta(days=30 * req.months)
+
+    update_parts = ["paid_until = ?", "active = TRUE"]
+    params = [new_paid_until.isoformat()]
+
+    if req.notes is not None:
+        update_parts.append("payment_notes = ?")
+        params.append(req.notes)
+
+    params.append(venue_id)
+    await db.execute(
+        f"UPDATE venues SET {', '.join(update_parts)} WHERE id = ?",
+        tuple(params),
+    )
+    await db.commit()
+
+    return {
+        "message": f"Pago registrado. Pagado hasta {new_paid_until.isoformat()}",
+        "paid_until": new_paid_until.isoformat(),
+        "payment_status": "active",
+    }
