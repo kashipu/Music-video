@@ -1008,7 +1008,7 @@ function logout() {
   border-bottom: 1px solid var(--border);
 }
 .header-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.header-logo { width: 36px; height: 36px; border-radius: 8px; object-fit: cover; }
+.header-logo { max-width: 120px; max-height: 36px; width: auto; height: auto; object-fit: contain; }
 .admin-header h1 { font-size: 18px; text-transform: capitalize; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .menu-btn {
   display: none; width: 40px; height: 40px; border-radius: 8px;
@@ -1047,7 +1047,7 @@ function logout() {
   min-width: 0;
 }
 .sidebar-info { text-align: center; }
-.sidebar-logo { width: 64px; height: 64px; border-radius: 12px; object-fit: cover; margin: 0 auto 8px; }
+.sidebar-logo { max-width: 160px; max-height: 80px; width: auto; height: auto; object-fit: contain; margin: 0 auto 8px; }
 .bar-name { font-size: 22px; margin-bottom: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .info-stats { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; }
 .info-stat { text-align: center; min-width: 0; }
