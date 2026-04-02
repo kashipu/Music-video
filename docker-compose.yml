@@ -34,6 +34,14 @@ services:
       - backend
     restart: unless-stopped
 
+  landing:
+    build:
+      context: ./landing
+      dockerfile: Dockerfile
+    expose:
+      - "80"
+    restart: unless-stopped
+
 volumes:
   sqlite_data:
     driver: local

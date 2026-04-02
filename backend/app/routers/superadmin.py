@@ -417,7 +417,7 @@ async def upload_venue_logo(
         f.write(content)
 
     # Update venue logo_url in DB
-    logo_url = f"/uploads/{filename}"
+    logo_url = f"/api/uploads/{filename}"
     db = await get_db()
     await db.execute("UPDATE venues SET logo_url = ? WHERE id = ?", (logo_url, venue_id))
     await db.commit()
