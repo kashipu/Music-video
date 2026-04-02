@@ -1,3 +1,4 @@
+import asyncio
 import json
 import random
 import uuid
@@ -8,6 +9,18 @@ import bcrypt
 
 from app.config import settings
 from app.database import get_db
+
+
+async def _commit_with_retry(db, retries: int = 3, delay: float = 0.3):
+    for attempt in range(retries):
+        try:
+            await db.commit()
+            return
+        except Exception as e:
+            if "locked" in str(e) and attempt < retries - 1:
+                await asyncio.sleep(delay * (attempt + 1))
+            else:
+                raise
 
 
 async def register_user(phone: str, table_number: str | None, venue_slug: str,
@@ -29,7 +42,7 @@ async def register_user(phone: str, table_number: str | None, venue_slug: str,
             paid_date = date.fromisoformat(paid_until)
             if paid_date < date.today() - timedelta(days=5):
                 await db.execute("UPDATE venues SET active = FALSE WHERE id = ?", (row[0][0],))
-                await db.commit()
+                await _commit_with_retry(db)
                 raise ValueError("VENUE_INACTIVE")
         except ValueError as e:
             if str(e) == "VENUE_INACTIVE":
@@ -73,7 +86,7 @@ async def register_user(phone: str, table_number: str | None, venue_slug: str,
         "INSERT INTO user_sessions (id, user_id, venue_id, table_number) VALUES (?, ?, ?, ?)",
         (session_id, user_id, venue_id, table_number),
     )
-    await db.commit()
+    await _commit_with_retry(db)
 
     token = create_token(user_id, phone, venue_id, table_number, session_id)
 
@@ -202,7 +215,7 @@ async def get_or_create_daily_pin(venue_id: int) -> str:
         "INSERT INTO venue_daily_pins (venue_id, pin, valid_date) VALUES (?, ?, ?)",
         (venue_id, pin, today),
     )
-    await db.commit()
+    await _commit_with_retry(db)
     return pin
 
 
@@ -295,7 +308,7 @@ async def expire_session(session_id: str) -> None:
         "UPDATE user_sessions SET ended_at = CURRENT_TIMESTAMP WHERE id = ? AND ended_at IS NULL",
         (session_id,),
     )
-    await db.commit()
+    await _commit_with_retry(db)
 
 
 async def expire_stale_sessions() -> int:
@@ -312,7 +325,7 @@ async def expire_stale_sessions() -> int:
         ")",
         (f"-{max_hours}", f"-{inactivity_minutes}"),
     )
-    await db.commit()
+    await _commit_with_retry(db)
     return result.rowcount
 
 

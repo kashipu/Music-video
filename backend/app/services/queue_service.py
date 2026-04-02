@@ -1,8 +1,22 @@
+import asyncio
 import json
 from datetime import datetime, timedelta, timezone
 
 from app.config import settings
 from app.database import get_db
+
+
+async def _commit_with_retry(db, retries: int = 3, delay: float = 0.3):
+    """Commit with retries to handle transient 'database is locked' errors."""
+    for attempt in range(retries):
+        try:
+            await db.commit()
+            return
+        except Exception as e:
+            if "locked" in str(e) and attempt < retries - 1:
+                await asyncio.sleep(delay * (attempt + 1))
+            else:
+                raise
 
 
 async def get_rate_limit_info(user_id: int, venue_id: int) -> dict:
@@ -90,7 +104,7 @@ async def add_song(venue_id: int, user_id: int, session_id: str,
         "INSERT INTO submission_log (user_id, venue_id) VALUES (?, ?)",
         (user_id, venue_id),
     )
-    await db.commit()
+    await _commit_with_retry(db)
 
     # Calculate estimated wait
     wait_rows = await db.execute_fetchall(

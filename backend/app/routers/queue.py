@@ -151,6 +151,24 @@ async def confirm_song(req: SongConfirmRequest, user: dict = Depends(get_current
         raise HTTPException(status_code=409, detail="Esta cancion ya esta en la cola",
                             headers={"X-Error-Code": "ALREADY_IN_QUEUE"})
 
+    # Check if blocked (copyright/playback error)
+    try:
+        from app.database import get_db as _get_db2
+        _db2 = await _get_db2()
+        blocked = await _db2.execute_fetchall(
+            "SELECT 1 FROM blocked_videos WHERE youtube_id = ?", (req.youtube_id,)
+        )
+        if blocked:
+            raise HTTPException(
+                status_code=400,
+                detail="Este video tiene restricciones de derechos y no puede ser reproducido. Busca otra version o cancion.",
+                headers={"X-Error-Code": "VIDEO_BLOCKED"},
+            )
+    except HTTPException:
+        raise
+    except Exception:
+        pass
+
     # Get metadata from cache
     from app.database import get_db
     db = await get_db()
