@@ -976,10 +976,10 @@ function logout() {
               </div>
             </div>
             <div class="card" v-if="analytics.top_tables && analytics.top_tables.length" style="margin-top:12px;">
-              <p class="section-title">MESAS MAS ACTIVAS</p>
-              <div v-for="t in analytics.top_tables" :key="t.table_number" class="an-song">
-                <span class="an-pos">{{ t.table_number }}</span>
-                <span class="an-title">#{{ t.table_number }}</span>
+              <p class="section-title">USUARIOS MAS ACTIVOS</p>
+              <div v-for="(t, i) in analytics.top_tables" :key="t.table_number" class="an-song">
+                <span class="an-pos">{{ i + 1 }}</span>
+                <span class="an-title">{{ t.table_number }}</span>
                 <span class="an-count">{{ t.total_songs }} canciones</span>
               </div>
             </div>

@@ -72,12 +72,14 @@ async def get_analytics(venue_id: int, period: str = "week") -> dict:
     from app.utils import to_colombia_hour
     peak_hours = [{"hour": to_colombia_hour(r[0]), "requests": r[1]} for r in peak_rows]
 
-    # Top tables
+    # Top users (was "top tables")
     table_rows = await db.execute_fetchall(
-        "SELECT us.table_number, COUNT(*) as total_songs "
-        "FROM queue_songs qs JOIN user_sessions us ON qs.session_id = us.id "
+        "SELECT COALESCE(u.display_name, u.phone, us.table_number) as user_label, COUNT(*) as total_songs "
+        "FROM queue_songs qs "
+        "JOIN user_sessions us ON qs.session_id = us.id "
+        "JOIN users u ON qs.user_id = u.id "
         "WHERE qs.venue_id = ? AND qs.added_at > datetime('now', ?) "
-        "GROUP BY us.table_number ORDER BY total_songs DESC LIMIT 10",
+        "GROUP BY qs.user_id ORDER BY total_songs DESC LIMIT 10",
         (venue_id, period_filter),
     )
     top_tables = [{"table_number": r[0], "total_songs": r[1]} for r in table_rows]

@@ -74,7 +74,7 @@ async function handleRegister() {
       <div class="landing-header">
         <img v-if="venueLogo" :src="venueLogo.startsWith('/') ? API + venueLogo : venueLogo" class="venue-logo" />
         <div v-else class="music-icon">&#9835;</div>
-        <h1>{{ venueName || venueSlug.replace(/-/g, ' ') }}</h1>
+        <h1 v-if="!venueLogo">{{ venueName || venueSlug.replace(/-/g, ' ') }}</h1>
         <p class="subtitle">Elige la musica que suena!</p>
         <p class="powered-by">por Repitela</p>
       </div>
