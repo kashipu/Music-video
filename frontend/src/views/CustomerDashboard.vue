@@ -137,8 +137,8 @@ onMounted(async () => {
     queueStore.fetchMySongs(),
     queueStore.fetchRemainingSlots(),
   ])
-  // Full sync every 10s — catches any missed WS events
-  syncPoll = setInterval(syncAll, 10000)
+  // Safety net sync every 30s — catches any missed WS events
+  syncPoll = setInterval(syncAll, 30000)
 })
 
 onUnmounted(() => { if (syncPoll) clearInterval(syncPoll) })

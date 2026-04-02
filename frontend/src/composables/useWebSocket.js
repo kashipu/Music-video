@@ -39,13 +39,16 @@ export function useWebSocket(venueSlug, userId = null) {
     }
 
     ws.value.onmessage = (event) => {
+      let data
       try {
-        const data = JSON.parse(event.data)
-        lastEvent.value = data
-        handlers.forEach(h => h(data))
+        data = JSON.parse(event.data)
       } catch {
-        // ignore malformed messages
+        return // ignore malformed messages
       }
+      lastEvent.value = data
+      handlers.forEach(h => {
+        try { h(data) } catch { /* handler error — don't break other handlers */ }
+      })
     }
 
     ws.value.onclose = () => {

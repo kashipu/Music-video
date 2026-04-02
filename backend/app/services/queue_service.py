@@ -36,25 +36,20 @@ async def get_rate_limit_info(user_id: int, venue_id: int) -> dict:
         except (json.JSONDecodeError, TypeError):
             pass
 
+    # Single query for both count and oldest timestamp (was 2 separate queries)
     rows = await db.execute_fetchall(
-        "SELECT COUNT(*) FROM submission_log "
+        "SELECT COUNT(*), MIN(submitted_at) FROM submission_log "
         "WHERE user_id = ? AND venue_id = ? AND submitted_at > datetime('now', ?)",
         (user_id, venue_id, f"-{window_minutes} minutes"),
     )
     recent = rows[0][0] if rows else 0
     remaining = max(0, max_songs - recent)
-
-    # Get oldest submission time for reset calculation
-    oldest_rows = await db.execute_fetchall(
-        "SELECT MIN(submitted_at) FROM submission_log "
-        "WHERE user_id = ? AND venue_id = ? AND submitted_at > datetime('now', ?)",
-        (user_id, venue_id, f"-{window_minutes} minutes"),
-    )
+    oldest_submitted = rows[0][1] if rows else None
 
     now = datetime.now(timezone.utc)
-    if oldest_rows and oldest_rows[0][0]:
+    if oldest_submitted:
         try:
-            oldest_dt = datetime.fromisoformat(oldest_rows[0][0])
+            oldest_dt = datetime.fromisoformat(oldest_submitted)
             # SQLite datetime('now') stores UTC without timezone info
             if oldest_dt.tzinfo is None:
                 oldest_dt = oldest_dt.replace(tzinfo=timezone.utc)
