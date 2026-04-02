@@ -66,13 +66,25 @@ onEvent((event) => {
     mySongPlaying.value = false
   }
   if (event.event === 'song_error_notification') {
+    // Clear preview if it was showing the errored song
+    if (preview.value && preview.value.youtube_id === event.data.youtube_id) {
+      preview.value = null
+    }
     songError.value = {
       title: event.data.title || 'Tu cancion',
       youtube_id: event.data.youtube_id || '',
       message: event.data.message || 'Tu cancion no pudo ser reproducida',
     }
+    // Immediately remove the errored song from local state so user doesn't see it
+    const errorYtId = event.data.youtube_id
+    if (errorYtId) {
+      queueStore.mySongs = queueStore.mySongs.filter(s => s.youtube_id !== errorYtId)
+      queueStore.queue = queueStore.queue.filter(s => s.youtube_id !== errorYtId)
+    }
+    // Then sync with server
     queueStore.fetchMySongs()
     queueStore.fetchRemainingSlots()
+    queueStore.fetchQueue(venueSlug)
   }
   if (event.event === 'rate_limit_reset') {
     queueStore.fetchRemainingSlots()
@@ -155,7 +167,10 @@ function handleLogout() {
   router.push({ name: 'registro', params: { venueSlug } })
 }
 
-function dismissError() { songError.value = null }
+function dismissError() {
+  songError.value = null
+  // Preview stays null, search query stays — user can immediately pick another song
+}
 
 function onPreview(data) { preview.value = data }
 function onCancelPreview() { preview.value = null }
