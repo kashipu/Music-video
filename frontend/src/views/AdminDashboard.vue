@@ -119,6 +119,19 @@ onEvent((event) => {
 // Polling fallback: if WS events are lost, keep admin in sync
 let adminPoll = null
 
+async function refreshAdminInfo() {
+  try {
+    const res = await fetch(`${API}/api/playback/now-playing?venue=${venueSlug}`)
+    if (res.ok) {
+      const data = await res.json()
+      if (data.venue_logo !== undefined && auth.adminInfo) {
+        auth.adminInfo.logo_url = data.venue_logo
+        try { localStorage.setItem('bq_admin', JSON.stringify(auth.adminInfo)) } catch { /* */ }
+      }
+    }
+  } catch { /* */ }
+}
+
 onMounted(async () => {
   applyVenueTheme(auth.adminInfo?.config)
   // Load banner from venue config
@@ -128,7 +141,7 @@ onMounted(async () => {
     showBrand.value = cfg?.show_brand !== false
     showQr.value = cfg?.show_qr === true
   } catch { /* */ }
-  await Promise.all([fetchQueue(), fetchTables(), fetchAnalytics(), fetchFallbackPlaylist()])
+  await Promise.all([fetchQueue(), fetchTables(), fetchAnalytics(), fetchFallbackPlaylist(), refreshAdminInfo()])
   adminPoll = setInterval(() => {
     fetchQueue()
     fetchTables()
