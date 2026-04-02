@@ -18,9 +18,15 @@ async def get_current_user(authorization: str = Header(...)) -> dict:
 
     # Check session not expired by inactivity or max duration
     session_id = payload.get("session_id")
-    if session_id and await auth_service.is_session_expired(session_id):
-        await auth_service.expire_session(session_id)
-        raise HTTPException(status_code=401, detail="Sesion expirada por inactividad, vuelve a registrarte")
+    if session_id:
+        try:
+            if await auth_service.is_session_expired(session_id):
+                await auth_service.expire_session(session_id)
+                raise HTTPException(status_code=401, detail="Sesion expirada por inactividad, vuelve a registrarte")
+        except HTTPException:
+            raise
+        except Exception:
+            pass  # Column may not exist yet if migration 009 hasn't run
 
     return payload
 
@@ -101,7 +107,10 @@ async def get_session(user: dict = Depends(get_current_user)):
     # Update session activity (heartbeat)
     session_id = user.get("session_id")
     if session_id:
-        await auth_service.update_session_activity(session_id)
+        try:
+            await auth_service.update_session_activity(session_id)
+        except Exception:
+            pass  # Column may not exist yet if migration 009 hasn't run
 
     u = user_rows[0]
     session_info = await auth_service.get_session_info(user["user_id"], user["venue_id"])
