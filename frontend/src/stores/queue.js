@@ -32,8 +32,12 @@ export const useQueueStore = defineStore('queue', () => {
       body: JSON.stringify({ youtube_url: youtubeUrl }),
     })
     if (!res.ok) {
-      const err = await res.json()
-      throw new Error(err.detail || 'Failed to submit song')
+      let detail = 'Error al enviar cancion'
+      try {
+        const err = await res.json()
+        detail = err.detail || detail
+      } catch { /* non-JSON response (e.g. 500) */ }
+      throw new Error(detail)
     }
     return await res.json()
   }
@@ -46,8 +50,12 @@ export const useQueueStore = defineStore('queue', () => {
       body: JSON.stringify({ youtube_id: youtubeId }),
     })
     if (!res.ok) {
-      const err = await res.json()
-      throw new Error(err.detail || 'Failed to confirm song')
+      let detail = 'Error al confirmar cancion'
+      try {
+        const err = await res.json()
+        detail = err.detail || detail
+      } catch { /* non-JSON response */ }
+      throw new Error(detail)
     }
     return await res.json()
   }
@@ -127,8 +135,12 @@ export const useQueueStore = defineStore('queue', () => {
       headers: auth.authHeaders(),
     })
     if (!res.ok) {
-      const err = await res.json()
-      throw new Error(err.detail || 'Failed to cancel song')
+      let detail = 'Error al cancelar cancion'
+      try {
+        const err = await res.json()
+        detail = err.detail || detail
+      } catch { /* non-JSON response */ }
+      throw new Error(detail)
     }
     return await res.json()
   }

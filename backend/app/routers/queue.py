@@ -88,17 +88,22 @@ async def submit_song(req: SongSubmitRequest, user: dict = Depends(get_current_u
                             headers={"X-Error-Code": "VIDEO_NOT_EMBEDDABLE"})
 
     # Check if this video was previously blocked (copyright/playback error)
-    from app.database import get_db as _get_db
-    _db = await _get_db()
-    blocked = await _db.execute_fetchall(
-        "SELECT 1 FROM blocked_videos WHERE youtube_id = ?", (video_id,)
-    )
-    if blocked:
-        raise HTTPException(
-            status_code=400,
-            detail="Este video tiene restricciones de derechos y no puede ser reproducido. Busca otra version o cancion.",
-            headers={"X-Error-Code": "VIDEO_BLOCKED"},
+    try:
+        from app.database import get_db as _get_db
+        _db = await _get_db()
+        blocked = await _db.execute_fetchall(
+            "SELECT 1 FROM blocked_videos WHERE youtube_id = ?", (video_id,)
         )
+        if blocked:
+            raise HTTPException(
+                status_code=400,
+                detail="Este video tiene restricciones de derechos y no puede ser reproducido. Busca otra version o cancion.",
+                headers={"X-Error-Code": "VIDEO_BLOCKED"},
+            )
+    except HTTPException:
+        raise
+    except Exception:
+        pass  # Table may not exist yet, skip check
 
     # Check duration limit
     max_duration = await queue_service.check_duration_limit(venue_id, metadata["duration_sec"])
