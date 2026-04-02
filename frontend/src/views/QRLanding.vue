@@ -71,7 +71,7 @@ async function handleRegister() {
     <button class="theme-toggle" style="position:fixed;top:16px;right:16px;" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button>
     <div class="container">
       <div class="landing-header">
-        <img v-if="venueLogo" :src="venueLogo" class="venue-logo" />
+        <img v-if="venueLogo" :src="venueLogo.startsWith('/') ? API + venueLogo : venueLogo" class="venue-logo" />
         <div v-else class="music-icon">&#9835;</div>
         <h1>{{ venueName || venueSlug.replace(/-/g, ' ') }}</h1>
         <p class="subtitle">Elige la musica que suena!</p>

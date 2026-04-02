@@ -699,7 +699,7 @@ onUnmounted(() => {
 
         <!-- Venue branding top-left -->
         <div v-if="showBrand && (venueName || venueLogo)" class="venue-brand">
-          <img v-if="venueLogo" :src="venueLogo" class="venue-brand-logo" />
+          <img v-if="venueLogo" :src="venueLogo.startsWith('/') ? API + venueLogo : venueLogo" class="venue-brand-logo" />
           <span v-else class="venue-brand-name">{{ venueName }}</span>
         </div>
 

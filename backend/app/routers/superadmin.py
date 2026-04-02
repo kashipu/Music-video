@@ -1,7 +1,9 @@
 import json
+import os
+import uuid
 
 import bcrypt
-from fastapi import APIRouter, HTTPException, Depends, Header, Query
+from fastapi import APIRouter, HTTPException, Depends, Header, Query, UploadFile, File
 from pydantic import BaseModel
 
 from app.services import auth_service
@@ -375,3 +377,48 @@ async def clear_venue_playlist(venue_id: int, admin: dict = Depends(get_current_
     await db.execute("DELETE FROM fallback_songs WHERE venue_id = ?", (venue_id,))
     await db.commit()
     return {"message": "Playlist limpiada"}
+
+
+@router.post("/venues/{venue_id}/logo")
+async def upload_venue_logo(
+    venue_id: int,
+    file: UploadFile = File(...),
+    admin: dict = Depends(get_current_super_admin),
+):
+    """Upload a logo image (PNG, JPG, SVG) for a venue."""
+    # Validate file type
+    allowed = {"image/png", "image/jpeg", "image/jpg", "image/svg+xml"}
+    if file.content_type not in allowed:
+        raise HTTPException(status_code=400, detail="Solo se permiten archivos PNG, JPG o SVG")
+
+    # Validate file size (max 2MB)
+    content = await file.read()
+    if len(content) > 2 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="El archivo no puede superar 2MB")
+
+    # Generate filename
+    ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "png"
+    if ext not in ("png", "jpg", "jpeg", "svg"):
+        ext = "png"
+    filename = f"{venue_id}_{uuid.uuid4().hex[:8]}.{ext}"
+
+    # Save file
+    logos_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "logos")
+    os.makedirs(logos_dir, exist_ok=True)
+
+    # Delete old logo files for this venue
+    for f in os.listdir(logos_dir):
+        if f.startswith(f"{venue_id}_"):
+            os.remove(os.path.join(logos_dir, f))
+
+    filepath = os.path.join(logos_dir, filename)
+    with open(filepath, "wb") as f:
+        f.write(content)
+
+    # Update venue logo_url in DB
+    logo_url = f"/uploads/{filename}"
+    db = await get_db()
+    await db.execute("UPDATE venues SET logo_url = ? WHERE id = ?", (logo_url, venue_id))
+    await db.commit()
+
+    return {"logo_url": logo_url}

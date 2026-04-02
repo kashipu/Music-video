@@ -1,7 +1,9 @@
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.database import init_db, close_db
@@ -46,6 +48,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Static files (logos)
+logos_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "logos")
+os.makedirs(logos_dir, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=logos_dir), name="uploads")
 
 # Routers
 app.include_router(auth.router)

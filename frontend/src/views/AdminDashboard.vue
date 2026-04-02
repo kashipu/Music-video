@@ -515,7 +515,7 @@ function logout() {
     <header class="admin-header">
       <div class="header-brand">
         <button class="menu-btn" @click="sidebarOpen = !sidebarOpen">&#9776;</button>
-        <img v-if="auth.adminInfo?.logo_url" :src="auth.adminInfo.logo_url" class="header-logo" />
+        <img v-if="auth.adminInfo?.logo_url" :src="auth.adminInfo.logo_url?.startsWith('/') ? API + auth.adminInfo.logo_url : auth.adminInfo.logo_url" class="header-logo" />
         <h1>{{ auth.adminInfo?.venue_name || venueSlug }}</h1>
       </div>
       <div style="display:flex;gap:8px;align-items:center;">
@@ -538,7 +538,7 @@ function logout() {
 
         <!-- Bar Info Card -->
         <div class="card sidebar-info">
-          <img v-if="auth.adminInfo?.logo_url" :src="auth.adminInfo.logo_url" class="sidebar-logo" />
+          <img v-if="auth.adminInfo?.logo_url" :src="auth.adminInfo.logo_url?.startsWith('/') ? API + auth.adminInfo.logo_url : auth.adminInfo.logo_url" class="sidebar-logo" />
           <h2 class="bar-name">{{ auth.adminInfo?.venue_name }}</h2>
           <div class="info-stats">
             <div class="info-stat">

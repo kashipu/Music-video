@@ -14,6 +14,7 @@ const venueId = route.params.venueId
 const detail = ref(null)
 const editName = ref('')
 const editLogoUrl = ref('')
+const uploadingLogo = ref(false)
 const editQrUrl = ref('')
 const editConfig = ref({ max_duration_sec: 600, max_songs_per_window: 5, window_minutes: 30 })
 const THEME_PRESETS = [
@@ -156,6 +157,40 @@ async function saveVenue() {
   } finally { saving.value = false }
 }
 
+async function uploadLogo(event) {
+  const file = event.target.files?.[0]
+  if (!file) return
+  const allowed = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml']
+  if (!allowed.includes(file.type)) {
+    saveMsg.value = 'Solo PNG, JPG o SVG'
+    return
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    saveMsg.value = 'Max 2MB'
+    return
+  }
+  uploadingLogo.value = true
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+    const res = await fetch(`${API}/api/superadmin/venues/${venueId}/logo`, {
+      method: 'POST',
+      headers: headers(),
+      body: formData,
+    })
+    if (res.ok) {
+      const data = await res.json()
+      editLogoUrl.value = data.logo_url
+      await fetchDetail()
+      saveMsg.value = 'Logo actualizado'
+      setTimeout(() => { saveMsg.value = '' }, 2000)
+    } else {
+      const err = await res.json().catch(() => ({}))
+      saveMsg.value = err.detail || 'Error al subir logo'
+    }
+  } finally { uploadingLogo.value = false }
+}
+
 // Users
 async function fetchUsers() {
   const res = await fetch(`${API}/api/superadmin/venues/${venueId}/users`, { headers: headers() })
@@ -257,7 +292,7 @@ async function deleteVenue() {
     <header class="vd-header">
       <div class="vd-header-left">
         <button class="back-btn" @click="router.push({ name: 'superadmin' })">&#8592; Bares</button>
-        <img v-if="detail.venue.logo_url" :src="detail.venue.logo_url" class="header-logo" />
+        <img v-if="detail.venue.logo_url" :src="detail.venue.logo_url.startsWith('/') ? API + detail.venue.logo_url : detail.venue.logo_url" class="header-logo" />
         <h1>{{ detail.venue.name }}</h1>
         <span class="status-badge" :class="detail.venue.active ? 'active' : 'inactive'">
           {{ detail.venue.active ? 'Activo' : 'Inactivo' }}
@@ -290,9 +325,17 @@ async function deleteVenue() {
               <input v-model="editName" class="input-field" />
             </div>
             <div class="form-group">
-              <label>Logo URL</label>
-              <input v-model="editLogoUrl" class="input-field" placeholder="https://..." />
-              <img v-if="editLogoUrl" :src="editLogoUrl" class="logo-preview" />
+              <label>Logo del bar</label>
+              <div class="logo-upload">
+                <img v-if="editLogoUrl" :src="editLogoUrl.startsWith('/') ? API + editLogoUrl : editLogoUrl" class="logo-preview" />
+                <div class="logo-actions">
+                  <label class="btn btn-secondary logo-btn">
+                    {{ uploadingLogo ? 'Subiendo...' : 'Subir logo' }}
+                    <input type="file" accept=".png,.jpg,.jpeg,.svg" @change="uploadLogo" hidden :disabled="uploadingLogo" />
+                  </label>
+                  <p class="logo-hint">PNG, JPG o SVG. Max 2MB.</p>
+                </div>
+              </div>
             </div>
             <div class="form-group">
               <label>URL del QR (dejar vacio para automatica)</label>
@@ -469,7 +512,11 @@ async function deleteVenue() {
 .form-stack { display: flex; flex-direction: column; gap: 12px; }
 .form-group { display: flex; flex-direction: column; gap: 4px; }
 .form-group label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
-.logo-preview { width: 64px; height: 64px; border-radius: 8px; object-fit: cover; margin-top: 4px; }
+.logo-upload { display: flex; align-items: center; gap: 16px; margin-top: 4px; }
+.logo-preview { width: 64px; height: 64px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
+.logo-actions { display: flex; flex-direction: column; gap: 4px; }
+.logo-btn { padding: 8px 16px; font-size: 13px; width: auto; cursor: pointer; }
+.logo-hint { font-size: 11px; color: var(--text-muted); }
 .form-row { display: flex; align-items: center; gap: 12px; }
 .save-msg { font-size: 13px; color: var(--success); font-weight: 600; }
 
