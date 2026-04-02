@@ -444,35 +444,41 @@ async function onPlayerError(event) {
     return
   }
 
-  // User song failed — notify backend to skip and advance
+  // User song failed — notify backend to skip and advance (max 2 attempts)
   if (song.value && song.value.id) {
     const songId = song.value.id
+    const failedSong = { ...song.value }
     let adminToken = null
     try { adminToken = localStorage.getItem('bq_admin_token') } catch { /* */ }
     const hdrs = { 'Content-Type': 'application/json' }
     if (adminToken) hdrs['Authorization'] = `Bearer ${adminToken}`
 
-    try {
-      const res = await fetch(`${API}/api/playback/error`, {
-        method: 'POST',
-        headers: hdrs,
-        body: JSON.stringify({ song_id: songId, venue_slug: venueSlug, error_code: errorCode }),
-      })
-      if (res.ok) {
-        const data = await res.json()
-        if (data.next_song) {
-          song.value = data.next_song
-          fallbackActive.value = false
-          playingFallback.value = false
-          loadVideo(data.next_song.youtube_id)
-          triggerOverlay()
-          fetchQueuePreview()
-          return
+    let handled = false
+    for (let attempt = 0; attempt < 2 && !handled; attempt++) {
+      if (attempt > 0) await new Promise(r => setTimeout(r, 1500))
+      try {
+        const res = await fetch(`${API}/api/playback/error`, {
+          method: 'POST',
+          headers: hdrs,
+          body: JSON.stringify({ song_id: songId, venue_slug: venueSlug, error_code: errorCode }),
+        })
+        if (res.ok) {
+          handled = true
+          const data = await res.json()
+          if (data.next_song) {
+            song.value = data.next_song
+            fallbackActive.value = false
+            playingFallback.value = false
+            loadVideo(data.next_song.youtube_id)
+            triggerOverlay()
+            fetchQueuePreview()
+            return
+          }
         }
-      }
-    } catch { /* Network error — fall through */ }
+      } catch { /* Network error — retry */ }
+    }
 
-    // No next song or fetch failed — activate fallback
+    // Move to fallback regardless of whether backend responded
     song.value = null
     fallbackActive.value = true
     setTimeout(async () => {
