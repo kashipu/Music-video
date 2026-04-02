@@ -15,6 +15,8 @@ const CTAFinal = () => {
         </h2>
         <p className="text-muted-foreground max-w-lg mx-auto mb-10 text-lg">
           Tus clientes eligen. Tu controlas. Todos disfrutan.
+          <br />
+          <span className="text-foreground font-medium">$50.000/mes. Sin contratos.</span>
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Button size="lg" className="bg-primary text-primary-foreground text-lg px-10 py-7 glow" asChild>
@@ -30,9 +32,6 @@ const CTAFinal = () => {
             </a>
           </Button>
         </div>
-        <p className="text-sm text-muted-foreground mt-6">
-          $60.000/mes · Sin contratos · Cancela cuando quieras
-        </p>
       </div>
     </section>
   );

@@ -1,21 +1,17 @@
 import {
   MonitorPlay, BarChart3, ListMusic, Settings,
-  QrCode, Palette, ListVideo, Users, Shield, Wifi,
+  QrCode, ListVideo,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useScrollAnimation } from "@/hooks/useScrollAnimation";
 
 const benefits = [
-  { icon: ListMusic, title: "Cola en tiempo real", desc: "Tus clientes eligen canciones. La cola se gestiona sola con WebSockets." },
-  { icon: MonitorPlay, title: "Pantalla Kiosk", desc: "Conecta cualquier TV. Sin logos de YouTube, con controles propios y barra de progreso." },
-  { icon: QrCode, title: "QR en pantalla", desc: "Se muestra automaticamente en la TV. Tambien lo puedes imprimir para las mesas." },
-  { icon: Settings, title: "Control total", desc: "Pausa, salta, reordena con drag & drop. Tu decides que suena." },
-  { icon: BarChart3, title: "Analytics", desc: "Top artistas, horas pico, skip rate, usuarios nuevos vs recurrentes." },
-  { icon: ListVideo, title: "Playlist de respaldo", desc: "Importa desde YouTube. Cuando la cola esta vacia, nunca hay silencio." },
-  { icon: Users, title: "Gestion de usuarios", desc: "Ve quien pidio que. Resetea limites o expulsa si es necesario." },
-  { icon: Palette, title: "Tu marca", desc: "Logo, colores y nombre de tu bar en todas las pantallas." },
-  { icon: Shield, title: "Rate limiting", desc: "Max canciones por usuario configurable. Evita abuso automaticamente." },
-  { icon: Wifi, title: "Funciona offline-first", desc: "Si se pierde la conexion, se reconecta solo. Nada se pierde." },
+  { icon: ListMusic, title: "Cola en tiempo real", desc: "Tus clientes eligen canciones desde su celular. La cola se actualiza al instante para todos." },
+  { icon: MonitorPlay, title: "Pantalla de video personalizada", desc: "Proyecta la musica en tus televisores con tu logo, tus colores y mensajes para tus clientes." },
+  { icon: QrCode, title: "QR en pantalla", desc: "El QR aparece automaticamente en la pantalla. Tus clientes lo escanean y empiezan a pedir." },
+  { icon: Settings, title: "Control total", desc: "Pausa, salta, reordena. Tu decides que suena y cuando. Expulsa usuarios si es necesario." },
+  { icon: BarChart3, title: "Datos de la musica", desc: "Conoce que canciones son las mas pedidas, en que horarios y por que usuarios." },
+  { icon: ListVideo, title: "Playlist de respaldo", desc: "Cuando nadie ha pedido canciones, suena tu playlist. Nunca hay silencio en tu bar." },
 ];
 
 const ForBars = () => {
@@ -36,14 +32,14 @@ const ForBars = () => {
             <span className="text-gradient">tu bar suene increible</span>
           </h2>
           <p className="text-muted-foreground max-w-2xl mx-auto">
-            Configura en minutos. Conecta una pantalla. Tus clientes hacen el resto.
+            Solo necesitas internet y tener Repitela. Si tienes televisores en el bar, puedes proyectar mensajes y el QR para que las personas puedan pedir la musica.
           </p>
         </div>
 
         {/* 3-step setup */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-3xl mx-auto my-12">
           {[
-            { step: "1", title: "Crea tu bar", desc: "Nombre, logo, colores y reglas en 5 minutos" },
+            { step: "1", title: "Crea tu bar", desc: "Nombre, logo y colores en 5 minutos" },
             { step: "2", title: "Conecta una pantalla", desc: "Smart TV, laptop, tablet — lo que tengas" },
             { step: "3", title: "Tus clientes eligen", desc: "Escanean el QR y empiezan a pedir" },
           ].map((s) => (
@@ -60,20 +56,22 @@ const ForBars = () => {
         {/* Features grid */}
         <div
           ref={ref}
-          className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 transition-all duration-700 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
+          className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 max-w-4xl mx-auto transition-all duration-700 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}
         >
           {benefits.map((f) => (
-            <div key={f.title} className="glass-card rounded-2xl p-5 border-border/30 hover:border-primary/30 transition-all duration-300 hover:-translate-y-1 group">
+            <div key={f.title} className="glass-card rounded-2xl p-6 border-border/30 hover:border-primary/30 transition-all duration-300 hover:-translate-y-1 group">
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/20 transition-colors">
                 <f.icon className="h-5 w-5 text-primary" />
               </div>
-              <h4 className="font-semibold text-foreground mb-1 text-sm">{f.title}</h4>
-              <p className="text-xs text-muted-foreground leading-relaxed">{f.desc}</p>
+              <h4 className="font-semibold text-foreground mb-2">{f.title}</h4>
+              <p className="text-sm text-muted-foreground leading-relaxed">{f.desc}</p>
             </div>
           ))}
         </div>
 
-        <div className="text-center mt-12">
+        <p className="text-center text-muted-foreground mt-8 text-sm">Y mucho mas: banner publicitario, gestion de usuarios, rate limiting, tema personalizable...</p>
+
+        <div className="text-center mt-8">
           <Button size="lg" className="bg-primary text-primary-foreground text-lg px-8 py-6 glow" asChild>
             <a href="#precio">Ver Precio</a>
           </Button>

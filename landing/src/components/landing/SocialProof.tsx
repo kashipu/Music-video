@@ -1,11 +1,11 @@
 import { useScrollAnimation } from "@/hooks/useScrollAnimation";
-import { Star, Music, Users, Clock } from "lucide-react";
+import { Star, Music, Wifi, Clock } from "lucide-react";
 
 const stats = [
-  { icon: Music, value: "Ilimitadas", label: "Canciones disponibles", desc: "Todo YouTube a disposicion" },
-  { icon: Users, value: "Tiempo real", label: "Cola sincronizada", desc: "WebSockets, sin recargar" },
+  { icon: Music, value: "Ilimitadas", label: "Canciones", desc: "Sin restricciones de catalogo" },
+  { icon: Wifi, value: "Tiempo real", label: "Todo sincronizado", desc: "Cola, pantalla y controles" },
   { icon: Clock, value: "< 30 seg", label: "Setup completo", desc: "Crea tu bar y listo" },
-  { icon: Star, value: "$60.000", label: "Pesos al mes", desc: "Sin letra chiquita" },
+  { icon: Star, value: "$50.000", label: "Pesos al mes", desc: "Todo incluido" },
 ];
 
 const SocialProof = () => {
@@ -29,7 +29,6 @@ const SocialProof = () => {
           ))}
         </div>
 
-        {/* Testimonial */}
         <div className={`mt-12 max-w-2xl mx-auto text-center transition-all duration-700 delay-200 ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-10"}`}>
           <div className="glass-card rounded-2xl p-8 border-border/30">
             <div className="flex justify-center gap-1 mb-4">
@@ -39,7 +38,7 @@ const SocialProof = () => {
               "Desde que pusimos Repitela la gente no para de pedir canciones. Se quedan mas tiempo y consumen mas. Es como tener un DJ que nunca descansa."
             </p>
             <div className="text-sm text-muted-foreground">
-              — Dueño de bar en Colombia
+              — Dueno de bar en Colombia
             </div>
           </div>
         </div>

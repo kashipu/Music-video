@@ -5,28 +5,28 @@ import { useScrollAnimation } from "@/hooks/useScrollAnimation";
 
 const faqs = [
   {
-    q: "¿Necesito descargar alguna app?",
+    q: "Necesito descargar alguna app?",
     a: "No. Todo funciona desde el navegador de tu celular. Escaneas el QR y listo, sin instalaciones.",
   },
   {
-    q: "¿Cuántas canciones puedo pedir?",
-    a: "Hasta 5 canciones cada 30 minutos. Esto puede variar dependiendo del bar. Puedes cancelar canciones que aún no se han reproducido.",
+    q: "Cuantas canciones puedo pedir?",
+    a: "Varias canciones por sesion. El limite lo configura cada bar. Puedes cancelar canciones que aun no se han reproducido.",
   },
   {
-    q: "¿Puedo pegar un link de YouTube directamente?",
-    a: "Sí. Puedes buscar por nombre/artista o pegar directamente un link de YouTube.",
+    q: "Como se cuanto falta para que suene mi cancion?",
+    a: "Ves tu posicion en la cola en tiempo real y recibes una notificacion cuando tu cancion empieza a sonar.",
   },
   {
-    q: "¿Cómo sé cuándo suena mi canción?",
-    a: "Ves tu posición en la cola en tiempo real y recibes una notificación cuando tu canción empieza a sonar.",
+    q: "Que necesita el bar para tener Repitela?",
+    a: "Solo internet y una pantalla con navegador (Smart TV, laptop, tablet). Se configura en minutos y no requiere instalacion de software.",
   },
   {
-    q: "¿Qué necesita el bar para tener Repitela?",
-    a: "Solo una pantalla con navegador (Smart TV, laptop, tablet) y conexión a internet. Se configura en minutos y no requiere instalación de software.",
+    q: "Cuanto cuesta para el bar?",
+    a: "$50.000 pesos al mes, todo incluido. Sin contratos, sin costos ocultos. Cancela cuando quieras.",
   },
   {
-    q: "¿Cuánto cuesta para el bar?",
-    a: "$60.000 pesos al mes, todo incluido. Sin costos ocultos, sin límites de canciones.",
+    q: "El cliente tiene que pagar algo?",
+    a: "No. El servicio es completamente gratis para los clientes del bar. Solo el bar paga la suscripcion mensual.",
   },
 ];
 
