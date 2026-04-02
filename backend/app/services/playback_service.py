@@ -118,6 +118,17 @@ async def finish_song(song_id: int, venue_id: int) -> dict:
             (r[0], r[1], r[2], r[3], r[4]),
         )
 
+    # Free the rate limit slot so user can request another song
+    if finished_user_id:
+        await db.execute(
+            "DELETE FROM submission_log WHERE id = ("
+            "  SELECT id FROM submission_log "
+            "  WHERE user_id = ? AND venue_id = ? "
+            "  ORDER BY submitted_at DESC LIMIT 1"
+            ")",
+            (finished_user_id, venue_id),
+        )
+
     # Advance to next song
     next_song = await _advance_queue(venue_id)
     await _commit_with_retry(db)
