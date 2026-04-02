@@ -19,7 +19,7 @@ async def init_db() -> None:
     db_path = settings.database_path
     os.makedirs(os.path.dirname(db_path) or ".", exist_ok=True)
 
-    _db = await aiosqlite.connect(db_path)
+    _db = await aiosqlite.connect(db_path, isolation_level=None)
     _db.row_factory = aiosqlite.Row
 
     await _db.execute("PRAGMA journal_mode = WAL")

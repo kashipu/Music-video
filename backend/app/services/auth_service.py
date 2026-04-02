@@ -247,11 +247,7 @@ async def is_pin_required(venue_id: int) -> bool:
 
 
 async def update_session_activity(session_id: str) -> None:
-    """Update last_activity_at for the session (heartbeat).
-
-    Does not commit independently to avoid write contention with other
-    operations. The UPDATE piggybacks on the next natural commit.
-    """
+    """Update last_activity_at for the session (heartbeat)."""
     db = await get_db()
     await db.execute(
         "UPDATE user_sessions SET last_activity_at = CURRENT_TIMESTAMP "
