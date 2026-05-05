@@ -58,10 +58,12 @@ onReconnect(() => {
 
 onEvent((event) => {
   if (event.event === 'now_playing_changed') {
-    if (event.data.song) {
+    if (event.data.song && !event.data.song.is_fallback) {
       if (playingFallback.value) {
-        // Don't interrupt the current fallback — queue the user song for after it ends
-        pendingUserSong.value = event.data.song
+        // Song is already 'playing' in DB (admin advanced the queue) — store it and
+        // wait for fallback_skip to trigger immediate switch, or for fallback to end naturally.
+        // already_playing=true means backend already promoted it; no need to call start-playing.
+        pendingUserSong.value = { ...event.data.song, already_playing: true }
       } else {
         song.value = event.data.song
         fallbackActive.value = false
@@ -69,7 +71,8 @@ onEvent((event) => {
         loadVideo(event.data.song.youtube_id)
         triggerOverlay()
       }
-    } else {
+    } else if (!event.data.song) {
+      // Queue ended — activate fallback
       song.value = null
       fallbackActive.value = true
       playingFallback.value = false
@@ -85,27 +88,16 @@ onEvent((event) => {
     fallbackPaused.value = event.data.paused
     if (playingFallback.value) {
       if (event.data.paused) {
-        // Stop fallback playback
         if (ytPlayer) ytPlayer.stopVideo()
         song.value = null
         playingFallback.value = false
-        // If a user song is pending, play it now since fallback stopped
-        if (pendingUserSong.value) {
-          const userSong = pendingUserSong.value
-          pendingUserSong.value = null
-          song.value = userSong
-          fallbackActive.value = false
-          loadVideo(userSong.youtube_id)
-          triggerOverlay()
-          fetchQueuePreview()
-        }
       }
     } else if (!event.data.paused && fallbackActive.value && !song.value) {
       // Resume fallback
       playFallback()
     }
   } else if (event.event === 'fallback_skip') {
-    if (playingFallback.value) nextFallback()
+    if (playingFallback.value) handleFallbackSkip()
   } else if (event.event === 'fallback_play_now') {
     if (event.data.fallback_songs) fallbackSongs.value = event.data.fallback_songs
     fallbackPaused.value = false
@@ -129,10 +121,20 @@ onEvent((event) => {
     else { stopQrCycle(); qrCycleVisible.value = false }
   } else if (event.event === 'song_added' || event.event === 'song_removed' || event.event === 'queue_reordered') {
     fetchQueuePreview()
-    // Safety net: if nothing is playing, a song_added might have started playback
-    // but the now_playing_changed event could have been lost
-    if (event.event === 'song_added' && !song.value && !playingFallback.value) {
-      setTimeout(syncNowPlaying, 500)
+    if (event.event === 'song_added') {
+      if (playingFallback.value && !pendingUserSong.value) {
+        // Song added while fallback plays — it stays 'pending' in DB.
+        // Store it so when the current fallback track ends we start it immediately.
+        // already_playing=false means we must call start-playing when we actually begin.
+        pendingUserSong.value = { id: event.data.id, youtube_id: event.data.youtube_id, title: event.data.title, already_playing: false }
+      } else if (!song.value && !playingFallback.value) {
+        // Safety net: nothing playing, sync with backend
+        setTimeout(syncNowPlaying, 500)
+      }
+    }
+    if (event.event === 'song_removed' && pendingUserSong.value && pendingUserSong.value.id === event.data.id) {
+      // The pending user song was removed — clear it so we don't try to play it
+      pendingUserSong.value = null
     }
   }
 })
@@ -147,10 +149,11 @@ async function syncNowPlaying() {
   if (data.fallback_songs) fallbackSongs.value = data.fallback_songs
 
   // 1. Sync song state
-  if (data.song) {
+  if (data.song && !data.song.is_fallback) {
     if (playingFallback.value) {
-      // Fallback is playing — queue the user song instead of interrupting
-      pendingUserSong.value = data.song
+      // Fallback active — song is already 'playing' in DB (admin promoted it).
+      // Queue it for when fallback track ends; already_playing=true so start-playing won't be called.
+      pendingUserSong.value = { ...data.song, already_playing: true }
     } else {
       const currentYtId = song.value?.youtube_id
       const playerIdle = ytPlayer && typeof ytPlayer.getPlayerState === 'function'
@@ -164,14 +167,14 @@ async function syncNowPlaying() {
       }
     }
   } else if (!data.song) {
-    // No song playing on backend
+    // No song 'playing' in backend — could be fallback active or truly empty
     if (song.value && !playingFallback.value) {
       // We thought a user song was playing — clear it
       song.value = null
     }
     fallbackActive.value = true
-    // Start fallback if not already playing and songs available
-    if (!playingFallback.value && fallbackSongs.value.length && started.value && !fallbackPaused.value) {
+    // Only start fallback if not already playing and no pending user song waiting
+    if (!playingFallback.value && !pendingUserSong.value && fallbackSongs.value.length && started.value && !fallbackPaused.value) {
       playFallback()
     }
   }
@@ -316,40 +319,77 @@ function playFallback() {
   if (!fallbackSongs.value.length || fallbackPaused.value) return
   if (!playingFallback.value) trackFallbackActivated(venueSlug)
 
-  // If all songs played, reset the cycle
+  // Reset cycle when all songs have been played
   if (fallbackPlayed.value.size >= fallbackSongs.value.length) {
     fallbackPlayed.value = new Set()
   }
 
-  // Find next unplayed song starting from current index
-  let attempts = 0
-  while (attempts < fallbackSongs.value.length) {
-    if (fallbackIndex.value >= fallbackSongs.value.length) fallbackIndex.value = 0
-    const fb = fallbackSongs.value[fallbackIndex.value]
-    if (!fallbackPlayed.value.has(fb.youtube_id)) {
-      playingFallback.value = true
-      fallbackPlayed.value.add(fb.youtube_id)
-      song.value = { id: null, youtube_id: fb.youtube_id, title: fb.title, is_fallback: true }
-      loadVideo(fb.youtube_id)
-      return
-    }
-    fallbackIndex.value++
-    attempts++
-  }
+  // Pick a random unplayed song to avoid always starting from the same position
+  const unplayed = fallbackSongs.value.filter(fb => !fallbackPlayed.value.has(fb.youtube_id))
+  if (!unplayed.length) return
 
-  // All played — reset and start from first
-  fallbackPlayed.value = new Set()
-  if (!fallbackSongs.value.length) return
-  const fb = fallbackSongs.value[0]
-  fallbackPlayed.value.add(fb.youtube_id)
-  fallbackIndex.value = 0
+  const fb = unplayed[Math.floor(Math.random() * unplayed.length)]
   playingFallback.value = true
+  fallbackPlayed.value.add(fb.youtube_id)
   song.value = { id: null, youtube_id: fb.youtube_id, title: fb.title, is_fallback: true }
   loadVideo(fb.youtube_id)
+  // Notify all clients (customer + admin dashboards) which fallback song is playing
+  fetch(`${API}/api/playback/fallback-playing?venue=${encodeURIComponent(venueSlug)}&youtube_id=${encodeURIComponent(fb.youtube_id)}&title=${encodeURIComponent(fb.title)}`, { method: 'POST' }).catch(() => {})
 }
 
 function nextFallback() {
-  fallbackIndex.value++
+  playFallback()
+}
+
+// Start playing a user song that was waiting while fallback played.
+// If already_playing is false the song is still 'pending' in the DB — notify backend to promote it.
+async function startPendingUserSong(userSong) {
+  song.value = userSong
+  fallbackActive.value = false
+  playingFallback.value = false
+  pendingUserSong.value = null
+  loadVideo(userSong.youtube_id)
+  triggerOverlay()
+  fetchQueuePreview()
+
+  if (userSong.id && !userSong.already_playing) {
+    const adminToken = localStorage.getItem('bq_admin_token')
+    const hdrs = adminToken ? { Authorization: `Bearer ${adminToken}` } : {}
+    fetch(`${API}/api/queue/start-playing/${userSong.id}?venue=${encodeURIComponent(venueSlug)}`, {
+      method: 'POST',
+      headers: hdrs,
+    }).catch(() => {})
+  }
+}
+
+// Called when admin explicitly skips the current fallback song.
+// The backend sends now_playing_changed (sets pendingUserSong) then fallback_skip (triggers this).
+async function handleFallbackSkip() {
+  // 1. Use pending user song if available (already_playing=true means backend promoted it via admin skip)
+  if (pendingUserSong.value) {
+    await startPendingUserSong(pendingUserSong.value)
+    return
+  }
+
+  // 2. Safety-net: check backend directly (handles WS event ordering edge cases)
+  try {
+    const res = await fetch(`${API}/api/playback/now-playing?venue=${venueSlug}`)
+    if (res.ok) {
+      const data = await res.json()
+      if (data.song && !data.song.is_fallback) {
+        song.value = data.song
+        fallbackActive.value = false
+        playingFallback.value = false
+        pendingUserSong.value = null
+        loadVideo(data.song.youtube_id)
+        triggerOverlay()
+        fetchQueuePreview()
+        return
+      }
+    }
+  } catch { /* network error — fall through */ }
+
+  // 3. No queue song — play next random fallback
   playFallback()
 }
 
@@ -395,6 +435,8 @@ function initPlayer() {
       rel: 0,
       iv_load_policy: 3,
       showinfo: 0,
+      playsinline: 1,
+      origin: window.location.origin,
     },
     events: {
       onReady: () => {
@@ -518,26 +560,19 @@ async function onPlayerStateChange(event) {
   if (event.data === 0 && song.value) {
     trackSongEnded(song.value.youtube_id, song.value.title)
     if (playingFallback.value) {
-      // Fallback song ended — check if a user song is waiting
+      // Fallback song ended — check pendingUserSong first, then backend
       if (pendingUserSong.value) {
-        const userSong = pendingUserSong.value
-        pendingUserSong.value = null
-        song.value = userSong
-        fallbackActive.value = false
-        playingFallback.value = false
-        loadVideo(userSong.youtube_id)
-        triggerOverlay()
-        fetchQueuePreview()
+        await startPendingUserSong(pendingUserSong.value)
       } else {
-        // Check backend for any new user songs that arrived
         try {
           const res = await fetch(`${API}/api/playback/now-playing?venue=${venueSlug}`)
           if (res.ok) {
             const data = await res.json()
-            if (data.song) {
+            if (data.song && !data.song.is_fallback) {
               song.value = data.song
               fallbackActive.value = false
               playingFallback.value = false
+              pendingUserSong.value = null
               loadVideo(data.song.youtube_id)
               triggerOverlay()
               fetchQueuePreview()
@@ -648,12 +683,24 @@ function seekRelative(seconds) {
   showKioskControls()
 }
 
-function togglePlayPause() {
+async function togglePlayPause() {
   if (!ytPlayer) return
   const state = ytPlayer.getPlayerState()
-  if (state === 1) { ytPlayer.pauseVideo(); isPlaying.value = false }
+  const willPause = state === 1
+  if (willPause) { ytPlayer.pauseVideo(); isPlaying.value = false }
   else { ytPlayer.playVideo(); isPlaying.value = true }
   showKioskControls()
+
+  // Sync backend state so admin panel reflects the change via playback_status_changed broadcast
+  playbackStatus.value = willPause ? 'paused' : 'playing'
+  const adminToken = localStorage.getItem('bq_admin_token')
+  if (adminToken) {
+    const endpoint = willPause ? 'pause' : 'resume'
+    fetch(`${API}/api/admin/playback/${endpoint}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${adminToken}` },
+    }).catch(() => {})
+  }
 }
 
 function startQrCycle() {
@@ -699,7 +746,7 @@ onUnmounted(() => {
 
     <!-- Fullscreen Player -->
     <template v-else>
-      <div class="player-fullscreen">
+      <div class="player-fullscreen" @click="showKioskControls">
         <div id="yt-player"></div>
         <div id="yt-preloader" class="preloader-player"></div>
 
@@ -734,6 +781,17 @@ onUnmounted(() => {
             </div>
           </div>
         </div>
+
+        <!-- Centered play/pause button: always visible when paused, briefly on tap -->
+        <Transition name="fade-quick">
+          <div v-if="song && !audioBlocked && (!isPlaying || kioskControlsVisible)"
+               class="center-playpause"
+               @click.stop="togglePlayPause">
+            <div class="center-btn-circle" :class="{ 'center-paused': !isPlaying }">
+              <span class="center-icon">{{ isPlaying ? '&#10074;&#10074;' : '&#9654;' }}</span>
+            </div>
+          </div>
+        </Transition>
 
         <!-- Progress bar + controls (bottom, expands on hover) -->
         <div v-if="song && !audioBlocked" class="player-bar" @mouseenter="showKioskControls" @mouseleave="kioskControlsVisible = false" @click="showKioskControls">
@@ -793,8 +851,7 @@ onUnmounted(() => {
             <span class="bottom-title">{{ song.title }}</span>
           </div>
           <div class="bottom-right">
-            <span v-if="pendingUserSong && playingFallback" class="bottom-next bottom-pending">Siguiente: {{ pendingUserSong.title }}</span>
-            <span v-else-if="queue.length" class="bottom-next">Siguiente: {{ queue[0]?.title }}</span>
+            <span v-if="queue.length" class="bottom-next">Siguiente: {{ queue[0]?.title }}</span>
             <span v-else-if="playingFallback" class="bottom-next">{{ fallbackPlayed.size }}/{{ fallbackSongs.length }} reproducidas</span>
           </div>
         </div>
@@ -1143,6 +1200,61 @@ onUnmounted(() => {
   opacity: 0;
   transform: translateY(20px);
 }
+
+/* ===== CENTER PLAY/PAUSE BUTTON ===== */
+.center-playpause {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 15;
+  cursor: pointer;
+}
+.center-btn-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, transform 0.15s, border-color 0.2s;
+  backdrop-filter: blur(6px);
+}
+.center-btn-circle:hover {
+  background: rgba(0, 0, 0, 0.75);
+  border-color: rgba(255, 255, 255, 0.8);
+  transform: scale(1.1);
+}
+.center-btn-circle:active { transform: scale(0.95); }
+.center-btn-circle.center-paused {
+  background: rgba(124, 108, 240, 0.6);
+  border-color: rgba(124, 108, 240, 0.9);
+  animation: pulse-center 2.5s ease-in-out infinite;
+}
+@keyframes pulse-center {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(124, 108, 240, 0.5); }
+  50% { box-shadow: 0 0 0 18px rgba(124, 108, 240, 0); }
+}
+.center-icon {
+  font-size: 28px;
+  color: #fff;
+  line-height: 1;
+  padding-left: 4px; /* optical center for play triangle */
+}
+.center-btn-circle.center-paused .center-icon {
+  padding-left: 6px;
+}
+/* No offset for pause bars */
+.center-btn-circle:not(.center-paused) .center-icon {
+  padding-left: 0;
+}
+
+/* Fast fade for center button */
+.fade-quick-enter-active { transition: opacity 0.2s ease; }
+.fade-quick-leave-active { transition: opacity 0.4s ease; }
+.fade-quick-enter-from, .fade-quick-leave-to { opacity: 0; }
 
 /* ===== MINI QR (during playback) ===== */
 .mini-qr {

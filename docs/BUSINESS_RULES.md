@@ -117,12 +117,31 @@ Cuando no hay canciones pendientes en la cola, el sistema actúa según la confi
 
 | Modo | Comportamiento |
 |------|----------------|
-| `playlist` | Reproduce canciones de una **playlist por defecto** configurada por el admin |
+| `playlist` | Reproduce canciones de una **playlist de respaldo** configurada por el admin |
 | `youtube_recommendations` | Deja correr las **recomendaciones automáticas** de YouTube basadas en el historial |
 
 - El modo se configura en `venues.fallback_mode`
-- La playlist por defecto se almacena en `venues.fallback_playlist` (array JSON de youtube_ids)
-- Cuando un usuario encola una nueva canción, la reproducción de fallback se interrumpe y la cola toma prioridad
+- La playlist de respaldo se almacena en la tabla `fallback_songs` (importada desde una playlist de YouTube)
+
+### BR-12a: Selección aleatoria en playlist de respaldo
+
+La playlist de respaldo reproduce canciones en **orden aleatorio**, no secuencial:
+
+- Al iniciar el ciclo de respaldo (o al reiniciarlo después de reproducir todas las canciones), se elige una canción **al azar** entre las no reproducidas
+- Se mantiene un registro de canciones ya reproducidas en el ciclo actual para evitar repeticiones inmediatas
+- Cuando todas las canciones del ciclo fueron reproducidas, el registro se reinicia y se vuelve a seleccionar aleatoriamente
+
+### BR-12b: Transición de respaldo a cola de usuario
+
+Cuando un usuario encola una canción **mientras suena la lista de respaldo**:
+
+- **Flujo normal (fin natural):** el kiosco espera a que termine la canción de respaldo actual. Al terminar, cambia automáticamente a la canción del usuario.
+- **Excepción — admin salta la canción:** si el admin presiona "siguiente" mientras suena el respaldo, el sistema verifica la cola:
+  1. Si hay canción de usuario pendiente (ya notificada vía WebSocket) → cambia inmediatamente a esa canción
+  2. Si hay canciones en cola según el backend → cambia inmediatamente a la primera en cola
+  3. Si la cola está vacía → reproduce una canción aleatoria del respaldo
+
+Esta regla garantiza que la música no se interrumpa bruscamente para los clientes en el bar, pero le da al admin control total para adelantar el turno cuando lo considere oportuno.
 
 ### BR-13: Avance automático
 

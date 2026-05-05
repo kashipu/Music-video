@@ -12,12 +12,11 @@ const props = defineProps({
 const emit = defineEmits(['preview'])
 const queueStore = useQueueStore()
 
-const mode = ref('search') // 'search' or 'paste'
-const url = ref('')
 const searchQuery = ref('')
 const searchResults = ref([])
 const error = ref('')
 const loading = ref(false)
+const loadingItemId = ref(null) // youtube_id of the search result currently being added
 const searching = ref(false)
 const countdown = ref('')
 let countdownInterval = null
@@ -79,6 +78,8 @@ async function doSearch() {
 async function selectResult(result, index) {
   error.value = ''
   if (remaining() <= 0) { error.value = 'Ya usaste tus canciones'; return }
+  if (loadingItemId.value) return // prevent anger-click on another item while one is processing
+  loadingItemId.value = result.youtube_id
   loading.value = true
   try {
     trackSearchResultSelected(
@@ -92,186 +93,208 @@ async function selectResult(result, index) {
     searchResults.value = []
   } catch (e) {
     error.value = e.message
-  } finally { loading.value = false }
+  } finally { loadingItemId.value = null; loading.value = false }
 }
 
-async function handlePaste() {
-  error.value = ''
-  if (!url.value.trim()) { error.value = 'Pega un link de YouTube'; return }
-  if (remaining() <= 0) { error.value = 'Ya usaste tus canciones'; return }
-  loading.value = true
-  try {
-    const preview = await queueStore.submitSong(url.value)
-    trackSongSubmitted(preview.youtube_id, preview.title, 'paste')
-    emit('preview', preview)
-    url.value = ''
-  } catch (e) {
-    error.value = e.message
-  } finally { loading.value = false }
-}
-
-const pasteError = ref('')
-
-async function pasteFromClipboard() {
-  pasteError.value = ''
-  try {
-    if (navigator.clipboard && navigator.clipboard.readText) {
-      url.value = await navigator.clipboard.readText()
-    } else {
-      // Fallback for iOS Safari where clipboard API may not be available
-      pasteError.value = 'Pega el link directamente en el campo'
-    }
-  } catch {
-    pasteError.value = 'Pega el link directamente en el campo'
-  }
-}
 </script>
 
 <template>
-  <div class="card submit-section" style="margin-top: 16px;">
+  <div class="submit-section" style="margin-top: 16px;">
 
     <!-- Blocked -->
-    <div v-if="isBlocked" class="blocked">
-      <p class="blocked-title">Ya usaste tus {{ rateLimit?.max_songs || 5 }} canciones</p>
-      <p class="blocked-sub">Podras pedir mas en:</p>
+    <div v-if="isBlocked" class="blocked card">
+      <div class="blocked-icon">&#9201;</div>
+      <p class="blocked-title">Limite alcanzado</p>
+      <p class="blocked-sub">Usaste tus {{ rateLimit?.max_songs || 5 }} canciones. Podras pedir mas en:</p>
       <p class="blocked-timer">{{ countdown }}</p>
       <div class="progress-bar"><div class="progress-fill"></div></div>
     </div>
 
     <template v-else>
-      <!-- Tabs -->
-      <div class="mode-tabs">
-        <button class="mode-tab" :class="{ active: mode === 'search' }" @click="mode = 'search'">Buscar</button>
-        <button class="mode-tab" :class="{ active: mode === 'paste' }" @click="mode = 'paste'">Pegar link</button>
+      <!-- Card header: hint + remaining dots -->
+      <div class="submit-header">
+        <span class="search-hint">&#127925; Pide tu cancion</span>
+        <div class="rate-dots" v-if="rateLimit">
+          <span
+            v-for="i in (rateLimit.max_songs || 5)"
+            :key="i"
+            class="rate-dot"
+            :class="{ used: i > rateLimit.songs_remaining }"
+          ></span>
+        </div>
       </div>
 
-      <!-- SEARCH MODE -->
-      <div v-if="mode === 'search'" class="search-mode">
-        <div class="search-input-row">
-          <input
-            v-model="searchQuery"
-            type="text"
-            class="input-field"
-            placeholder="Busca tu cancion..."
-            @input="onSearchInput"
-            @keydown.enter.prevent="doSearch"
-          />
-        </div>
-
-        <p v-if="searching" class="search-status">Buscando...</p>
-
-        <div v-if="searchResults.length" class="search-results">
-          <div v-for="(r, i) in searchResults" :key="r.youtube_id" class="result-item" @click="selectResult(r, i)">
-            <img :src="r.thumbnail_url" class="result-thumb" />
-            <div class="result-info">
-              <p class="result-title">{{ r.title }}</p>
-              <p class="result-duration" v-if="r.duration">{{ r.duration }}</p>
-            </div>
-            <button class="result-add" :disabled="loading">+</button>
-          </div>
-        </div>
-
-        <p v-if="searchQuery.length >= 2 && !searching && !searchResults.length" class="search-status">
-          Sin resultados
-        </p>
+      <!-- Search input with icon -->
+      <div class="search-wrapper">
+        <span class="search-icon">&#128269;</span>
+        <input
+          v-model="searchQuery"
+          type="search"
+          class="search-input"
+          placeholder="Artista, cancion, genero..."
+          @input="onSearchInput"
+          @keydown.enter.prevent="doSearch"
+          autofocus
+        />
       </div>
 
-      <!-- PASTE MODE -->
-      <div v-if="mode === 'paste'" class="paste-mode">
-        <form class="submit-form" @submit.prevent="handlePaste">
-          <div class="input-row">
-            <input v-model="url" type="url" class="input-field" placeholder="https://youtu.be/..." inputmode="url" />
-            <button type="button" class="paste-btn" @click="pasteFromClipboard">Pegar</button>
+      <!-- Searching indicator -->
+      <div v-if="searching" class="search-status">
+        <span class="search-spinner"></span>
+        <span>Buscando...</span>
+      </div>
+
+      <!-- Results -->
+      <div v-if="searchResults.length" class="search-results">
+        <div
+          v-for="(r, i) in searchResults"
+          :key="r.youtube_id"
+          class="result-item"
+          :class="{ 'result-item--loading': loadingItemId === r.youtube_id, 'result-item--blocked': loadingItemId && loadingItemId !== r.youtube_id }"
+          @click="selectResult(r, i)"
+        >
+          <img :src="r.thumbnail_url" class="result-thumb" />
+          <div class="result-info">
+            <p class="result-title">{{ r.title }}</p>
+            <p class="result-duration" v-if="r.duration">&#9654; {{ r.duration }}</p>
           </div>
-          <p v-if="pasteError" class="paste-hint">{{ pasteError }}</p>
-          <button type="submit" class="btn btn-primary" :disabled="loading">
-            {{ loading ? 'Validando...' : 'ENVIAR' }}
+          <button class="result-add" :disabled="!!loadingItemId">
+            <span v-if="loadingItemId === r.youtube_id" class="btn-spinner"></span>
+            <span v-else>+</span>
           </button>
-        </form>
+        </div>
       </div>
+
+      <p v-if="searchQuery.length >= 2 && !searching && !searchResults.length" class="no-results">
+        Sin resultados para "<em>{{ searchQuery }}</em>"
+      </p>
 
       <p v-if="error" class="error-msg">{{ error }}</p>
-
-      <div class="rate-info" v-if="rateLimit">
-        <span>Te quedan <strong>{{ rateLimit.songs_remaining }}</strong> canciones</span>
-      </div>
     </template>
   </div>
 </template>
 
 <style scoped>
-/* Tabs */
-.mode-tabs {
-  display: flex; gap: 4px; margin-bottom: 12px;
-  background: var(--bg-elevated); border-radius: 8px; padding: 3px;
-}
-.mode-tab {
-  flex: 1; padding: 8px; border-radius: 6px;
-  background: transparent; color: var(--text-muted);
-  font-size: 13px; font-weight: 600; text-align: center;
-  transition: all 0.15s;
-}
-.mode-tab.active {
-  background: var(--primary); color: white;
+/* ── Card wrapper ── */
+.submit-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: 0 1px 3px var(--shadow);
 }
 
-/* Search */
-.search-input-row { margin-bottom: 8px; }
-.search-status { font-size: 13px; color: var(--text-muted); text-align: center; padding: 12px 0; }
-.search-results { max-height: 50dvh; max-height: 50vh; overflow-y: auto; }
+/* ── Header row ── */
+.submit-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.search-hint { font-size: 13px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.3px; text-transform: uppercase; }
+.rate-dots { display: flex; gap: 5px; }
+.rate-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--primary); opacity: 1;
+  transition: opacity 0.2s, background 0.2s;
+}
+.rate-dot.used { background: var(--border); opacity: 0.4; }
+
+/* ── Search input ── */
+.search-wrapper {
+  position: relative; margin-bottom: 4px;
+}
+.search-icon {
+  position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+  font-size: 15px; pointer-events: none; opacity: 0.45;
+}
+.search-input {
+  width: 100%; padding: 13px 16px 13px 42px;
+  background: var(--bg-elevated); border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm); color: var(--text);
+  font-size: 16px; outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  -webkit-appearance: none; appearance: none;
+}
+.search-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+}
+.search-input::placeholder { color: var(--text-muted); }
+.search-input::-webkit-search-cancel-button { -webkit-appearance: none; }
+
+/* ── Status ── */
+.search-status {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-size: 13px; color: var(--text-muted); padding: 14px 0;
+}
+.search-spinner {
+  width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0;
+  border: 2px solid var(--border);
+  border-top-color: var(--primary);
+  animation: spin 0.7s linear infinite;
+}
+.no-results {
+  font-size: 13px; color: var(--text-muted); text-align: center;
+  padding: 14px 0; line-height: 1.5;
+}
+
+/* ── Results list ── */
+.search-results { max-height: 50dvh; max-height: 50vh; overflow-y: auto; margin-top: 4px; }
 .result-item {
   display: flex; align-items: center; gap: 10px;
-  padding: 10px 4px; border-radius: 8px; cursor: pointer;
-  transition: background 0.15s;
+  padding: 9px 4px; cursor: pointer;
+  border-top: 1px solid var(--border-soft);
+  transition: background 0.12s;
   -webkit-tap-highlight-color: transparent;
 }
-.result-item:active { background: var(--bg-elevated); }
+.result-item:first-child { border-top: none; }
+.result-item:active { background: var(--bg-elevated); border-radius: 8px; }
 .result-thumb {
-  width: 56px; height: 42px; border-radius: 6px;
+  width: 60px; height: 45px; border-radius: 6px;
   object-fit: cover; flex-shrink: 0;
 }
 .result-info { flex: 1; min-width: 0; }
 .result-title {
-  font-size: 13px; font-weight: 500; line-height: 1.3;
+  font-size: 13px; font-weight: 500; line-height: 1.35;
   display: -webkit-box; -webkit-line-clamp: 2;
   -webkit-box-orient: vertical; overflow: hidden;
 }
-.result-duration { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.result-duration { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
 .result-add {
-  width: 44px; height: 44px; border-radius: 50%;
+  width: 36px; height: 36px; border-radius: 50%;
   background: var(--primary); color: white;
-  font-size: 18px; font-weight: 700; flex-shrink: 0;
+  font-size: 20px; font-weight: 300; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  border: none; transition: all 0.15s;
+  border: none; transition: all 0.15s; line-height: 1;
 }
-.result-add:hover { background: var(--primary-dark); }
-.result-add:disabled { opacity: 0.4; }
+.result-add:hover { background: var(--primary-dark); transform: scale(1.08); }
+.result-add:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
-/* Paste */
-.submit-form { display: flex; flex-direction: column; gap: 10px; }
-.input-row { display: flex; gap: 8px; min-width: 0; }
-.input-row .input-field { flex: 1; min-width: 0; }
-.paste-btn {
-  padding: 8px 14px; border-radius: var(--radius-sm);
-  background: var(--bg-elevated); color: var(--text-muted);
-  font-size: 13px; font-weight: 600; border: 1px solid var(--border);
-  white-space: nowrap;
+/* Item states */
+.result-item--loading { background: var(--bg-elevated); border-radius: 8px; opacity: 1; }
+.result-item--blocked { opacity: 0.4; pointer-events: none; }
+
+/* ── Spinners ── */
+.btn-spinner {
+  display: inline-block; width: 14px; height: 14px;
+  border: 2px solid rgba(255,255,255,0.35);
+  border-top-color: #fff; border-radius: 50%;
+  animation: spin 0.65s linear infinite;
 }
+@keyframes spin { to { transform: rotate(360deg); } }
 
-/* Common */
-.paste-hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
-.error-msg { color: var(--danger); font-size: 13px; margin-top: 8px; }
-.rate-info { margin-top: 10px; font-size: 13px; color: var(--text-muted); }
+/* ── Errors ── */
+.error-msg { color: var(--danger); font-size: 13px; margin-top: 10px; }
 
-/* Blocked */
-.blocked { text-align: center; padding: 16px 0; }
-.blocked-title { font-size: 15px; font-weight: 600; color: var(--warning); }
-.blocked-sub { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+/* ── Blocked state ── */
+.blocked { text-align: center; padding: 20px 8px; }
+.blocked-icon { font-size: 36px; margin-bottom: 8px; }
+.blocked-title { font-size: 16px; font-weight: 700; color: var(--warning); }
+.blocked-sub { font-size: 13px; color: var(--text-muted); margin-top: 6px; line-height: 1.5; }
 .blocked-timer {
-  font-size: 40px; font-weight: 700; color: var(--text);
-  margin: 12px 0; font-variant-numeric: tabular-nums;
+  font-size: 48px; font-weight: 800; color: var(--text);
+  margin: 14px 0 8px; font-variant-numeric: tabular-nums; letter-spacing: -1px;
 }
-.progress-bar { height: 6px; background: var(--bg-elevated); border-radius: 3px; overflow: hidden; margin-top: 8px; }
-.progress-fill { height: 100%; background: var(--warning); border-radius: 3px; animation: shrink 1800s linear forwards; }
+.progress-bar { height: 4px; background: var(--bg-elevated); border-radius: 2px; overflow: hidden; margin-top: 12px; }
+.progress-fill { height: 100%; background: var(--warning); border-radius: 2px; animation: shrink 1800s linear forwards; }
 @keyframes shrink { from { width: 100%; } to { width: 0%; } }
 </style>

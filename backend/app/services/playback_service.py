@@ -1,7 +1,19 @@
 import asyncio
 import json
+from typing import Optional
 
 from app.database import get_db
+
+# In-memory: which fallback song is currently playing per venue (cleared when a real song starts)
+_fallback_now_playing: dict = {}
+
+
+def set_fallback_now_playing(venue_id: int, song: Optional[dict]) -> None:
+    _fallback_now_playing[venue_id] = song
+
+
+def get_fallback_now_playing(venue_id: int) -> Optional[dict]:
+    return _fallback_now_playing.get(venue_id)
 
 
 async def _commit_with_retry(db, retries: int = 3, delay: float = 0.3):
@@ -150,7 +162,7 @@ async def finish_song(song_id: int, venue_id: int) -> dict:
     }
 
 
-async def _advance_queue(venue_id: int) -> dict | None:
+async def _advance_queue(venue_id: int) -> Optional[dict]:
     db = await get_db()
 
     rows = await db.execute_fetchall(
@@ -167,6 +179,9 @@ async def _advance_queue(venue_id: int) -> dict | None:
         "UPDATE queue_songs SET status = 'playing', played_at = CURRENT_TIMESTAMP WHERE id = ?",
         (r[0],),
     )
+
+    # Real song starting — clear any cached fallback now-playing for this venue
+    set_fallback_now_playing(venue_id, None)
 
     return {"id": r[0], "youtube_id": r[1], "title": r[2], "user_id": r[3]}
 

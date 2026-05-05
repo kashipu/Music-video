@@ -215,12 +215,17 @@ async def confirm_song(req: SongConfirmRequest, user: dict = Depends(get_current
         },
     })
 
-    # If this is the first song and nothing is playing, start it
+    # Auto-start only when nothing is playing AND fallback is not active.
+    # If fallback is active, keep the song as 'pending' — the Kiosk will call
+    # /api/queue/start-playing/{id} when it actually begins playing it.
     playing = await db.execute_fetchall(
         "SELECT id FROM queue_songs WHERE venue_id = ? AND status = 'playing'",
         (venue_id,),
     )
-    if not playing:
+    from app.services.playback_service import get_fallback_now_playing
+    fallback_now = get_fallback_now_playing(venue_id)
+
+    if not playing and not fallback_now:
         await db.execute(
             "UPDATE queue_songs SET status = 'playing', played_at = CURRENT_TIMESTAMP WHERE id = ?",
             (result["id"],),
@@ -245,6 +250,53 @@ async def confirm_song(req: SongConfirmRequest, user: dict = Depends(get_current
         })
 
     return result
+
+
+@router.post("/start-playing/{song_id}")
+async def start_playing(song_id: int, venue: str = Query(...)):
+    """Called by Kiosk when it actually starts playing a song that was pending during fallback."""
+    from app.database import get_db
+    db = await get_db()
+
+    venue_rows = await db.execute_fetchall("SELECT id FROM venues WHERE slug = ?", (venue,))
+    if not venue_rows:
+        raise HTTPException(status_code=404, detail="Venue not found")
+    venue_id = venue_rows[0][0]
+
+    rows = await db.execute_fetchall(
+        "SELECT youtube_id, title, user_id FROM queue_songs WHERE id = ? AND venue_id = ? AND status = 'pending'",
+        (song_id, venue_id),
+    )
+    if not rows:
+        return {"ok": False, "reason": "song not pending"}
+
+    youtube_id, title, song_user_id = rows[0]
+
+    await db.execute(
+        "UPDATE queue_songs SET status = 'playing', played_at = CURRENT_TIMESTAMP WHERE id = ?",
+        (song_id,),
+    )
+    await db.commit()
+
+    # Clear fallback cache — a real song is now playing
+    from app.services.playback_service import set_fallback_now_playing
+    set_fallback_now_playing(venue_id, None)
+
+    await manager.broadcast(venue_id, {
+        "event": "now_playing_changed",
+        "data": {"song": {"id": song_id, "youtube_id": youtube_id, "title": title}},
+    })
+
+    if song_user_id:
+        await manager.send_to_user(venue_id, song_user_id, {
+            "event": "your_song_playing",
+            "data": {
+                "song": {"id": song_id, "youtube_id": youtube_id, "title": title},
+                "message": "Tu cancion esta sonando ahora",
+            },
+        })
+
+    return {"ok": True}
 
 
 @router.get("/my-songs")

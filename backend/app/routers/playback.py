@@ -19,6 +19,30 @@ async def now_playing(venue: str = Query(...)):
     return await playback_service.get_now_playing(venue_id)
 
 
+@router.post("/fallback-playing")
+async def fallback_playing(venue: str = Query(...), youtube_id: str = Query(...), title: str = Query(...)):
+    """Called by the Kiosk when it starts a fallback song — broadcasts to all clients so they can show what's playing."""
+    db = await get_db()
+    rows = await db.execute_fetchall("SELECT id FROM venues WHERE slug = ?", (venue,))
+    if not rows:
+        raise HTTPException(status_code=404, detail="Bar no encontrado")
+    venue_id = rows[0][0]
+    song = {
+        "id": None,
+        "youtube_id": youtube_id,
+        "title": title,
+        "added_by": "Playlist automatica",
+        "is_fallback": True,
+    }
+    # Persist in memory so new clients loading the page can see what's playing
+    playback_service.set_fallback_now_playing(venue_id, song)
+    await manager.broadcast(venue_id, {
+        "event": "now_playing_changed",
+        "data": {"song": song, "fallback_active": True},
+    })
+    return {"ok": True}
+
+
 @router.post("/finished")
 async def finished(req: PlaybackFinishedRequest, authorization: str = Header(default="")):
     # Allow both authenticated admin and unauthenticated kiosk (for backward compat)

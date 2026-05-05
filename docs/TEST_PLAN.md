@@ -46,14 +46,16 @@
 | A12 | Mostrar QR | 1. Activar "Mostrar QR" | QR aparece en Kiosk | |
 | A13 | PIN del dia | 1. Ver PIN 2. Regenerar | Nuevo PIN de 4 digitos generado | |
 | A14 | Activar/desactivar PIN | 1. Toggle "Requerir PIN" | Siguiente registro requiere/no requiere PIN | |
-| A15 | Pausar reproduccion | 1. Tocar Pausa | Kiosk pausa video actual | |
-| A16 | Reanudar reproduccion | 1. Tocar Play | Kiosk reanuda video | |
+| A15 | Pausar reproduccion | 1. Tocar Pausa | Kiosk pausa video actual, boton admin muestra "Reanudar" | |
+| A16 | Reanudar reproduccion | 1. Tocar Play | Kiosk reanuda video, boton admin muestra "Pausar" | |
 | A17 | Forzar fallback | 1. Tocar "Play Fallback Now" | Kiosk cambia a playlist de fallback | |
-| A18 | Skip fallback | 1. Tocar "Skip" en fallback | Siguiente cancion de fallback suena | |
-| A19 | Pausar fallback | 1. Tocar "Pausar Fallback" | Fallback se detiene | |
-| A20 | Agregar cancion como admin | 1. Buscar cancion 2. Agregar desde library/URL | Cancion en cola sin limite de rate | |
-| A21 | Ver analytics | 1. Ir a tab Analytics 2. Seleccionar periodo | Graficas de canciones, usuarios, horas pico, top songs | |
-| A22 | Error de video visible | 1. Video con error suena | Toast "Error de video: [titulo] (codigo X)" | |
+| A18 | Skip fallback con cola | 1. Fallback sonando + cancion en cola 2. Tocar "Skip" | Kiosk cambia inmediatamente a cancion de usuario, no espera fin de fallback | |
+| A19 | Skip fallback sin cola | 1. Fallback sonando + cola vacia 2. Tocar "Skip" | Siguiente cancion de fallback suena | |
+| A20 | Pausar fallback | 1. Tocar "Pausar Fallback" | Fallback se detiene, admin muestra tarjeta "PLAYLIST PAUSADA" con boton Reanudar, dashboard usuario limpia "now playing" | |
+| A21 | Reanudar fallback pausado | 1. Fallback pausado 2. Tocar "Reanudar" en tarjeta pausada | Fallback reanuda, dashboard admin y usuario muestran cancion actual | |
+| A22 | Agregar cancion como admin | 1. Buscar cancion 2. Agregar desde library/URL | Cancion en cola sin limite de rate | |
+| A23 | Ver analytics | 1. Ir a tab Analytics 2. Seleccionar periodo | Graficas de canciones, usuarios, horas pico, top songs | |
+| A24 | Error de video visible | 1. Video con error suena | Toast "Error de video: [titulo] (codigo X)" | |
 
 ### Kiosk (Pantalla del bar)
 
@@ -63,12 +65,16 @@
 | K2 | Cancion termina | 1. Video llega al final | Siguiente cancion empieza, o fallback se activa | |
 | K3 | Error de reproduccion | 1. Video tiene restricciones | Error reportado al backend, siguiente cancion/fallback empieza | |
 | K4 | Fallback se activa | 1. Cola se vacia | Playlist de fallback empieza automaticamente | |
-| K5 | Cancion de usuario interrumpe fallback | 1. Fallback sonando 2. Usuario confirma cancion | Fallback termina cancion actual, cancion de usuario empieza | |
-| K6 | Audio bloqueado por navegador | 1. Abrir Kiosk por primera vez | Overlay "ACTIVAR SONIDO" aparece, click lo desbloquea | |
-| K7 | 3 errores consecutivos de fallback | 1. 3 canciones de fallback fallan | Fallback se detiene, pantalla en espera | |
-| K8 | Admin cambia volumen | 1. Admin ajusta volumen | Volumen del video cambia en tiempo real | |
-| K9 | Admin pausa | 1. Admin pausa reproduccion | Video se pausa en pantalla | |
-| K10 | Reconexion despues de desconexion | 1. Internet se cae 2. Vuelve | Kiosk sincroniza estado actual y reanuda | |
+| K5 | Cancion de usuario espera fin de fallback | 1. Fallback sonando 2. Usuario confirma cancion | Fallback termina cancion actual COMPLETA, luego cancion de usuario empieza | |
+| K6 | Admin skip durante fallback con cola | 1. Fallback sonando 2. Hay cancion en cola 3. Admin da Skip | Kiosk cambia INMEDIATAMENTE a la cancion de cola sin esperar | |
+| K7 | Audio bloqueado por navegador | 1. Abrir Kiosk por primera vez | Overlay "ACTIVAR SONIDO" aparece, click lo desbloquea | |
+| K8 | 3 errores consecutivos de fallback | 1. 3 canciones de fallback fallan | Fallback se detiene, pantalla en espera | |
+| K9 | Admin cambia volumen | 1. Admin ajusta volumen | Volumen del video cambia en tiempo real | |
+| K10 | Admin pausa | 1. Admin pausa reproduccion | Video se pausa en pantalla, boton en admin muestra estado Pausado | |
+| K11 | Boton centrado visible al pausar | 1. Admin pausa o Kiosk toca Play/Pause | Boton grande Play aparece en centro de pantalla con pulso animado | |
+| K12 | Boton centrado al tocar pantalla | 1. Tocar cualquier parte del video | Botones de control y boton centrado aparecen 5s, luego se ocultan | |
+| K13 | Kiosk pausa sincroniza admin | 1. Tocar Play/Pause en la pantalla Kiosk | Admin panel refleja el estado pausa/play inmediatamente via WS | |
+| K12 | Reconexion despues de desconexion | 1. Internet se cae 2. Vuelve | Kiosk sincroniza estado actual y reanuda | |
 
 ### Super Admin
 
@@ -142,6 +148,104 @@ Super admin configura venue: window_minutes=10, max_songs=3
 → Despues de 10 min → Puede pedir mas
 ```
 **Verificar**: Config del venue aplicada correctamente, no usa defaults globales
+
+### F8: Fallback visible en dashboards
+
+```
+Cola vacia → Kiosk activa fallback → Kiosk llama /api/playback/fallback-playing
+→ Backend guarda estado en memoria + broadcast now_playing_changed con is_fallback=true
+→ Admin ve "Sonando: [titulo fallback]" en tarjeta now playing
+→ Cliente ve "Sonando: [titulo fallback]" en su dashboard
+→ Siguiente cancion de fallback empieza → Nuevo broadcast → Ambos dashboards actualizan
+```
+
+**Verificar**: Titulo de cancion de fallback correcto en ambas vistas, se actualiza con cada cancion
+
+### F9: Admin skip durante fallback con cola pendiente
+
+```
+Fallback sonando → Usuario agrega cancion → Admin da "Skip" en panel
+→ Backend: avanza cola (cancion → status=playing) + broadcast now_playing_changed (sets pendingUserSong en Kiosk)
+→ Backend: broadcast fallback_skip (Kiosk llama handleFallbackSkip → encuentra pendingUserSong → switch inmediato)
+→ Kiosk cambia a cancion de usuario sin esperar fin de cancion de fallback
+→ Admin ve cancion de usuario como "now playing"
+```
+
+**Verificar**: Switch inmediato, canciones de cola NO desaparecen (bug anterior: anger-clicking vaciaba cola)
+
+### F10: Usuario agrega cancion mientras fallback suena (sin skip)
+
+```
+Fallback sonando → Usuario agrega cancion → Cancion queda status='pending' en DB
+→ Backend NO promueve a 'playing' (fallback activo) → Solo broadcast song_added
+→ Admin ve cancion en cola como "pendiente" (posicion #1), NO como "sonando" ✓
+→ Cliente ve cancion en "mis canciones" con posicion, NO como "sonando" ✓
+→ Kiosk recibe song_added → guarda pendingUserSong {already_playing: false}
+→ Cancion de fallback termina → startPendingUserSong() → llama /api/queue/start-playing
+→ Backend promueve a 'playing', broadcast now_playing_changed
+→ Admin y cliente ven cancion de usuario como "sonando"
+```
+
+**Verificar**: (1) Cancion NO aparece como "sonando" mientras fallback suena. (2) Si admin da Skip en cola mientras fallback suena, la cancion NO desaparece silenciosamente. (3) Cancion empieza correctamente cuando termina el fallback
+
+### F11: Pausa/resume desde Kiosk sincroniza con admin
+
+```
+Kiosk reproduciendo → Tocar Play/Pause en pantalla de video
+→ Kiosk llama /api/admin/playback/pause|resume con admin token
+→ Backend actualiza config + broadcast playback_status_changed
+→ Admin panel refleja estado pausa/play inmediatamente
+→ Admin toca Resume → Kiosk reanuda
+```
+
+**Verificar**: Estado play/pause coherente entre Kiosk y admin sin importar quien lo cambio primero
+
+### F12: Fallback pausado desde admin
+
+```
+Fallback sonando → Admin toca "Pausar Fallback"
+→ Backend limpia cache fallback_now_playing + broadcast fallback_status_changed {paused: true}
+→ Kiosk detiene reproduccion, limpia estado
+→ Admin muestra tarjeta "PLAYLIST PAUSADA" con boton "Reanudar" (no "Sin reproduccion")
+→ Dashboard cliente limpia "now playing" de fallback (no muestra cancion obsoleta)
+→ Admin toca "Reanudar" → Fallback reanuda desde nueva cancion aleatoria
+```
+
+**Verificar**: Ninguna vista muestra estado inconsistente durante la pausa
+
+### F13: Logica unificada de fallback y cola (regla de negocio principal)
+
+```
+CASO A — Sin canciones de usuarios:
+  Cola vacia → Fallback activo → Canciones de fallback suenan en loop aleatorio
+  Admin "Siguiente" → Siguiente cancion del fallback suena inmediatamente
+  Admin "Pausar" → Fallback se pausa (musica se detiene, mantiene estado)
+  Admin "Reanudar" → Fallback reanuda
+
+CASO B — Usuario agrega cancion mientras fallback suena:
+  Fallback sonando → Usuario agrega cancion → Cancion queda 'pending' en DB
+  Admin ve "1 cancion en cola" en la tarjeta del fallback
+  Cancion de fallback termina naturalmente → Kiosk inicia cancion del usuario automaticamente
+  Cancion del usuario termina → Cola vacia → Fallback se reactiva automaticamente
+
+CASO C — Admin da "Siguiente" mientras fallback + cola pendiente:
+  Fallback sonando + cancion de usuario en cola
+  Admin toca "Siguiente" → Kiosk cambia INMEDIATAMENTE a cancion del usuario
+  (No espera a que termine la cancion del fallback actual)
+  Cancion del usuario termina → Cola vacia → Fallback se reactiva
+
+CASO D — Play/Pause universal:
+  Fallback sonando → Admin toca "Pausar" → Fallback se pausa (mismo boton que para canciones)
+  Cancion de usuario sonando → Admin toca "Pausar" → Cancion se pausa
+  Kiosk toca Play/Pause en pantalla → Admin refleja el estado en tiempo real
+  Estado siempre coherente entre Kiosk y admin panel
+```
+
+**Verificar**:
+- (B) La cancion del usuario NO aparece como "sonando" mientras el fallback sigue activo
+- (B) Si admin da "Siguiente" con cola pendiente, la cancion NO desaparece sin sonar
+- (C) El cambio es inmediato, sin esperar fin de cancion de fallback
+- (D) Un solo boton Pausar/Reanudar controla todo, sin controles separados por tipo
 
 ---
 

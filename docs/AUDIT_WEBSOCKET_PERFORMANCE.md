@@ -78,6 +78,9 @@ Dos queries separadas a submission_log con el mismo WHERE. Se pueden combinar en
 | 15 | Kiosk error retry delay 1.5s muy largo | MEDIA | Kiosk.vue | CORREGIDO - 500ms |
 | 16 | AdminDashboard polling redundante 10s | ALTA | AdminDashboard.vue | CORREGIDO - 30s |
 | 17 | Variable failedSong sin usar en Kiosk | BAJA | Kiosk.vue | CORREGIDO - eliminada |
+| 18 | Panel admin no sincroniza estado entre dispositivos | ALTA | AdminDashboard.vue | CORREGIDO - WS listener para volume_changed, fallback_status_changed, banner_changed, qr_visibility_changed |
+| 19 | Anger-click en resultados de busqueda (usuario) | MEDIA | SongSubmit.vue | CORREGIDO - loadingItemId per-item, otros items bloqueados durante carga |
+| 20 | Boton confirmar sin indicador visual de carga | BAJA | SongPreview.vue | CORREGIDO - spinner CSS |
 
 ---
 

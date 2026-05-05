@@ -64,6 +64,10 @@ const loadingBrand = ref(false)
 const loadingQr = ref(false)
 const showQr = ref(false)
 const loadingAddFromLib = ref({})
+const loadingDeleteFallback = ref({})
+const loadingAddToFallback = ref({})
+const queueLimit = ref(15)
+const playedLimit = ref(15)
 const ytSearch = ref('')
 const ytResults = ref([])
 const ytSearching = ref(false)
@@ -72,6 +76,9 @@ const dragIdx = ref(null)
 const dropIdx = ref(null)
 let ignoreNextReorder = false
 const sidebarOpen = ref(false)
+
+// Set of youtube_ids already in fallback playlist (for button state)
+const fallbackYoutubeIds = computed(() => new Set(fallbackSongs.value.map(s => s.youtube_id)))
 
 // Computed
 const totalDuration = computed(() => {
@@ -103,7 +110,14 @@ onEvent((event) => {
     // Skip if this was triggered by our own drag-and-drop (we already fetched)
     if (ignoreNextReorder) { ignoreNextReorder = false; return }
     fetchQueue()
-  } else if (['song_added', 'now_playing_changed', 'song_removed'].includes(event.event)) {
+  } else if (event.event === 'now_playing_changed') {
+    if (event.data.fallback_active && event.data.song?.is_fallback) {
+      nowPlaying.value = event.data.song
+    } else {
+      fetchQueue()
+    }
+    fetchTables()
+  } else if (['song_added', 'song_removed'].includes(event.event)) {
     fetchQueue()
     fetchTables()
   } else if (event.event === 'table_registered') {
@@ -113,6 +127,19 @@ onEvent((event) => {
   } else if (event.event === 'song_error') {
     showAdminToast(`Error de video: ${event.data.title || 'desconocido'} (codigo ${event.data.error_code})`)
     fetchQueue()
+  } else if (event.event === 'volume_changed') {
+    // Sync volume slider when another admin panel changes it
+    volume.value = event.data.volume
+    muted.value = event.data.volume === 0
+    if (event.data.volume > 0) volumeBeforeMute.value = event.data.volume
+  } else if (event.event === 'fallback_status_changed') {
+    fallbackPaused.value = event.data.paused
+  } else if (event.event === 'banner_changed') {
+    bannerText.value = event.data.banner_text || ''
+    bannerActive.value = !!event.data.banner_text
+    if (event.data.show_brand !== undefined) showBrand.value = event.data.show_brand
+  } else if (event.event === 'qr_visibility_changed') {
+    showQr.value = event.data.show_qr
   }
 })
 
@@ -248,6 +275,16 @@ async function skipFallbackSong() {
     await fetch(`${API}/api/admin/fallback-skip`, { method: 'POST', headers: auth.adminHeaders() })
     trackAdminAction('skip_fallback')
   } finally { loadingFallbackSkip.value = false }
+}
+
+// Universal "Siguiente": skips user song if one is playing, otherwise skips fallback song
+// (fallback-skip handles switching to user queue songs when they are pending)
+async function nextSong() {
+  if (nowPlaying.value && !nowPlaying.value.is_fallback) {
+    await skipSong()
+  } else {
+    await skipFallbackSong()
+  }
 }
 
 async function toggleFallback() {
@@ -513,6 +550,33 @@ function printQR() {
   printWin.document.close()
 }
 
+async function addToFallback(youtubeId) {
+  loadingAddToFallback.value = { ...loadingAddToFallback.value, [youtubeId]: true }
+  try {
+    const res = await fetch(`${API}/api/admin/fallback/add?youtube_id=${youtubeId}`, {
+      method: 'POST', headers: auth.adminHeaders(),
+    })
+    const data = await res.json()
+    if (!res.ok) { showAdminToast(data.detail || 'Error al agregar'); return }
+    showAdminToast('Cancion agregada a la playlist de respaldo')
+    await fetchFallbackPlaylist()
+  } catch { showAdminToast('Error de conexion') }
+  finally { loadingAddToFallback.value = { ...loadingAddToFallback.value, [youtubeId]: false } }
+}
+
+async function deleteFallbackSong(songId) {
+  loadingDeleteFallback.value = { ...loadingDeleteFallback.value, [songId]: true }
+  try {
+    const res = await fetch(`${API}/api/admin/fallback/${songId}`, {
+      method: 'DELETE', headers: auth.adminHeaders(),
+    })
+    if (!res.ok) { showAdminToast('Error al eliminar'); return }
+    showAdminToast('Cancion eliminada de la playlist')
+    await fetchFallbackPlaylist()
+  } catch { showAdminToast('Error de conexion') }
+  finally { loadingDeleteFallback.value = { ...loadingDeleteFallback.value, [songId]: false } }
+}
+
 function logout() {
   auth.adminLogout()
   router.push({ name: 'admin-login', params: { venueSlug } })
@@ -658,14 +722,16 @@ function logout() {
           <div class="stat-pill" :class="playbackStatus === 'playing' ? 'stat-live' : 'stat-paused'">
             {{ playbackStatus === 'playing' ? 'EN VIVO' : 'PAUSADO' }}
           </div>
-          <div v-if="!nowPlaying && queue.length === 0 && fallbackSongs.length && !fallbackPaused" class="stat-pill stat-fallback">
+          <div v-if="fallbackSongs.length && (!nowPlaying || nowPlaying.is_fallback)" class="stat-pill stat-fallback">
             PLAYLIST SONANDO
           </div>
         </div>
 
-        <!-- Now Playing -->
-        <div class="card np-card" v-if="nowPlaying">
-          <div class="np-left">
+        <!-- Now Playing (unified: user song or fallback) -->
+        <div class="card np-card" :class="{ 'np-fallback': !nowPlaying || nowPlaying.is_fallback }"
+             v-if="nowPlaying || fallbackSongs.length">
+          <!-- User song -->
+          <div class="np-left" v-if="nowPlaying && !nowPlaying.is_fallback">
             <img :src="`https://i.ytimg.com/vi/${nowPlaying.youtube_id}/mqdefault.jpg`" class="np-thumb" />
             <div class="np-info">
               <p class="section-title">SONANDO AHORA</p>
@@ -673,39 +739,34 @@ function logout() {
               <p class="np-meta">{{ nowPlaying.user_name }} &middot; #{{ nowPlaying.table_number }}</p>
             </div>
           </div>
-          <div class="np-controls">
-            <button v-if="playbackStatus === 'playing'" class="ctrl-labeled ctrl-pause" @click="pausePlayback" :disabled="loadingPause">
-              <span class="ctrl-icon">&#10074;&#10074;</span><span class="ctrl-text">{{ loadingPause ? 'Pausando...' : 'Pausar' }}</span>
-            </button>
-            <button v-else class="ctrl-labeled ctrl-play" @click="resumePlayback" :disabled="loadingResume">
-              <span class="ctrl-icon">&#9654;</span><span class="ctrl-text">{{ loadingResume ? 'Reanudando...' : 'Reanudar' }}</span>
-            </button>
-            <button class="ctrl-labeled ctrl-skip" @click="skipSong" :disabled="loadingSkip">
-              <span class="ctrl-icon">&#9197;</span><span class="ctrl-text">{{ loadingSkip ? 'Saltando...' : 'Siguiente' }}</span>
-            </button>
-          </div>
-        </div>
-        <div v-else-if="!nowPlaying && !queue.length && fallbackSongs.length && !fallbackPaused" class="card np-card np-fallback">
-          <div class="np-left">
-            <span class="np-fallback-icon">&#9835;</span>
+          <!-- Fallback (with or without specific song info) -->
+          <div class="np-left" v-else>
+            <span class="np-fallback-icon" v-if="playbackStatus === 'playing'">&#9835;</span>
+            <span class="np-fallback-icon" v-else>&#9646;&#9646;</span>
             <div class="np-info">
-              <p class="section-title">PLAYLIST DE RESPALDO</p>
-              <p class="np-title">Sonando automaticamente</p>
+              <p class="section-title">{{ playbackStatus === 'playing' ? 'PLAYLIST DE RESPALDO' : 'PAUSADO' }}</p>
+              <p class="np-title">{{ nowPlaying?.title || 'Sonando automaticamente' }}</p>
+              <p class="np-meta" v-if="queue.length">{{ queue.length }} {{ queue.length === 1 ? 'cancion en cola' : 'canciones en cola' }}</p>
             </div>
           </div>
+          <!-- Universal controls -->
           <div class="np-controls">
-            <button class="ctrl-labeled ctrl-pause" @click="toggleFallback" :disabled="loadingFallbackToggle">
-              <span class="ctrl-icon">&#10074;&#10074;</span><span class="ctrl-text">{{ loadingFallbackToggle ? '...' : 'Pausar' }}</span>
+            <button v-if="playbackStatus === 'playing'" class="ctrl-labeled ctrl-pause" @click="pausePlayback" :disabled="loadingPause">
+              <span class="ctrl-icon">&#10074;&#10074;</span><span class="ctrl-text">{{ loadingPause ? '...' : 'Pausar' }}</span>
             </button>
-            <button class="ctrl-labeled ctrl-skip" @click="skipFallbackSong" :disabled="loadingFallbackSkip">
-              <span class="ctrl-icon">&#9197;</span><span class="ctrl-text">{{ loadingFallbackSkip ? 'Saltando...' : 'Siguiente' }}</span>
+            <button v-else class="ctrl-labeled ctrl-play" @click="resumePlayback" :disabled="loadingResume">
+              <span class="ctrl-icon">&#9654;</span><span class="ctrl-text">{{ loadingResume ? '...' : 'Reanudar' }}</span>
+            </button>
+            <button class="ctrl-labeled ctrl-skip" @click="nextSong" :disabled="loadingSkip || loadingFallbackSkip">
+              <span class="ctrl-icon">&#9197;</span><span class="ctrl-text">{{ (loadingSkip || loadingFallbackSkip) ? '...' : 'Siguiente' }}</span>
             </button>
           </div>
         </div>
+        <!-- Empty state: nothing playing and no fallback configured -->
         <div v-else class="card np-empty">
           <p class="np-empty-text" v-if="!queue.length">Sin reproduccion &mdash; agrega una cancion</p>
           <div v-else class="np-start">
-            <p class="np-empty-text">{{ queue.length }} canciones en cola</p>
+            <p class="np-empty-text">{{ queue.length }} {{ queue.length === 1 ? 'cancion en cola' : 'canciones en cola' }}</p>
             <button class="ctrl-btn-lg ctrl-play" @click="startPlayback" :disabled="loadingStart">{{ loadingStart ? 'Iniciando...' : '&#9654; REPRODUCIR' }}</button>
           </div>
         </div>
@@ -815,7 +876,7 @@ function logout() {
             <button v-if="queue.length" class="q-btn-label q-btn-remove" style="font-size:11px;" @click="clearQueue" :disabled="loadingClearQueue">{{ loadingClearQueue ? 'Vaciando...' : 'Vaciar cola' }}</button>
           </div>
           <div class="q-list">
-            <div v-for="(song, idx) in queue" :key="song.id" class="q-item"
+            <div v-for="(song, idx) in queue.slice(0, queueLimit)" :key="song.id" class="q-item"
               :class="{ 'q-dragging': dragIdx === idx, 'q-drop-above': dropIdx === idx && dropIdx < dragIdx, 'q-drop-below': dropIdx === idx && dropIdx > dragIdx }"
               draggable="true" @dragstart="onDragStart(idx, $event)" @dragover.prevent="onDragOver(idx)"
               @dragleave="onDragLeave" @drop.prevent="onDrop(idx)" @dragend="onDragEnd">
@@ -830,6 +891,9 @@ function logout() {
               <button class="q-btn-label q-btn-remove" @click="removeSong(song.id)" :disabled="loadingRemove[song.id]">{{ loadingRemove[song.id] ? '...' : '&#10005; Quitar' }}</button>
             </div>
           </div>
+          <button v-if="queue.length > queueLimit" class="load-more-btn" @click="queueLimit += 15">
+            Ver {{ Math.min(15, queue.length - queueLimit) }} más ({{ queue.length - queueLimit }} restantes)
+          </button>
           <p v-if="!queue.length" class="text-muted">Cola vacia</p>
         </div>
 
@@ -837,16 +901,25 @@ function logout() {
         <div class="card">
           <p class="section-title">YA SONARON ({{ played.length }})</p>
           <div class="q-list" v-if="played.length">
-            <div v-for="song in played" :key="song.id" class="q-item q-item-played">
+            <div v-for="song in played.slice(0, playedLimit)" :key="song.id" class="q-item q-item-played">
               <img :src="`https://i.ytimg.com/vi/${song.youtube_id}/mqdefault.jpg`" class="q-thumb" />
               <div class="q-info">
                 <p class="q-title">{{ song.title }}</p>
                 <p class="q-meta">{{ song.user_name }} &middot; {{ song.played_at_label }}</p>
               </div>
               <button class="q-btn-label q-btn-requeue" @click="requeueSong(song.youtube_id)" :disabled="loadingAddFromLib[song.youtube_id]">{{ loadingAddFromLib[song.youtube_id] ? '...' : '&#8634; Encolar' }}</button>
+              <button class="q-btn-label q-btn-fallback"
+                @click="addToFallback(song.youtube_id)"
+                :disabled="fallbackYoutubeIds.has(song.youtube_id) || loadingAddToFallback[song.youtube_id]"
+                :title="fallbackYoutubeIds.has(song.youtube_id) ? 'Ya en playlist' : 'Agregar a playlist de respaldo'">
+                {{ loadingAddToFallback[song.youtube_id] ? '...' : fallbackYoutubeIds.has(song.youtube_id) ? '&#10003;' : '+ Respaldo' }}
+              </button>
             </div>
           </div>
-          <p v-else class="text-muted">Sin historial de hoy</p>
+          <button v-if="played.length > playedLimit" class="load-more-btn" @click="playedLimit += 15">
+            Ver {{ Math.min(15, played.length - playedLimit) }} más ({{ played.length - playedLimit }} restantes)
+          </button>
+          <p v-if="!played.length" class="text-muted">Sin historial de hoy</p>
         </div>
 
         <!-- Fallback Playlist -->
@@ -863,14 +936,19 @@ function logout() {
             </div>
           </div>
           <p class="text-hint">{{ fallbackPaused ? 'Playlist pausada — no suena cuando la cola esta vacia' : 'Suena automaticamente cuando no hay canciones de las mesas' }}</p>
-          <div class="q-list" v-if="fallbackSongs.length">
+          <div class="fb-scroll" v-if="fallbackSongs.length">
             <div v-for="song in fallbackSongs" :key="song.id" class="q-item" :class="{ 'q-item-played': !song.active }">
               <img :src="song.thumbnail_url" class="q-thumb" />
               <div class="q-info">
                 <p class="q-title">{{ song.title }}</p>
                 <p class="q-meta">{{ formatDuration(song.duration_sec) }}</p>
               </div>
-              <span class="fb-status" :class="song.active ? 'active' : 'inactive'">{{ song.active ? 'Activa' : 'Inactiva' }}</span>
+              <button class="q-btn-label q-btn-remove"
+                @click="deleteFallbackSong(song.id)"
+                :disabled="loadingDeleteFallback[song.id]"
+                title="Eliminar de la playlist">
+                {{ loadingDeleteFallback[song.id] ? '...' : '&#10005; Quitar' }}
+              </button>
             </div>
           </div>
           <p v-else class="text-muted">Sin playlist. Configurala desde el Super Admin.</p>
@@ -958,6 +1036,12 @@ function logout() {
                 <img :src="`https://i.ytimg.com/vi/${s.youtube_id}/mqdefault.jpg`" class="an-thumb" />
                 <span class="an-title">{{ s.title }}</span>
                 <span class="an-count">{{ s.times_played }}x</span>
+                <button class="q-btn-label q-btn-fallback"
+                  @click="addToFallback(s.youtube_id)"
+                  :disabled="fallbackYoutubeIds.has(s.youtube_id) || loadingAddToFallback[s.youtube_id]"
+                  :title="fallbackYoutubeIds.has(s.youtube_id) ? 'Ya en playlist de respaldo' : 'Agregar a playlist de respaldo'">
+                  {{ loadingAddToFallback[s.youtube_id] ? '...' : fallbackYoutubeIds.has(s.youtube_id) ? '&#10003; En respaldo' : '+ Respaldo' }}
+                </button>
               </div>
             </div>
             <div class="card" v-if="analytics.top_artists && analytics.top_artists.length" style="margin-top:12px;">
@@ -1043,7 +1127,7 @@ function logout() {
 /* ===== SIDEBAR ===== */
 .sidebar {
   display: flex; flex-direction: column; gap: 14px;
-  position: sticky; top: 16px; align-self: start;
+  position: -webkit-sticky; position: sticky; top: 16px; align-self: start;
   max-height: calc(100vh - 80px); overflow-y: auto;
   min-width: 0;
 }
@@ -1151,7 +1235,8 @@ function logout() {
 .np-title { font-weight: 700; font-size: 15px; }
 .np-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
 .np-controls { display: flex; gap: 8px; flex-shrink: 0; }
-.np-fallback { border-left-color: var(--warning, #f59e0b); }
+.np-fallback { border-left-color: var(--warning); }
+.np-fallback-paused { border-left-color: var(--border); opacity: 0.8; }
 .np-fallback-icon { font-size: 32px; flex-shrink: 0; }
 .np-empty { text-align: center; padding: 24px; }
 .np-empty-text { color: var(--text-muted); font-size: 14px; }
@@ -1166,14 +1251,14 @@ function logout() {
 
 /* Control Buttons */
 .ctrl-labeled {
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
-  padding: 8px 14px; border-radius: 10px; font-weight: 700; border: 2px solid;
-  transition: all 0.15s; min-width: 70px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 12px 20px; border-radius: 12px; font-weight: 700; border: 2px solid;
+  transition: all 0.15s; min-width: 88px;
 }
-.ctrl-icon { font-size: 16px; }
-.ctrl-text { font-size: 10px; text-transform: uppercase; }
+.ctrl-icon { font-size: 20px; }
+.ctrl-text { font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
 .ctrl-pause { background: var(--warning-soft); border-color: var(--warning); color: var(--warning); }
-.ctrl-pause .ctrl-icon { font-size: 12px; letter-spacing: -2px; }
+.ctrl-pause .ctrl-icon { font-size: 14px; letter-spacing: -2px; }
 .ctrl-pause:hover { background: var(--warning); color: #000; }
 .ctrl-play { background: var(--success-soft); border-color: var(--success); color: var(--success); }
 .ctrl-play:hover { background: var(--success); color: #000; }
@@ -1184,19 +1269,48 @@ function logout() {
 .volume-card { padding: 14px 16px; }
 .volume-row { display: flex; align-items: center; gap: 12px; }
 .mute-btn {
-  display: flex; align-items: center; gap: 6px;
-  padding: 8px 14px; border-radius: 10px; font-size: 14px; flex-shrink: 0;
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 16px; border-radius: 10px; font-size: 14px; flex-shrink: 0;
   background: var(--bg-elevated); border: 1px solid var(--border);
   color: var(--text); cursor: pointer;
 }
-.mute-icon { font-size: 18px; }
-.mute-text { font-size: 11px; font-weight: 700; text-transform: uppercase; }
+.mute-icon { font-size: 20px; }
+.mute-text { font-size: 12px; font-weight: 700; text-transform: uppercase; }
 .mute-btn.muted { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
 .volume-value { font-size: 13px; font-weight: 700; color: var(--primary); min-width: 44px; text-align: right; }
 .volume-value.muted { color: var(--danger); }
-.volume-slider { flex: 1; height: 6px; -webkit-appearance: none; background: var(--bg-elevated); border-radius: 3px; outline: none; }
-.volume-slider:disabled { opacity: 0.3; }
-.volume-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; background: var(--primary); border-radius: 50%; cursor: pointer; }
+.volume-slider {
+  flex: 1; height: 6px; outline: none;
+  -webkit-appearance: none; appearance: none;
+  background: var(--bg-elevated); border-radius: 3px;
+  cursor: pointer;
+}
+.volume-slider:disabled { opacity: 0.3; cursor: not-allowed; }
+/* Webkit (Safari, Chrome) track */
+.volume-slider::-webkit-slider-runnable-track {
+  height: 6px; border-radius: 3px;
+  background: var(--bg-elevated);
+}
+/* Webkit thumb */
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 20px; height: 20px;
+  background: var(--primary); border-radius: 50%;
+  cursor: pointer; margin-top: -7px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+/* Firefox track */
+.volume-slider::-moz-range-track {
+  height: 6px; border-radius: 3px;
+  background: var(--bg-elevated); border: none;
+}
+/* Firefox thumb */
+.volume-slider::-moz-range-thumb {
+  width: 20px; height: 20px;
+  background: var(--primary); border-radius: 50%;
+  border: none; cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
 
 /* Add Song */
 .add-card { padding: 14px; }
@@ -1249,17 +1363,37 @@ function logout() {
 .q-title { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .q-meta { font-size: 11px; color: var(--text-muted); }
 .q-btn-label {
-  padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600;
+  padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;
   white-space: nowrap; border: 1px solid var(--border);
   background: var(--bg-card); color: var(--text-muted); flex-shrink: 0;
+  transition: all 0.15s;
 }
 .q-btn-play:hover { background: var(--success); color: #000; border-color: var(--success); }
 .q-btn-requeue:hover { background: var(--primary); color: white; border-color: var(--primary); }
 .q-btn-remove:hover { background: var(--danger); color: white; border-color: var(--danger); }
+.q-btn-fallback { border-color: var(--secondary); color: var(--secondary); }
+.q-btn-fallback:hover:not(:disabled) { background: var(--secondary); color: #000; }
+.q-btn-fallback:disabled { opacity: 0.5; cursor: default; }
 .q-item-played { opacity: 0.7; }
 .q-item-played:hover { opacity: 1; }
 
+/* Load more button */
+.load-more-btn {
+  width: 100%; margin-top: 10px; padding: 10px;
+  border-radius: 8px; border: 1px dashed var(--border);
+  background: transparent; color: var(--text-muted);
+  font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s;
+}
+.load-more-btn:hover { border-color: var(--primary); color: var(--primary); }
+
 /* Fallback playlist */
+.fb-scroll {
+  max-height: 520px; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 6px;
+  padding-right: 2px;
+}
+.fb-scroll::-webkit-scrollbar { width: 4px; }
+.fb-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 .text-hint { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
 .fb-header { display: flex; justify-content: space-between; align-items: center; }
 .fb-btns { display: flex; gap: 6px; }
@@ -1334,13 +1468,13 @@ function logout() {
 .an-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 .an-song {
   display: flex; align-items: center; gap: 10px;
-  padding: 8px 0; border-bottom: 1px solid var(--border-soft);
+  padding: 10px 0; border-bottom: 1px solid var(--border-soft);
 }
 .an-song:last-child { border-bottom: none; }
 .an-pos { font-weight: 700; font-size: 13px; color: var(--text-muted); width: 20px; text-align: center; flex-shrink: 0; }
-.an-thumb { width: 44px; height: 33px; border-radius: 4px; object-fit: cover; flex-shrink: 0; }
+.an-thumb { width: 48px; height: 36px; border-radius: 4px; object-fit: cover; flex-shrink: 0; }
 .an-title { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.an-count { font-weight: 600; color: var(--primary); font-size: 13px; flex-shrink: 0; }
+.an-count { font-weight: 600; color: var(--primary); font-size: 13px; flex-shrink: 0; min-width: 28px; text-align: right; }
 .an-hour {
   display: flex; align-items: center; gap: 10px;
   padding: 6px 0;

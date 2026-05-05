@@ -202,6 +202,13 @@ async def play_now(song_id: int, admin: dict = Depends(get_current_admin)):
     await db.commit()
 
     now_playing = {"id": song[0], "youtube_id": song[1], "title": song[2]}
+
+    # Detect if fallback was active so we can tell the Kiosk to switch immediately
+    from app.services.playback_service import get_fallback_now_playing, set_fallback_now_playing
+    was_fallback = get_fallback_now_playing(venue_id) is not None
+    if was_fallback:
+        set_fallback_now_playing(venue_id, None)
+
     await manager.broadcast(venue_id, {
         "event": "now_playing_changed",
         "data": {"song": now_playing},
@@ -211,6 +218,9 @@ async def play_now(song_id: int, admin: dict = Depends(get_current_admin)):
             "event": "your_song_playing",
             "data": {"song": now_playing, "message": "Tu cancion esta sonando ahora"},
         })
+    if was_fallback:
+        # Kiosk stored it as pendingUserSong — trigger immediate switch
+        await manager.broadcast(venue_id, {"event": "fallback_skip", "data": {}})
 
     return {"message": "Playing now", "now_playing": now_playing}
 
@@ -348,7 +358,8 @@ async def skip_song(admin: dict = Depends(get_current_admin)):
             "data": {"message": "Tu cancion termino"},
         })
 
-    # Single broadcast for skip — includes next song info
+    was_in_fallback = result["skipped"] is None  # no real song was playing → fallback mode
+
     await manager.broadcast(venue_id, {
         "event": "now_playing_changed",
         "data": {
@@ -366,14 +377,22 @@ async def skip_song(admin: dict = Depends(get_current_admin)):
             },
         })
 
+    if result["now_playing"] and was_in_fallback:
+        # Was in fallback mode — now_playing_changed queues it as pendingUserSong on the Kiosk.
+        # Send fallback_skip so the Kiosk switches immediately instead of waiting for track to end.
+        await manager.broadcast(venue_id, {"event": "fallback_skip", "data": {}})
+
     if not result["now_playing"]:
-        # Queue empty after skip — activate fallback
+        # Queue empty after skip — activate/continue fallback
         from app.services.playlist_service import get_active_fallback_songs
         fallback_songs = await get_active_fallback_songs(venue_id)
         await manager.broadcast(venue_id, {
             "event": "now_playing_changed",
             "data": {"song": None, "fallback_active": True, "fallback_songs": fallback_songs},
         })
+        if was_in_fallback:
+            # Already in fallback and still no next song — tell Kiosk to play next fallback track
+            await manager.broadcast(venue_id, {"event": "fallback_skip", "data": {}})
 
     return {
         "message": "Song skipped",
@@ -413,7 +432,11 @@ async def start_playback(admin: dict = Depends(get_current_admin)):
     await playback_service.set_playback_status(venue_id, "playing")
     await db.commit()
 
-    # Ensure kiosk knows playback is active
+    from app.services.playback_service import get_fallback_now_playing, set_fallback_now_playing
+    was_fallback = get_fallback_now_playing(venue_id) is not None
+    if was_fallback:
+        set_fallback_now_playing(venue_id, None)
+
     await manager.broadcast(venue_id, {
         "event": "playback_status_changed",
         "data": {"status": "playing"},
@@ -424,12 +447,13 @@ async def start_playback(admin: dict = Depends(get_current_admin)):
         "event": "now_playing_changed",
         "data": {"song": now_playing},
     })
-    # Notify song owner
     if song[3]:
         await manager.send_to_user(venue_id, song[3], {
             "event": "your_song_playing",
             "data": {"song": now_playing, "message": "Tu cancion esta sonando ahora"},
         })
+    if was_fallback:
+        await manager.broadcast(venue_id, {"event": "fallback_skip", "data": {}})
 
     return {"message": "Playback started", "now_playing": now_playing}
 
@@ -445,6 +469,10 @@ async def get_admin_playlist(admin: dict = Depends(get_current_admin)):
 async def set_fallback_status(paused: bool = Query(False),
                               admin: dict = Depends(get_current_admin)):
     venue_id = admin["venue_id"]
+    if paused:
+        # Clear cached fallback song so dashboards show nothing while paused
+        from app.services.playback_service import set_fallback_now_playing
+        set_fallback_now_playing(venue_id, None)
     await manager.broadcast(venue_id, {
         "event": "fallback_status_changed",
         "data": {"paused": paused},
@@ -469,13 +497,99 @@ async def play_fallback_now(admin: dict = Depends(get_current_admin)):
 
 @router.post("/fallback-skip")
 async def skip_fallback_song(admin: dict = Depends(get_current_admin)):
-    """Tell the kiosk to skip the current fallback song."""
+    """Skip the current fallback song. If queue has pending songs, switch to the first one immediately."""
     venue_id = admin["venue_id"]
-    await manager.broadcast(venue_id, {
-        "event": "fallback_skip",
-        "data": {},
-    })
+    db = await get_db()
+
+    # Check for pending queue songs first
+    pending = await db.execute_fetchall(
+        "SELECT id, youtube_id, title, user_id FROM queue_songs "
+        "WHERE venue_id = ? AND status = 'pending' ORDER BY position ASC LIMIT 1",
+        (venue_id,),
+    )
+
+    if pending:
+        r = pending[0]
+        await db.execute(
+            "UPDATE queue_songs SET status = 'playing', played_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (r[0],),
+        )
+        await db.commit()
+        from app.services.playback_service import set_fallback_now_playing
+        set_fallback_now_playing(venue_id, None)
+        next_song = {"id": r[0], "youtube_id": r[1], "title": r[2], "user_id": r[3]}
+        # 1. now_playing_changed → Kiosk stores as pendingUserSong (fallback still playing)
+        await manager.broadcast(venue_id, {
+            "event": "now_playing_changed",
+            "data": {"song": next_song},
+        })
+        if r[3]:
+            await manager.send_to_user(venue_id, r[3], {
+                "event": "your_song_playing",
+                "data": {"song": next_song, "message": "Tu cancion esta sonando ahora"},
+            })
+        # 2. fallback_skip → Kiosk calls handleFallbackSkip → finds pendingUserSong → switches immediately
+        await manager.broadcast(venue_id, {"event": "fallback_skip", "data": {}})
+        return {"message": "Cambiado a cancion de la cola", "now_playing": next_song}
+
+    # No queue songs — tell kiosk to play next fallback song
+    await manager.broadcast(venue_id, {"event": "fallback_skip", "data": {}})
     return {"message": "Cancion de playlist saltada"}
+
+
+@router.post("/fallback/add")
+async def add_song_to_fallback(youtube_id: str = Query(...), admin: dict = Depends(get_current_admin)):
+    """Add a single song to the fallback playlist by youtube_id."""
+    venue_id = admin["venue_id"]
+    db = await get_db()
+
+    existing = await db.execute_fetchall(
+        "SELECT id FROM fallback_songs WHERE venue_id = ? AND youtube_id = ?",
+        (venue_id, youtube_id),
+    )
+    if existing:
+        raise HTTPException(status_code=400, detail="La cancion ya esta en la playlist de respaldo")
+
+    metadata = await youtube_service.fetch_video_metadata(youtube_id)
+    if not metadata:
+        raise HTTPException(status_code=400, detail="No se pudo obtener informacion del video")
+
+    from app.services.youtube_service import save_metadata
+    await save_metadata(youtube_id, metadata)
+
+    rows = await db.execute_fetchall(
+        "SELECT COALESCE(MAX(position), 0) FROM fallback_songs WHERE venue_id = ?", (venue_id,)
+    )
+    position = rows[0][0] + 1
+
+    await db.execute(
+        "INSERT INTO fallback_songs (venue_id, youtube_id, title, thumbnail_url, duration_sec, position) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (venue_id, youtube_id, metadata["title"], metadata.get("thumbnail_url", ""),
+         metadata.get("duration_sec", 0), position),
+    )
+    await db.commit()
+    return {
+        "message": "Cancion agregada a la playlist de respaldo",
+        "song": {"id": db.lastrowid, "youtube_id": youtube_id, "title": metadata["title"], "position": position},
+    }
+
+
+@router.delete("/fallback/{song_id}")
+async def remove_song_from_fallback(song_id: int, admin: dict = Depends(get_current_admin)):
+    """Remove a song from the fallback playlist."""
+    venue_id = admin["venue_id"]
+    db = await get_db()
+
+    rows = await db.execute_fetchall(
+        "SELECT id FROM fallback_songs WHERE id = ? AND venue_id = ?", (song_id, venue_id)
+    )
+    if not rows:
+        raise HTTPException(status_code=404, detail="Cancion no encontrada")
+
+    await db.execute("DELETE FROM fallback_songs WHERE id = ?", (song_id,))
+    await db.commit()
+    return {"message": "Cancion eliminada de la playlist de respaldo"}
 
 
 @router.post("/playback/pause")

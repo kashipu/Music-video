@@ -188,11 +188,14 @@ async def get_queue(venue_id: int) -> dict:
         })
         cumulative_wait += r[5] or 0
 
-    # Check fallback
-    venue_rows = await db.execute_fetchall(
-        "SELECT fallback_mode, fallback_playlist FROM venues WHERE id = ?", (venue_id,)
-    )
     fallback_active = now_playing is None and len(queue) == 0
+
+    # If no real song is playing, check whether a fallback song is cached in memory
+    if now_playing is None and fallback_active:
+        from app.services.playback_service import get_fallback_now_playing
+        cached = get_fallback_now_playing(venue_id)
+        if cached:
+            now_playing = cached
 
     return {
         "now_playing": now_playing,
