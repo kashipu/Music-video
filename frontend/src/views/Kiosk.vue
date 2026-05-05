@@ -57,6 +57,7 @@ onReconnect(() => {
 })
 
 onEvent((event) => {
+  if (import.meta.env.DEV) console.debug('[Kiosk WS]', event.event, event.data?.title || event.data?.status || '')
   if (event.event === 'now_playing_changed') {
     if (event.data.song && !event.data.song.is_fallback) {
       if (playingFallback.value) {
@@ -122,12 +123,11 @@ onEvent((event) => {
   } else if (event.event === 'song_added' || event.event === 'song_removed' || event.event === 'queue_reordered') {
     fetchQueuePreview()
     if (event.event === 'song_added') {
-      if (playingFallback.value && !pendingUserSong.value) {
-        // Song added while fallback plays — it stays 'pending' in DB.
-        // Store it so when the current fallback track ends we start it immediately.
-        // already_playing=false means we must call start-playing when we actually begin.
+      if (!pendingUserSong.value) {
+        // Song added — store it as pending so UI shows it immediately.
         pendingUserSong.value = { id: event.data.id, youtube_id: event.data.youtube_id, title: event.data.title, already_playing: false }
-      } else if (!song.value && !playingFallback.value) {
+      }
+      if (!song.value && !playingFallback.value) {
         // Safety net: nothing playing, sync with backend
         setTimeout(syncNowPlaying, 500)
       }
@@ -441,6 +441,9 @@ function initPlayer() {
     events: {
       onReady: () => {
         syncNowPlaying()
+        if (pendingVideoToLoad) {
+          loadVideo(pendingVideoToLoad)
+        }
         // Initialize preload player
         preloadPlayer = new window.YT.Player('yt-preloader', {
           width: '1',
@@ -457,10 +460,15 @@ function initPlayer() {
   })
 }
 
+let pendingVideoToLoad = null
+
 function loadVideo(videoId) {
-  if (!ytPlayer || !ytPlayer.loadVideoById) return
+  if (!ytPlayer || !ytPlayer.loadVideoById) {
+    pendingVideoToLoad = videoId
+    return
+  }
+  pendingVideoToLoad = null
   if (playbackStatus.value === 'paused') {
-    // Load but don't play — cueVideoById loads without autoplay
     ytPlayer.cueVideoById(videoId)
   } else {
     ytPlayer.loadVideoById(videoId)
@@ -836,8 +844,8 @@ onUnmounted(() => {
           <div v-if="song && showOverlay && !playingFallback" class="song-overlay">
             <div class="overlay-content">
               <p class="overlay-title">{{ song.title }}</p>
-              <p class="overlay-meta" v-if="queue.length">
-                Siguiente: {{ queue[0]?.title }}
+              <p class="overlay-meta" v-if="queue.length || pendingUserSong">
+                Siguiente: {{ queue[0]?.title || pendingUserSong?.title }}
               </p>
             </div>
           </div>
@@ -851,7 +859,7 @@ onUnmounted(() => {
             <span class="bottom-title">{{ song.title }}</span>
           </div>
           <div class="bottom-right">
-            <span v-if="queue.length" class="bottom-next">Siguiente: {{ queue[0]?.title }}</span>
+            <span v-if="queue.length || pendingUserSong" class="bottom-next">Siguiente: {{ queue[0]?.title || pendingUserSong?.title }}</span>
             <span v-else-if="playingFallback" class="bottom-next">{{ fallbackPlayed.size }}/{{ fallbackSongs.length }} reproducidas</span>
           </div>
         </div>
