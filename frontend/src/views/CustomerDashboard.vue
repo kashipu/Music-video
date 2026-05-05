@@ -1,14 +1,17 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
 import { useQueueStore } from '../stores/queue.js'
 import { useWebSocket } from '../composables/useWebSocket.js'
+import { useToast } from '../composables/useToast.js'
 import { formatDuration } from '../utils/youtube.js'
 import { useTheme } from '../composables/useTheme.js'
 import SongSubmit from '../components/SongSubmit.vue'
 import SongPreview from '../components/SongPreview.vue'
 import { trackSongConfirmed, trackSongCancelled, trackSessionKicked, trackSessionExpired, setAnalyticsContext } from '../utils/analytics.js'
+
+const t = useToast()
 
 const route = useRoute()
 const router = useRouter()
@@ -42,7 +45,24 @@ function refreshAll() {
 }
 
 // WebSocket
-const { onEvent, onReconnect } = useWebSocket(venueSlug, auth.user?.id)
+const { onEvent, onReconnect, connected: wsConnected } = useWebSocket(venueSlug, auth.user?.id)
+
+// Subtle WS state — only show banner when disconnected for >2s (avoids flicker on quick reconnects)
+const wsOffline = ref(false)
+let wsOfflineTimer = null
+watch(wsConnected, (online) => {
+  if (online) {
+    if (wsOfflineTimer) { clearTimeout(wsOfflineTimer); wsOfflineTimer = null }
+    if (wsOffline.value) {
+      wsOffline.value = false
+      t.success('Conexión restaurada', 2500)
+    }
+  } else {
+    if (!wsOfflineTimer) {
+      wsOfflineTimer = setTimeout(() => { wsOffline.value = true }, 2000)
+    }
+  }
+})
 
 // On reconnect (after background, network loss, etc.), re-fetch everything
 // since we likely missed events while disconnected
@@ -73,8 +93,12 @@ onEvent((event) => {
   }
   if (event.event === 'your_song_playing') {
     mySongPlaying.value = true
-    showToast(event.data.song?.title || 'Tu cancion esta sonando!')
-    sendBrowserNotification(event.data.song?.title || 'Tu cancion esta sonando!')
+    const title = event.data.song?.title || 'Tu canción está sonando'
+    t.success(`🎵 ${title}`, 7000)
+    sendBrowserNotification(title)
+  }
+  if (event.event === 'rate_limit_reset') {
+    t.info('Slot liberado — puedes pedir otra canción', 4000)
   }
   if (event.event === 'song_error_notification') {
     // Clear preview if it was showing the errored song
@@ -199,12 +223,16 @@ async function onConfirm(youtubeId) {
     const result = await queueStore.confirmSong(youtubeId)
     trackSongConfirmed(youtubeId, result.title, result.position)
     preview.value = null
-    showToast(`Cancion agregada! Posicion #${result.position}`)
+    if (result.position === 1) {
+      t.success(`🎵 Tu canción es la siguiente!`)
+    } else {
+      t.success(`Canción agregada — posición #${result.position}`)
+    }
     await queueStore.fetchMySongs()
     await queueStore.fetchRemainingSlots()
     if (notificationPermission.value === 'default') requestNotifications()
   } catch (e) {
-    showToast(e.message)
+    t.error(e.message || 'Error al confirmar canción')
   } finally { confirmLoading.value = false }
 }
 
@@ -213,11 +241,11 @@ async function cancelSong(songId) {
   try {
     await queueStore.cancelMySong(songId)
     trackSongCancelled(songId)
-    showToast('Cancion removida de la cola')
+    t.success('Canción removida de la cola')
     await queueStore.fetchMySongs()
     await queueStore.fetchQueue(venueSlug)
   } catch (e) {
-    showToast(e.message)
+    t.error(e.message || 'Error al cancelar canción')
   } finally { cancelLoading.value = { ...cancelLoading.value, [songId]: false } }
 }
 </script>
@@ -240,6 +268,14 @@ async function cancelSong(songId) {
           <p class="error-hint">Busca otra version o una cancion diferente. Tu turno fue liberado.</p>
           <button class="error-btn" @click="dismissError">Buscar otra cancion</button>
         </div>
+      </div>
+    </Transition>
+
+    <!-- WS offline banner — only shows after 2s of disconnect -->
+    <Transition name="fade">
+      <div v-if="wsOffline" class="ws-offline-banner" role="status">
+        <span class="ws-banner-dot"></span>
+        Sin conexión — reintentando…
       </div>
     </Transition>
 
@@ -339,6 +375,23 @@ async function cancelSong(songId) {
 </template>
 
 <style scoped>
+/* WS offline banner */
+.ws-offline-banner {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 6px 12px;
+  background: var(--danger-soft, rgba(239,68,68,0.15));
+  color: var(--danger, #ef4444);
+  font-size: 12px; font-weight: 600;
+  border-bottom: 1px solid var(--danger, #ef4444);
+}
+.ws-banner-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--danger, #ef4444);
+  animation: ws-pulse 1s infinite;
+}
+@keyframes ws-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
 /* ── Layout ── */
 .dashboard {
   padding-bottom: max(40px, env(safe-area-inset-bottom));

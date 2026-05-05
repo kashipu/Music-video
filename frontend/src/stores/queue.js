@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useAuthStore } from './auth.js'
+import { useToast } from '../composables/useToast.js'
 
 const API = import.meta.env.VITE_API_URL || ''
 
@@ -67,8 +68,57 @@ export const useQueueStore = defineStore('queue', () => {
     })
     if (!res.ok) return
     const data = await res.json()
+
+    // Detect position changes for already-tracked songs and surface as toasts
+    // so the user feels their song moving forward in real time. Only fire on
+    // promotions (improvement) — demotions are covered by reorder events the
+    // admin sees, customer doesn't need to know if dropped intentionally.
+    notifyPositionChanges(mySongs.value, data.songs)
+
     mySongs.value = data.songs
     rateLimit.value = data.rate_limit
+  }
+
+  // Track which songs we've already notified as "siguiente" so we don't spam
+  // the toast on every refresh while position stays at 1.
+  const notifiedNextUp = new Set()
+
+  function notifyPositionChanges(prev, next) {
+    if (!prev || !prev.length || !next || !next.length) return
+    const t = useToast()
+    const prevById = new Map(prev.map(s => [s.id, s]))
+
+    for (const song of next) {
+      // Skip songs already playing (they get the "your song is playing" toast)
+      if (song.status !== 'pending') continue
+
+      const old = prevById.get(song.id)
+
+      // "Eres el siguiente" — fire once when position becomes 1
+      if (song.position === 1 && (!old || old.position > 1)) {
+        if (!notifiedNextUp.has(song.id)) {
+          t.success(`🎵 Tu canción es la siguiente: "${truncate(song.title, 40)}"`, 6000)
+          notifiedNextUp.add(song.id)
+        }
+        continue
+      }
+
+      // Position improved by at least 1 (and not just landing at 1, handled above)
+      if (old && old.status === 'pending' && song.position < old.position && song.position > 1) {
+        t.info(`Subiste a #${song.position}: "${truncate(song.title, 30)}"`, 3500)
+      }
+    }
+
+    // Cleanup notifiedNextUp set: drop entries no longer pending
+    const stillPending = new Set(next.filter(s => s.status === 'pending').map(s => s.id))
+    for (const id of notifiedNextUp) {
+      if (!stillPending.has(id)) notifiedNextUp.delete(id)
+    }
+  }
+
+  function truncate(s, n) {
+    if (!s) return ''
+    return s.length > n ? s.slice(0, n - 1) + '…' : s
   }
 
   async function fetchRecentHistory() {
