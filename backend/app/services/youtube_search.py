@@ -4,6 +4,19 @@ import httpx
 
 async def search_youtube(query: str, max_results: int = 8) -> list[dict]:
     """Search YouTube without API key using page scraping."""
+    from app.config import settings
+    if settings.app_env == "test":
+        # Return mock results for deterministic E2E testing
+        # We use the query as part of the ID but ensure it's 11 chars
+        mock_id = (query + "_vid_id11")[:11]
+        return [{
+            "youtube_id": mock_id,
+            "title": f"Mock Result for {query}",
+            "thumbnail_url": f"https://i.ytimg.com/vi/{mock_id}/mqdefault.jpg",
+            "duration": "3:45",
+            "url": f"https://www.youtube.com/watch?v={mock_id}",
+        }]
+
     url = f"https://www.youtube.com/results?search_query={query}"
     try:
         async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:

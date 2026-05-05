@@ -36,6 +36,16 @@ def parse_iso_duration(duration: str) -> int:
 
 
 async def fetch_video_metadata(video_id: str) -> dict | None:
+    if settings.app_env == "test":
+        return {
+            "youtube_id": video_id,
+            "title": f"Test Video {video_id}",
+            "thumbnail_url": f"https://i.ytimg.com/vi/{video_id}/mqdefault.jpg",
+            "duration_sec": 200,
+            "embeddable": True,
+            "artist": "Test Artist",
+        }
+
     if not settings.youtube_api_key:
         # Use oEmbed to get real title without API key
         return await _fetch_via_oembed(video_id)
