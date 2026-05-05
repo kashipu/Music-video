@@ -149,6 +149,37 @@ Esta regla garantiza que la música no se interrumpa bruscamente para los client
 - El backend marca la canción como `played` y avanza a la siguiente
 - Se emite un broadcast WebSocket a todos los clientes conectados
 
+### BR-13a: Contrato de respuesta de skip / finished / error (CRÍTICO)
+
+Los tres endpoints que mutan `queue_songs.status` deben honrar este contrato sin excepción:
+
+| Estado al entrar | Respuesta esperada (`next_song` / `now_playing`) |
+|------------------|--------------------------------------------------|
+| Cola con N pendientes (N ≥ 1) | la 1ra canción pendiente, ahora promovida a `playing` |
+| Cola vacía + fallback configurado | `null` con `fallback_active: true` |
+| Cola vacía sin fallback | `null` con `fallback_active: true`, `fallback_songs: []` |
+
+**Invariante:** si la BD efectivamente promovió una canción a `playing`, la respuesta HTTP **debe** reflejarlo. Una respuesta `null` cuando la BD tiene una canción `playing` rompe la coherencia y hace que el Kiosk active la playlist de respaldo indebidamente (regresión histórica documentada en BH-31).
+
+**Operaciones atómicas:** los tres endpoints adquieren `_playback_lock` para serializar `marcar played` + `advance` + `commit`, garantizando que doble click o `kiosk-finished` simultáneo a `admin-skip` no:
+- Promuevan dos canciones a `playing` simultáneamente
+- Pierdan canciones (marcadas `played` sin avanzar)
+- Liberen rate-limit slots dos veces
+
+**Idempotencia:** los `UPDATE` usan `WHERE status='playing'` (o `'pending'`) condicional. Un segundo skip que llega después de que otro coroutine ya avanzó es un no-op silencioso, no un error.
+
+### BR-13b: Skip durante fallback con cola pendiente (BR-12b reforzado)
+
+Cuando admin hace skip mientras suena la playlist de respaldo y hay canciones de usuarios pendientes, **el sistema debe**:
+
+1. Promover la 1ra canción pendiente a `playing` en BD (atómico, `_playback_lock`)
+2. Limpiar la caché `_fallback_now_playing`
+3. Emitir `now_playing_changed` con la nueva canción de usuario (no `is_fallback`)
+4. Emitir `fallback_skip` para que el Kiosk corte el video del fallback inmediatamente
+5. Emitir `your_song_playing` al dueño de la canción promovida
+
+El Kiosk recibe ambos eventos en orden y hace `loadVideoById(canción_usuario)` sin esperar a que termine el video del fallback. **Ninguna canción de la cola se pierde** — si `now_playing_changed` llega primero pero el `fallback_skip` falla, el Kiosk seguirá esperando al fin natural del fallback y arrancará la canción al terminar (mecanismo `pendingUserSong`).
+
 ---
 
 ## Notificaciones
@@ -216,3 +247,63 @@ El sistema recopila datos para análisis (con consentimiento del usuario):
 - Formato de la URL: `https://{domain}/{venue_slug}?mesa={table_number}`
 - Los QR son generados por el admin desde el panel de administración
 - El número de mesa se pre-llena automáticamente en el formulario de registro
+
+---
+
+## Awareness y Feedback (qué debe saber cada actor)
+
+### BR-19: Estado unificado del reproductor visible al admin
+
+El admin ve **un solo badge** que resume el estado del sistema, en orden de prioridad:
+
+1. `SIN CONEXIÓN` — WebSocket caído (los datos pueden ser viejos)
+2. `PAUSADO` — `playback_status='paused'` en venue config
+3. `SONANDO USUARIO` — hay canción de usuario en `playing`
+4. `SONANDO PLAYLIST` — fallback activo, canción cacheada en memoria
+5. `PLAYLIST PAUSADA` — fallback configurado pero `fallback_status_changed.paused=true`
+6. `LISTA PARA EMPEZAR` — cola con pendientes pero nada en `playing` (admin debe iniciar)
+7. `SIN COLA — ESPERANDO PLAYLIST` — fallback configurado, esperando primera canción
+8. `SIN REPRODUCCIÓN` — sin cola, sin fallback (estado vacío)
+
+**Razón:** antes había 3 pills semi-redundantes (`EN VIVO/PAUSADO`, `PLAYLIST SONANDO`, contadores) que daban estados ambiguos. El badge único garantiza que el admin nunca duda qué está ocurriendo.
+
+### BR-20: Notificación al usuario cuando su canción avanza en la cola
+
+Cuando una canción del usuario cambia de posición en la cola (por avance natural de FIFO o por skip del admin), el cliente recibe feedback proactivo:
+
+| Transición | Notificación | Tipo | Duración |
+|------------|--------------|------|----------|
+| Posición #N → #1 (queda como siguiente) | `🎵 Tu canción es la siguiente: "X"` | success | 6s |
+| Posición #N → #M con M < N (no #1) | `Subiste a #M: "X"` | info | 3.5s |
+| Empieza a sonar la canción del usuario | `🎵 X` + browser notification | success | 7s |
+| Slot liberado (canción terminó/falló) | `Slot liberado — puedes pedir otra` | info | 4s |
+
+- La notificación de "eres el siguiente" se emite **una sola vez** por canción (set `notifiedNextUp`).
+- No se notifica cuando la canción **baja** de posición (ej. admin reordena hacia abajo) — feedback negativo no aporta y puede confundir.
+- Las notificaciones son toasts visuales del cliente, no eventos WS dedicados; se infieren del polling/refresh de `mySongs`.
+
+### BR-21: Feedback al admin en cada acción
+
+Toda acción del admin que muta estado (skip, pause, kick, reset, agregar, eliminar, reordenar, banner, QR, volumen) **debe**:
+
+1. Mostrar **loading state** en el botón mientras la petición está pendiente
+2. Mostrar **toast verde de éxito** con mensaje específico al recibir 2xx
+3. Mostrar **toast rojo de error** con el `detail` del backend al recibir 4xx/5xx, o `"error de red"` si la petición falla
+4. **Revertir UI optimista** (estado local cambiado antes de la petición) cuando la respuesta falla
+5. Acciones destructivas (`kick`, `clear queue`) **deben pedir confirmación** explícita antes de ejecutar
+
+**Razón:** un admin que clica "Siguiente" y no recibe feedback no sabe si su acción tuvo efecto, si la red falló, o si el backend devolvió error. La regla anterior (loading + revert silencioso) escondía fallas.
+
+### BR-22: Awareness de conexión WebSocket
+
+Cada vista (admin, customer, kiosk) **debe** indicar visualmente cuando el WebSocket está desconectado, porque los datos en pantalla pueden estar desactualizados:
+
+| Vista | Indicador | Comportamiento |
+|-------|-----------|----------------|
+| Admin | Pill "Conectado/Reconectando…" en barra de stats + toast en transiciones | Visible siempre |
+| Customer | Banner rojo sticky "Sin conexión — reintentando…" | Solo aparece tras 2s desconectado (evita flicker) |
+| Kiosk | Sin indicador visible (pantalla pública) | Polling de 10s recupera estado al reconectar |
+
+- Reconexión usa backoff exponencial (1s → 1.5x → max 15s)
+- Al reconectar, **toda vista re-fetcha estado completo** (`onReconnect` handler) porque los eventos perdidos durante el corte no se reenvían
+- `visibilitychange`: al volver de background (iOS Safari mata WS) se fuerza reconexión + ping

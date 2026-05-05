@@ -213,6 +213,29 @@ Fallback sonando → Admin toca "Pausar Fallback"
 
 **Verificar**: Ninguna vista muestra estado inconsistente durante la pausa
 
+### F13b: Awareness y feedback (nuevo — Tier 1+2)
+
+**Admin**
+
+- Badge unificado de estado siempre visible y consistente con lo que reproduce el Kiosk (BR-19)
+- Toast verde tras cada acción exitosa (skip, pausa, etc.) (BR-21)
+- Toast rojo si la acción falla (network down, 4xx, 5xx) — nunca silenciosa
+- UI optimista revierte cuando el backend rechaza (ej. pausar con red caída no deja "Pausado" mintiendo)
+- Acciones destructivas (kick, vaciar cola) piden `confirm()` antes
+- Indicador WS pasa a "Reconectando…" rojo si la conexión cae, vuelve a "Conectado" + toast al recuperarse (BR-22)
+
+**Cliente**
+
+- Al confirmar canción, toast indica posición exacta o "eres la siguiente" (BR-14, BR-20)
+- Cuando la cola avanza y su canción sube, toast `Subiste a #N: "X"` (BR-20)
+- Al quedar en #1, toast `🎵 Tu canción es la siguiente` exactamente una vez por canción
+- Cuando empieza a sonar, toast + browser notification (BR-14)
+- Cuando se libera su slot (canción terminó/falló), toast lo confirma (BR-20)
+- Banner rojo "Sin conexión — reintentando…" tras 2s de WS caído (BR-22)
+- Errores de confirmar/cancelar salen como toast rojo con el mensaje del backend
+
+**Verificar**: ningún error silencioso, ningún estado mentiroso, ninguna acción sin feedback.
+
 ### F13: Logica unificada de fallback y cola (regla de negocio principal)
 
 ```
