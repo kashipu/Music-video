@@ -25,3 +25,16 @@ frontend/dist/
 # OS
 .DS_Store
 Thumbs.db
+
+# Playwright
+frontend/playwright-report/
+frontend/test-results/
+frontend/playwright/.cache/
+
+# Claude Code / agents (config local del dev, no se versiona)
+.claude/
+.agents/
+skills-lock.json
+
+# Logs ad-hoc
+*.log
