@@ -5,6 +5,13 @@ from datetime import datetime, timedelta, timezone
 from app.config import settings
 from app.database import get_db
 
+# Serializes the SELECT MAX(position) + INSERT pair for queue insertions.
+# Without this, two concurrent confirms read the same MAX and assign the same
+# position, breaking FIFO (BR-04). The shared aiosqlite connection runs in a
+# single thread but the async statements interleave between awaits, so a Python
+# lock is needed even though SQLite itself serializes writes.
+_position_lock = asyncio.Lock()
+
 
 async def _commit_with_retry(db, retries: int = 3, delay: float = 0.3):
     """Commit with retries to handle transient 'database is locked' errors."""
@@ -97,24 +104,39 @@ async def add_song(venue_id: int, user_id: int, session_id: str,
                    duration_sec: int) -> dict:
     db = await get_db()
 
-    rows = await db.execute_fetchall(
-        "SELECT COALESCE(MAX(position), 0) FROM queue_songs WHERE venue_id = ? AND status IN ('pending', 'playing')",
-        (venue_id,),
-    )
-    next_position = rows[0][0] + 1
+    # Re-check duplicate inside the lock so two concurrent confirms of the same
+    # video can't both pass the earlier check and end up with two queue entries.
+    async with _position_lock:
+        existing = await db.execute_fetchall(
+            "SELECT id FROM queue_songs WHERE venue_id = ? AND youtube_id = ? AND status IN ('pending', 'playing')",
+            (venue_id, youtube_id),
+        )
+        if existing:
+            from fastapi import HTTPException
+            raise HTTPException(
+                status_code=409,
+                detail="Esta cancion ya esta en la cola",
+                headers={"X-Error-Code": "ALREADY_IN_QUEUE"},
+            )
 
-    cursor = await db.execute(
-        "INSERT INTO queue_songs (venue_id, user_id, session_id, youtube_id, title, thumbnail_url, duration_sec, position, status) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')",
-        (venue_id, user_id, session_id, youtube_id, title, thumbnail_url, duration_sec, next_position),
-    )
-    song_id = cursor.lastrowid
+        rows = await db.execute_fetchall(
+            "SELECT COALESCE(MAX(position), 0) FROM queue_songs WHERE venue_id = ? AND status IN ('pending', 'playing')",
+            (venue_id,),
+        )
+        next_position = rows[0][0] + 1
 
-    await db.execute(
-        "INSERT INTO submission_log (user_id, venue_id) VALUES (?, ?)",
-        (user_id, venue_id),
-    )
-    await _commit_with_retry(db)
+        cursor = await db.execute(
+            "INSERT INTO queue_songs (venue_id, user_id, session_id, youtube_id, title, thumbnail_url, duration_sec, position, status) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')",
+            (venue_id, user_id, session_id, youtube_id, title, thumbnail_url, duration_sec, next_position),
+        )
+        song_id = cursor.lastrowid
+
+        await db.execute(
+            "INSERT INTO submission_log (user_id, venue_id) VALUES (?, ?)",
+            (user_id, venue_id),
+        )
+        await _commit_with_retry(db)
 
     # Calculate estimated wait
     wait_rows = await db.execute_fetchall(

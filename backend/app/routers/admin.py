@@ -101,8 +101,15 @@ async def get_admin_queue(admin: dict = Depends(get_current_admin)):
         except (json.JSONDecodeError, TypeError):
             pass
 
+    fallback_now_playing = None
+    if now_playing is None:
+        cached = playback_service.get_fallback_now_playing(venue_id)
+        if cached:
+            fallback_now_playing = {**cached, "is_fallback": True}
+
     return {
         "now_playing": now_playing,
+        "fallback_now_playing": fallback_now_playing,
         "queue": queue,
         "total_in_queue": len(queue),
         "playback_status": playback_status,

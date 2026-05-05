@@ -7,6 +7,12 @@ from app.database import get_db
 # In-memory: which fallback song is currently playing per venue (cleared when a real song starts)
 _fallback_now_playing: dict = {}
 
+# Serializes mutations of queue_songs.status (skip / finish / error). Without this,
+# concurrent admin double-clicks or admin-skip + kiosk-finished arriving in the same
+# tick can both read 'playing' and both advance the queue, ending with two songs in
+# 'playing' state or a song silently lost. Pairs with the lock in queue_service.py.
+_playback_lock = asyncio.Lock()
+
 
 def set_fallback_now_playing(venue_id: int, song: Optional[dict]) -> None:
     _fallback_now_playing[venue_id] = song
@@ -107,43 +113,51 @@ async def get_now_playing(venue_id: int) -> dict:
 
 
 async def finish_song(song_id: int, venue_id: int) -> dict:
+    """Atomic finish: serialized with skip/error so the kiosk's 'song ended' and
+    an admin click on Siguiente at the same instant cannot both advance the queue
+    and skip a user song silently.
+    """
     db = await get_db()
 
-    # Mark as played
-    await db.execute(
-        "UPDATE queue_songs SET status = 'played', played_at = CURRENT_TIMESTAMP "
-        "WHERE id = ? AND venue_id = ?",
-        (song_id, venue_id),
-    )
-
-    # Copy to play_history and get finished song's user_id
-    finished_user_id = None
-    rows = await db.execute_fetchall(
-        "SELECT venue_id, user_id, youtube_id, title, duration_sec FROM queue_songs WHERE id = ?",
-        (song_id,),
-    )
-    if rows:
-        r = rows[0]
-        finished_user_id = r[1]
-        await db.execute(
-            "INSERT INTO play_history (venue_id, user_id, youtube_id, title, duration_sec) VALUES (?, ?, ?, ?, ?)",
-            (r[0], r[1], r[2], r[3], r[4]),
+    async with _playback_lock:
+        # Idempotency: only mark as played if it's still 'playing'. If admin already
+        # skipped it, this is a no-op and we still advance to whatever is current.
+        rows = await db.execute_fetchall(
+            "SELECT venue_id, user_id, youtube_id, title, duration_sec, status FROM queue_songs WHERE id = ?",
+            (song_id,),
         )
+        finished_user_id = None
+        already_finalized = False
+        if rows:
+            r = rows[0]
+            finished_user_id = r[1]
+            already_finalized = r[5] != 'playing'
+            if not already_finalized:
+                await db.execute(
+                    "UPDATE queue_songs SET status = 'played', played_at = CURRENT_TIMESTAMP "
+                    "WHERE id = ? AND venue_id = ? AND status = 'playing'",
+                    (song_id, venue_id),
+                )
+                await db.execute(
+                    "INSERT INTO play_history (venue_id, user_id, youtube_id, title, duration_sec) VALUES (?, ?, ?, ?, ?)",
+                    (r[0], r[1], r[2], r[3], r[4]),
+                )
 
-    # Free the rate limit slot so user can request another song
-    if finished_user_id:
-        await db.execute(
-            "DELETE FROM submission_log WHERE id = ("
-            "  SELECT id FROM submission_log "
-            "  WHERE user_id = ? AND venue_id = ? "
-            "  ORDER BY submitted_at DESC LIMIT 1"
-            ")",
-            (finished_user_id, venue_id),
-        )
+        # Free the rate limit slot only if we actually finalized the song here
+        if finished_user_id and not already_finalized:
+            await db.execute(
+                "DELETE FROM submission_log WHERE id = ("
+                "  SELECT id FROM submission_log "
+                "  WHERE user_id = ? AND venue_id = ? "
+                "  ORDER BY submitted_at DESC LIMIT 1"
+                ")",
+                (finished_user_id, venue_id),
+            )
 
-    # Advance to next song
-    next_song = await _advance_queue(venue_id)
-    await _commit_with_retry(db)
+        # Advance to next song. If already_finalized, _advance_queue is still safe:
+        # it only promotes a 'pending' song if nothing is currently 'playing'.
+        next_song = await _advance_queue_safe(venue_id)
+        await _commit_with_retry(db)
 
     # Log analytics events
     try:
@@ -163,6 +177,7 @@ async def finish_song(song_id: int, venue_id: int) -> dict:
 
 
 async def _advance_queue(venue_id: int) -> Optional[dict]:
+    """Promote the next pending song to 'playing'. Caller must hold _playback_lock."""
     db = await get_db()
 
     rows = await db.execute_fetchall(
@@ -175,8 +190,10 @@ async def _advance_queue(venue_id: int) -> Optional[dict]:
         return None
 
     r = rows[0]
+    # Conditional UPDATE: prevents a race promoting two songs to 'playing'.
     await db.execute(
-        "UPDATE queue_songs SET status = 'playing', played_at = CURRENT_TIMESTAMP WHERE id = ?",
+        "UPDATE queue_songs SET status = 'playing', played_at = CURRENT_TIMESTAMP "
+        "WHERE id = ? AND status = 'pending'",
         (r[0],),
     )
 
@@ -186,26 +203,54 @@ async def _advance_queue(venue_id: int) -> Optional[dict]:
     return {"id": r[0], "youtube_id": r[1], "title": r[2], "user_id": r[3]}
 
 
-async def skip_song(venue_id: int) -> dict:
+async def _advance_queue_safe(venue_id: int) -> Optional[dict]:
+    """Advance only if nothing is currently playing. Returns the now-playing song
+    (or None if there's nothing pending). Used by finish_song so a finish that
+    arrives after a skip (which already advanced) doesn't double-promote."""
     db = await get_db()
-
-    # Get current playing song
-    current = await db.execute_fetchall(
-        "SELECT id, title, user_id FROM queue_songs WHERE venue_id = ? AND status = 'playing' LIMIT 1",
+    playing = await db.execute_fetchall(
+        "SELECT id, youtube_id, title, user_id FROM queue_songs "
+        "WHERE venue_id = ? AND status = 'playing' LIMIT 1",
         (venue_id,),
     )
-    skipped = None
-    if current:
-        skipped = {"id": current[0][0], "title": current[0][1], "user_id": current[0][2]}
-        await db.execute(
-            "UPDATE queue_songs SET status = 'played', played_at = CURRENT_TIMESTAMP WHERE id = ?",
-            (current[0][0],),
+    if playing:
+        r = playing[0]
+        return {"id": r[0], "youtube_id": r[1], "title": r[2], "user_id": r[3]}
+    return await _advance_queue(venue_id)
+
+    return {"id": r[0], "youtube_id": r[1], "title": r[2], "user_id": r[3]}
+
+
+async def skip_song(venue_id: int) -> dict:
+    """Atomic skip: marks current playing song as 'played' and advances queue.
+
+    Idempotent: if no song is playing (e.g. another concurrent skip already advanced
+    or we are in fallback), returns cleanly without phantom 'played' writes.
+    """
+    db = await get_db()
+
+    async with _playback_lock:
+        # Re-check current playing INSIDE the lock — a sibling call may have just
+        # advanced the queue between our handler entry and the lock acquisition.
+        current = await db.execute_fetchall(
+            "SELECT id, title, user_id FROM queue_songs WHERE venue_id = ? AND status = 'playing' LIMIT 1",
+            (venue_id,),
         )
+        skipped = None
+        if current:
+            skipped = {"id": current[0][0], "title": current[0][1], "user_id": current[0][2]}
+            # Conditional UPDATE: only flip if still 'playing'. Guards against a
+            # double execute path where another coroutine already set 'played'.
+            await db.execute(
+                "UPDATE queue_songs SET status = 'played', played_at = CURRENT_TIMESTAMP "
+                "WHERE id = ? AND status = 'playing'",
+                (current[0][0],),
+            )
 
-    next_song = await _advance_queue(venue_id)
-    await _commit_with_retry(db)
+        next_song = await _advance_queue(venue_id)
+        await _commit_with_retry(db)
 
-    # Log skip event
+    # Log skip event (outside the lock — analytics shouldn't block playback)
     try:
         from app.services.analytics_service import log_event
         if skipped:
@@ -222,38 +267,39 @@ async def skip_song(venue_id: int) -> dict:
 async def error_song(song_id: int, venue_id: int, error_code: int) -> dict:
     db = await get_db()
 
-    # Get song info before marking as error
-    rows = await db.execute_fetchall(
-        "SELECT venue_id, user_id, youtube_id, title, duration_sec FROM queue_songs WHERE id = ?",
-        (song_id,),
-    )
-    finished_user_id = None
-    error_title = ""
-    if rows:
-        finished_user_id = rows[0][1]
-        error_title = rows[0][3]
-
-    # Mark as played (error songs count as played)
-    await db.execute(
-        "UPDATE queue_songs SET status = 'played', played_at = CURRENT_TIMESTAMP "
-        "WHERE id = ? AND venue_id = ?",
-        (song_id, venue_id),
-    )
-
-    # Free the rate limit slot — delete the most recent submission_log entry
-    # so the user can request another song
-    if finished_user_id:
-        await db.execute(
-            "DELETE FROM submission_log WHERE id = ("
-            "  SELECT id FROM submission_log "
-            "  WHERE user_id = ? AND venue_id = ? "
-            "  ORDER BY submitted_at DESC LIMIT 1"
-            ")",
-            (finished_user_id, venue_id),
+    async with _playback_lock:
+        # Get song info; only finalize if it's still in a non-terminal state
+        rows = await db.execute_fetchall(
+            "SELECT venue_id, user_id, youtube_id, title, duration_sec, status FROM queue_songs WHERE id = ?",
+            (song_id,),
         )
+        finished_user_id = None
+        error_title = ""
+        already_finalized = True
+        if rows:
+            finished_user_id = rows[0][1]
+            error_title = rows[0][3]
+            already_finalized = rows[0][5] in ('played', 'removed')
 
-    next_song = await _advance_queue(venue_id)
-    await _commit_with_retry(db)
+        if not already_finalized:
+            await db.execute(
+                "UPDATE queue_songs SET status = 'played', played_at = CURRENT_TIMESTAMP "
+                "WHERE id = ? AND venue_id = ? AND status IN ('playing', 'pending')",
+                (song_id, venue_id),
+            )
+            # Free the rate limit slot only when we actually finalized
+            if finished_user_id:
+                await db.execute(
+                    "DELETE FROM submission_log WHERE id = ("
+                    "  SELECT id FROM submission_log "
+                    "  WHERE user_id = ? AND venue_id = ? "
+                    "  ORDER BY submitted_at DESC LIMIT 1"
+                    ")",
+                    (finished_user_id, venue_id),
+                )
+
+        next_song = await _advance_queue_safe(venue_id)
+        await _commit_with_retry(db)
 
     # Save to blocked_videos so it's filtered from future searches
     error_youtube_id = rows[0][2] if rows else None

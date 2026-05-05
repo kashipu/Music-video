@@ -183,6 +183,17 @@ async def confirm_song(req: SongConfirmRequest, user: dict = Depends(get_current
     duration_sec = meta_rows[0][1]
     thumbnail_url = f"https://i.ytimg.com/vi/{req.youtube_id}/mqdefault.jpg"
 
+    # Re-validate duration limit (preview already checks, but /confirm must enforce
+    # too — a client could skip preview and post directly with a yt_id whose metadata
+    # was cached for a shorter previous video).
+    max_duration = await queue_service.check_duration_limit(venue_id, duration_sec)
+    if duration_sec and duration_sec > max_duration:
+        raise HTTPException(
+            status_code=400,
+            detail=f"La cancion supera el limite de {max_duration // 60} minutos",
+            headers={"X-Error-Code": "DURATION_EXCEEDED"},
+        )
+
     result = await queue_service.add_song(
         venue_id=venue_id,
         user_id=user_id,
