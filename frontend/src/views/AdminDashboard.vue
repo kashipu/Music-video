@@ -4,8 +4,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
 import { useWebSocket } from '../composables/useWebSocket.js'
 import { useTheme } from '../composables/useTheme.js'
+import { useToast, safeFetch } from '../composables/useToast.js'
 import { formatDuration } from '../utils/youtube.js'
 import { trackAdminAction } from '../utils/analytics.js'
+
+const toast = useToast()
 
 const route = useRoute()
 const router = useRouter()
@@ -95,7 +98,40 @@ const qrCodeUrl = computed(() =>
 )
 
 // WebSocket
-const { onEvent, onReconnect } = useWebSocket(venueSlug)
+const { onEvent, onReconnect, connected: wsConnected } = useWebSocket(venueSlug)
+
+// Track when we lost connection (for the indicator color)
+const wsState = computed(() => {
+  if (wsConnected.value) return { label: 'Conectado', cls: 'ws-ok', dotCls: 'ws-dot-ok' }
+  return { label: 'Reconectando…', cls: 'ws-bad', dotCls: 'ws-dot-bad' }
+})
+
+// Notify admin when WS goes offline so they know live updates are paused.
+let wsLastConnected = true
+function maybeNotifyWsState() {
+  if (wsConnected.value && !wsLastConnected) {
+    toast.success('Conexión restaurada')
+  } else if (!wsConnected.value && wsLastConnected) {
+    toast.warn('Conexión perdida — reintentando…')
+  }
+  wsLastConnected = wsConnected.value
+}
+// Cheap polling of the ref so we can fire toasts only on transitions
+setInterval(maybeNotifyWsState, 1000)
+
+// Unified playback status badge — single source of truth for what's happening
+const playbackBadge = computed(() => {
+  if (!wsConnected.value) return { label: 'SIN CONEXIÓN', cls: 'badge-offline' }
+  if (playbackStatus.value === 'paused') return { label: 'PAUSADO', cls: 'badge-paused' }
+  if (nowPlaying.value && !nowPlaying.value.is_fallback) return { label: 'SONANDO USUARIO', cls: 'badge-user' }
+  if (nowPlaying.value && nowPlaying.value.is_fallback) {
+    if (fallbackPaused.value) return { label: 'PLAYLIST PAUSADA', cls: 'badge-paused' }
+    return { label: 'SONANDO PLAYLIST', cls: 'badge-fallback' }
+  }
+  if (queue.value.length > 0) return { label: 'LISTA PARA EMPEZAR', cls: 'badge-ready' }
+  if (fallbackSongs.value.length > 0 && !fallbackPaused.value) return { label: 'SIN COLA — ESPERANDO PLAYLIST', cls: 'badge-idle' }
+  return { label: 'SIN REPRODUCCIÓN', cls: 'badge-idle' }
+})
 
 // On reconnect, re-fetch everything since events were missed
 onReconnect(() => {
@@ -182,7 +218,9 @@ async function fetchQueue() {
   const res = await fetch(`${API}/api/admin/queue`, { headers: auth.adminHeaders() })
   if (!res.ok) return
   const data = await res.json()
-  nowPlaying.value = data.now_playing
+  // When a real song is playing, use it. When the queue is empty but a fallback is sounding,
+  // fall back to the cached fallback now-playing (so the admin keeps the title across polls).
+  nowPlaying.value = data.now_playing || data.fallback_now_playing || null
   queue.value = data.queue
   playbackStatus.value = data.playback_status
   fetchPlayed()
@@ -233,25 +271,35 @@ async function startPlayback() {
 async function skipSong() {
   loadingSkip.value = true
   try {
-    await fetch(`${API}/api/admin/queue/skip`, { method: 'POST', headers: auth.adminHeaders() })
-    trackAdminAction('skip_song')
+    const r = await safeFetch('Saltar canción',
+      () => fetch(`${API}/api/admin/queue/skip`, { method: 'POST', headers: auth.adminHeaders() }),
+      { success: 'Canción saltada' })
+    if (r.ok) trackAdminAction('skip_song')
     await fetchQueue()
   } finally { loadingSkip.value = false }
 }
 async function pausePlayback() {
   loadingPause.value = true
+  const prev = playbackStatus.value
   playbackStatus.value = 'paused'
   try {
-    await fetch(`${API}/api/admin/playback/pause`, { method: 'POST', headers: auth.adminHeaders() })
-    trackAdminAction('pause_playback')
+    const r = await safeFetch('Pausar',
+      () => fetch(`${API}/api/admin/playback/pause`, { method: 'POST', headers: auth.adminHeaders() }),
+      { success: 'Pausado' })
+    if (r.ok) trackAdminAction('pause_playback')
+    else playbackStatus.value = prev  // revert optimistic update on failure
   } finally { loadingPause.value = false }
 }
 async function resumePlayback() {
   loadingResume.value = true
+  const prev = playbackStatus.value
   playbackStatus.value = 'playing'
   try {
-    await fetch(`${API}/api/admin/playback/resume`, { method: 'POST', headers: auth.adminHeaders() })
-    trackAdminAction('resume_playback')
+    const r = await safeFetch('Reanudar',
+      () => fetch(`${API}/api/admin/playback/resume`, { method: 'POST', headers: auth.adminHeaders() }),
+      { success: 'Reanudado' })
+    if (r.ok) trackAdminAction('resume_playback')
+    else playbackStatus.value = prev
   } finally { loadingResume.value = false }
 }
 
@@ -260,20 +308,25 @@ async function playFallbackNow() {
   loadingFallbackPlay.value = true
   try {
     fallbackPaused.value = false
-    await fetch(`${API}/api/admin/fallback-status?paused=false`, {
-      method: 'POST', headers: auth.adminHeaders(),
-    })
-    await fetch(`${API}/api/admin/fallback-play`, {
-      method: 'POST', headers: auth.adminHeaders(),
-    })
+    await safeFetch('Activar playlist',
+      () => fetch(`${API}/api/admin/fallback-status?paused=false`, {
+        method: 'POST', headers: auth.adminHeaders(),
+      }))
+    const r = await safeFetch('Reproducir playlist',
+      () => fetch(`${API}/api/admin/fallback-play`, {
+        method: 'POST', headers: auth.adminHeaders(),
+      }),
+      { success: 'Playlist iniciada' })
   } finally { loadingFallbackPlay.value = false }
 }
 
 async function skipFallbackSong() {
   loadingFallbackSkip.value = true
   try {
-    await fetch(`${API}/api/admin/fallback-skip`, { method: 'POST', headers: auth.adminHeaders() })
-    trackAdminAction('skip_fallback')
+    const r = await safeFetch('Siguiente',
+      () => fetch(`${API}/api/admin/fallback-skip`, { method: 'POST', headers: auth.adminHeaders() }),
+      { success: 'Siguiente canción' })
+    if (r.ok) trackAdminAction('skip_fallback')
   } finally { loadingFallbackSkip.value = false }
 }
 
@@ -289,11 +342,14 @@ async function nextSong() {
 
 async function toggleFallback() {
   loadingFallbackToggle.value = true
+  fallbackPaused.value = !fallbackPaused.value
   try {
-    fallbackPaused.value = !fallbackPaused.value
-    await fetch(`${API}/api/admin/fallback-status?paused=${fallbackPaused.value}`, {
-      method: 'POST', headers: auth.adminHeaders(),
-    })
+    const r = await safeFetch(fallbackPaused.value ? 'Pausar playlist' : 'Reanudar playlist',
+      () => fetch(`${API}/api/admin/fallback-status?paused=${fallbackPaused.value}`, {
+        method: 'POST', headers: auth.adminHeaders(),
+      }),
+      { success: fallbackPaused.value ? 'Playlist pausada' : 'Playlist reanudada' })
+    if (!r.ok) fallbackPaused.value = !fallbackPaused.value  // revert
   } finally { loadingFallbackToggle.value = false }
 }
 
@@ -359,8 +415,10 @@ async function toggleBrand() {
 async function playNow(songId) {
   loadingPlayNow.value = { ...loadingPlayNow.value, [songId]: true }
   try {
-    await fetch(`${API}/api/admin/queue/songs/${songId}/play-now`, { method: 'POST', headers: auth.adminHeaders() })
-    trackAdminAction('play_now', { song_id: songId })
+    const r = await safeFetch('Reproducir ahora',
+      () => fetch(`${API}/api/admin/queue/songs/${songId}/play-now`, { method: 'POST', headers: auth.adminHeaders() }),
+      { success: 'Canción promovida' })
+    if (r.ok) trackAdminAction('play_now', { song_id: songId })
     await fetchQueue()
   } finally { loadingPlayNow.value = { ...loadingPlayNow.value, [songId]: false } }
 }
@@ -369,10 +427,14 @@ async function clearQueue() {
   loadingClearQueue.value = true
   try {
     const count = queue.value.length
-    await Promise.all(queue.value.map(song =>
+    const results = await Promise.all(queue.value.map(song =>
       fetch(`${API}/api/admin/queue/songs/${song.id}`, { method: 'DELETE', headers: auth.adminHeaders() })
+        .then(r => r.ok).catch(() => false)
     ))
-    trackAdminAction('clear_queue', { songs_cleared: count })
+    const okCount = results.filter(Boolean).length
+    if (okCount === count) toast.success(`Cola vaciada (${count} canciones)`)
+    else toast.warn(`Vaciado parcial: ${okCount}/${count}`)
+    trackAdminAction('clear_queue', { songs_cleared: okCount })
     await fetchQueue()
   } finally { loadingClearQueue.value = false }
 }
@@ -380,8 +442,10 @@ async function clearQueue() {
 async function removeSong(songId) {
   loadingRemove.value = { ...loadingRemove.value, [songId]: true }
   try {
-    await fetch(`${API}/api/admin/queue/songs/${songId}`, { method: 'DELETE', headers: auth.adminHeaders() })
-    trackAdminAction('remove_song', { song_id: songId })
+    const r = await safeFetch('Quitar canción',
+      () => fetch(`${API}/api/admin/queue/songs/${songId}`, { method: 'DELETE', headers: auth.adminHeaders() }),
+      { success: 'Canción quitada' })
+    if (r.ok) trackAdminAction('remove_song', { song_id: songId })
     await fetchQueue()
   } finally { loadingRemove.value = { ...loadingRemove.value, [songId]: false } }
 }
@@ -464,21 +528,24 @@ function onDragEnd() { dragIdx.value = null; dropIdx.value = null }
 
 // ===== TABLES =====
 async function kickTable(tableNumber) {
+  if (!confirm(`Expulsar al usuario de la mesa #${tableNumber}? Sus canciones pendientes serán removidas.`)) return
   loadingKick.value = { ...loadingKick.value, [tableNumber]: true }
   try {
-    await fetch(`${API}/api/admin/tables/${tableNumber}/kick`, { method: 'POST', headers: auth.adminHeaders() })
+    const r = await safeFetch(`Expulsar mesa #${tableNumber}`,
+      () => fetch(`${API}/api/admin/tables/${tableNumber}/kick`, { method: 'POST', headers: auth.adminHeaders() }),
+      { success: `Usuario de mesa #${tableNumber} expulsado` })
     await fetchTables()
-    trackAdminAction('kick_table', { table_number: tableNumber })
-    showAdminToast(`Usuario #${tableNumber} expulsado`)
+    if (r.ok) trackAdminAction('kick_table', { table_number: tableNumber })
   } finally { loadingKick.value = { ...loadingKick.value, [tableNumber]: false } }
 }
 async function resetTableLimit(tableNumber) {
   loadingResetLimit.value = { ...loadingResetLimit.value, [tableNumber]: true }
   try {
-    await fetch(`${API}/api/admin/tables/${tableNumber}/reset-limit`, { method: 'POST', headers: auth.adminHeaders() })
+    const r = await safeFetch(`Resetear límite #${tableNumber}`,
+      () => fetch(`${API}/api/admin/tables/${tableNumber}/reset-limit`, { method: 'POST', headers: auth.adminHeaders() }),
+      { success: `Límite de mesa #${tableNumber} reseteado` })
     await fetchTables()
-    trackAdminAction('reset_limit', { table_number: tableNumber })
-    showAdminToast(`Limite de #${tableNumber} reseteado`)
+    if (r.ok) trackAdminAction('reset_limit', { table_number: tableNumber })
   } finally { loadingResetLimit.value = { ...loadingResetLimit.value, [tableNumber]: false } }
 }
 
@@ -717,13 +784,17 @@ function logout() {
 
         <!-- Stats Bar -->
         <div class="stats-bar">
+          <!-- Unified playback state badge — single source of truth -->
+          <div class="stat-pill stat-state" :class="playbackBadge.cls" :title="`Estado: ${playbackBadge.label}`">
+            <span class="state-dot"></span>
+            {{ playbackBadge.label }}
+          </div>
           <div class="stat-pill"><span>&#9835;</span> <strong>{{ queue.length }}</strong> en cola</div>
           <div class="stat-pill"><span>&#9201;</span> {{ totalDuration }}</div>
-          <div class="stat-pill" :class="playbackStatus === 'playing' ? 'stat-live' : 'stat-paused'">
-            {{ playbackStatus === 'playing' ? 'EN VIVO' : 'PAUSADO' }}
-          </div>
-          <div v-if="fallbackSongs.length && (!nowPlaying || nowPlaying.is_fallback)" class="stat-pill stat-fallback">
-            PLAYLIST SONANDO
+          <!-- WebSocket connection indicator -->
+          <div class="stat-pill ws-pill" :class="wsState.cls" :title="`WebSocket: ${wsState.label}`">
+            <span class="ws-dot" :class="wsState.dotCls"></span>
+            {{ wsState.label }}
           </div>
         </div>
 
@@ -1224,6 +1295,31 @@ function logout() {
 .stat-live { background: var(--success-soft); border-color: var(--success); color: var(--success); font-weight: 700; }
 .stat-paused { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); font-weight: 700; }
 .stat-fallback { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); font-weight: 700; font-size: 12px; }
+
+/* Unified state badge */
+.stat-state { font-weight: 700; font-size: 12px; letter-spacing: 0.4px; text-transform: uppercase; }
+.stat-state .state-dot { width: 8px; height: 8px; border-radius: 50%; }
+.badge-user      { background: var(--success-soft); border-color: var(--success); color: var(--success); }
+.badge-user .state-dot      { background: var(--success); animation: pulse-dot 2s infinite; }
+.badge-fallback  { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); }
+.badge-fallback .state-dot  { background: var(--primary); animation: pulse-dot 2s infinite; }
+.badge-paused    { background: var(--warning-soft, rgba(245,158,11,0.15)); border-color: var(--warning, #f59e0b); color: var(--warning, #f59e0b); }
+.badge-paused .state-dot    { background: var(--warning, #f59e0b); }
+.badge-ready     { background: var(--success-soft); border-color: var(--success); color: var(--success); }
+.badge-ready .state-dot     { background: var(--success); }
+.badge-idle      { background: var(--bg-elevated, rgba(255,255,255,0.05)); border-color: var(--border); color: var(--text-muted); }
+.badge-idle .state-dot      { background: var(--text-muted); }
+.badge-offline   { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
+.badge-offline .state-dot   { background: var(--danger); animation: pulse-dot 1s infinite; }
+
+/* WebSocket indicator */
+.ws-pill { font-size: 11px; }
+.ws-pill .ws-dot { width: 7px; height: 7px; border-radius: 50%; }
+.ws-ok { color: var(--text-muted); }
+.ws-ok .ws-dot-ok { background: #22c55e; box-shadow: 0 0 0 2px rgba(34,197,94,0.2); }
+.ws-bad { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); font-weight: 700; }
+.ws-bad .ws-dot-bad { background: var(--danger); animation: pulse-dot 1s infinite; }
+@keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
 /* Now Playing */
 .np-card {
