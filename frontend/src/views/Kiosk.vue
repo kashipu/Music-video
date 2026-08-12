@@ -1086,7 +1086,11 @@ onUnmounted(() => {
   bottom: 0;
   left: 0;
   right: 0;
-  z-index: 18;
+  z-index: 25;
+  min-height: 100px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
 }
 .progress-thin {
   height: 3px;
@@ -1239,7 +1243,7 @@ onUnmounted(() => {
 /* ===== MINI QR (during playback) ===== */
 .mini-qr {
   position: absolute;
-  bottom: 80px;
+  bottom: 120px;
   right: 24px;
   z-index: 15;
   text-align: center;
@@ -1290,11 +1294,13 @@ onUnmounted(() => {
   top: 20px;
   left: 24px;
   z-index: 15;
-  opacity: 0.8;
+  opacity: 0.7;
 }
 .venue-brand-logo {
-  height: 48px;
-  max-width: 160px;
+  max-height: 110px;
+  max-width: 220px;
+  width: auto;
+  height: auto;
   object-fit: contain;
   border-radius: 8px;
   filter: drop-shadow(0 2px 8px rgba(0,0,0,0.6));
