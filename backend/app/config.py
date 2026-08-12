@@ -25,3 +25,16 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Los JWT se firman con app_secret_key. Arrancar en produccion con el valor por
+# defecto permite a cualquiera forjar un token de superadmin (verificado: HTTP 200
+# en /api/superadmin/venues con token fabricado). Fallar al arrancar es preferible
+# a servir con auth abierta.
+_INSECURE_SECRETS = {"change-me-in-production", "cambiar-en-produccion", ""}
+if settings.app_env == "production" and (
+    settings.app_secret_key in _INSECURE_SECRETS or len(settings.app_secret_key) < 32
+):
+    raise RuntimeError(
+        "APP_SECRET_KEY tiene el valor por defecto en produccion. "
+        "Genera uno con: python -c \"import secrets; print(secrets.token_urlsafe(48))\""
+    )

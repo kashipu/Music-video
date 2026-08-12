@@ -56,11 +56,14 @@ app = FastAPI(
 )
 
 # CORS
+# allow_origins=["*"] junto a allow_credentials=True es una combinacion que el estandar
+# prohibe y que Starlette resuelve reflejando el Origin del atacante. La app autentica
+# con Bearer en header (no cookies), asi que apagar credentials con wildcard no rompe nada.
 origins = [o.strip() for o in settings.cors_origins.split(",")]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
-    allow_credentials=True,
+    allow_credentials="*" not in origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )

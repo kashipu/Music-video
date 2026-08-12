@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
 import { useWebSocket } from '../composables/useWebSocket.js'
@@ -107,17 +107,17 @@ const wsState = computed(() => {
 })
 
 // Notify admin when WS goes offline so they know live updates are paused.
-let wsLastConnected = true
-function maybeNotifyWsState() {
-  if (wsConnected.value && !wsLastConnected) {
-    toast.success('Conexión restaurada')
-  } else if (!wsConnected.value && wsLastConnected) {
+// watch se desmonta con el componente; el setInterval anterior no se limpiaba nunca.
+// wsHadDrop evita el toast espurio en la primera conexion (false -> true al montar).
+let wsHadDrop = false
+watch(wsConnected, (connected) => {
+  if (!connected) {
+    wsHadDrop = true
     toast.warn('Conexión perdida — reintentando…')
+  } else if (wsHadDrop) {
+    toast.success('Conexión restaurada')
   }
-  wsLastConnected = wsConnected.value
-}
-// Cheap polling of the ref so we can fire toasts only on transitions
-setInterval(maybeNotifyWsState, 1000)
+})
 
 // Unified playback status badge — single source of truth for what's happening
 const playbackBadge = computed(() => {
