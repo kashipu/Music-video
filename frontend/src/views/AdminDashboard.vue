@@ -46,8 +46,6 @@ const bannerActive = ref(false)
 const showBrand = ref(true)
 const rightTab = ref('music')
 const selectedTable = ref(null)
-const addUrl = ref('')
-const loading = ref(false)
 const addMode = ref('search')
 // Per-button loading states
 const loadingSkip = ref(false)
@@ -66,6 +64,8 @@ const loadingBanner = ref(false)
 const loadingBrand = ref(false)
 const loadingQr = ref(false)
 const showQr = ref(false)
+const qrSize = ref('M')
+const loadingQrSize = ref(false)
 const loadingAddFromLib = ref({})
 const loadingDeleteFallback = ref({})
 const loadingAddToFallback = ref({})
@@ -176,6 +176,7 @@ onEvent((event) => {
     if (event.data.show_brand !== undefined) showBrand.value = event.data.show_brand
   } else if (event.event === 'qr_visibility_changed') {
     showQr.value = event.data.show_qr
+    if (event.data.qr_size) qrSize.value = event.data.qr_size
   }
 })
 
@@ -203,6 +204,7 @@ onMounted(async () => {
     bannerText.value = cfg?.banner_text || ''
     showBrand.value = cfg?.show_brand !== false
     showQr.value = cfg?.show_qr === true
+    qrSize.value = cfg?.qr_size || 'M'
   } catch { /* */ }
   await Promise.all([fetchQueue(), fetchTables(), fetchAnalytics(), fetchFallbackPlaylist(), refreshAdminInfo()])
   adminPoll = setInterval(() => {
@@ -400,6 +402,17 @@ async function toggleQr() {
   } finally { loadingQr.value = false }
 }
 
+async function setQrSize(size) {
+  if (size === qrSize.value) return
+  loadingQrSize.value = true
+  try {
+    qrSize.value = size
+    await fetch(`${API}/api/admin/show-qr?size=${size}`, {
+      method: 'POST', headers: auth.adminHeaders(),
+    })
+  } finally { loadingQrSize.value = false }
+}
+
 async function toggleBrand() {
   loadingBrand.value = true
   try {
@@ -467,26 +480,6 @@ async function moveSong(songId, newPosition) {
   })
   // Confirm with server state
   await fetchQueue()
-}
-async function addSong() {
-  if (!addUrl.value.trim()) return
-  loading.value = true
-  addError.value = ''
-  try {
-    const res = await fetch(`${API}/api/admin/queue/songs`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...auth.adminHeaders() },
-      body: JSON.stringify({ youtube_url: addUrl.value }),
-    })
-    if (!res.ok) {
-      const err = await res.json()
-      addError.value = err.detail || 'Error al agregar'
-      setTimeout(() => { addError.value = '' }, 3000)
-    } else {
-      addUrl.value = ''
-      await fetchQueue()
-    }
-  } finally { loading.value = false }
 }
 const addError = ref('')
 
@@ -869,11 +862,17 @@ function logout() {
           </div>
 
           <!-- QR en pantalla -->
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
             <span style="font-size:13px;font-weight:600;">QR en pantalla</span>
             <button class="t-btn" :class="showQr ? 't-btn-kick' : 't-btn-reset'" @click="toggleQr" :disabled="loadingQr" style="padding:5px 12px;font-size:11px;">
               {{ loadingQr ? '...' : (showQr ? 'Ocultar' : 'Mostrar') }}
             </button>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <span style="font-size:13px;font-weight:600;">Tamano del QR</span>
+            <div style="display:flex;gap:4px;">
+              <button v-for="s in ['S', 'M', 'L']" :key="s" class="t-btn" :class="qrSize === s ? 't-btn-kick' : 't-btn-reset'" @click="setQrSize(s)" :disabled="loadingQrSize" style="padding:5px 10px;font-size:11px;">{{ s }}</button>
+            </div>
           </div>
 
           <!-- Banner -->
@@ -896,7 +895,6 @@ function logout() {
         <div class="card add-card">
           <div class="add-tabs">
             <button class="add-tab" :class="{ active: addMode === 'search' }" @click="addMode = 'search'">Buscar</button>
-            <button class="add-tab" :class="{ active: addMode === 'url' }" @click="addMode = 'url'">Pegar URL</button>
             <button class="add-tab" :class="{ active: addMode === 'library' }" @click="addMode = 'library'; if (!library.length) fetchLibrary()">Biblioteca</button>
           </div>
 
@@ -915,12 +913,6 @@ function logout() {
               </div>
             </div>
           </div>
-
-          <!-- Paste URL -->
-          <form v-if="addMode === 'url'" class="add-row" @submit.prevent="addSong">
-            <input v-model="addUrl" class="input-field" placeholder="Pegar URL de YouTube..." />
-            <button type="submit" class="ctrl-add" :disabled="loading">+</button>
-          </form>
 
           <!-- Library -->
           <div v-if="addMode === 'library'" class="library">

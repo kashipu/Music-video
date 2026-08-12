@@ -35,14 +35,14 @@ const audioBlocked = ref(false)
 const kioskControlsVisible = ref(false)
 const isPlaying = ref(false)
 const showQr = ref(false)
-const qrCycleVisible = ref(true)
+const qrSize = ref('M')
+const QR_PX = { S: 110, M: 160, L: 210 }
 const progress = ref(0)
 const currentTime = ref(0)
 const duration = ref(0)
 let audioUnlocked = false
 let kioskControlsTimer = null
 let progressInterval = null
-let qrCycleTimer = null
 let ytPlayer = null
 let preloadPlayer = null
 let preloadedVideoId = null
@@ -118,8 +118,7 @@ onEvent((event) => {
     if (event.data.show_brand !== undefined) showBrand.value = event.data.show_brand
   } else if (event.event === 'qr_visibility_changed') {
     showQr.value = event.data.show_qr
-    if (event.data.show_qr) startQrCycle()
-    else { stopQrCycle(); qrCycleVisible.value = false }
+    if (event.data.qr_size) qrSize.value = event.data.qr_size
   } else if (event.event === 'song_added' || event.event === 'song_removed' || event.event === 'queue_reordered') {
     fetchQueuePreview()
     if (event.event === 'song_added') {
@@ -189,11 +188,8 @@ async function syncNowPlaying() {
   // 4. Sync banner + venue branding (don't re-show if auto-hidden)
   if (data.banner_text !== undefined && !bannerAutoHidden) bannerText.value = data.banner_text
   if (data.show_brand !== undefined) showBrand.value = data.show_brand
-  if (data.show_qr !== undefined && data.show_qr !== showQr.value) {
-    showQr.value = data.show_qr
-    if (data.show_qr) startQrCycle()
-    else { stopQrCycle(); qrCycleVisible.value = false }
-  }
+  if (data.qr_size) qrSize.value = data.qr_size
+  if (data.show_qr !== undefined) showQr.value = data.show_qr
   if (data.venue_name) venueName.value = data.venue_name
   if (data.venue_logo !== undefined) venueLogo.value = data.venue_logo
 }
@@ -300,11 +296,8 @@ async function fetchNowPlaying() {
   if (data.fallback_songs) fallbackSongs.value = data.fallback_songs
   if (data.banner_text !== undefined) bannerText.value = data.banner_text
   if (data.show_brand !== undefined) showBrand.value = data.show_brand
-  if (data.show_qr !== undefined) {
-    showQr.value = data.show_qr
-    if (data.show_qr) startQrCycle()
-    else { stopQrCycle(); qrCycleVisible.value = false }
-  }
+  if (data.qr_size) qrSize.value = data.qr_size
+  if (data.show_qr !== undefined) showQr.value = data.show_qr
   if (data.venue_name) venueName.value = data.venue_name
   if (data.venue_logo !== undefined) venueLogo.value = data.venue_logo
   if (song.value) {
@@ -711,31 +704,10 @@ async function togglePlayPause() {
   }
 }
 
-function startQrCycle() {
-  stopQrCycle()
-  qrCycleVisible.value = true
-  function cycle() {
-    // Show 2 min, hide 1 min
-    qrCycleTimer = setTimeout(() => {
-      qrCycleVisible.value = false
-      qrCycleTimer = setTimeout(() => {
-        qrCycleVisible.value = true
-        cycle()
-      }, 60 * 1000) // 1 min hidden
-    }, 2 * 60 * 1000) // 2 min visible
-  }
-  cycle()
-}
-
-function stopQrCycle() {
-  if (qrCycleTimer) { clearTimeout(qrCycleTimer); qrCycleTimer = null }
-}
-
 onUnmounted(() => {
   if (pollInterval) clearInterval(pollInterval)
   if (kioskControlsTimer) clearTimeout(kioskControlsTimer)
   stopProgressTracking()
-  stopQrCycle()
 })
 </script>
 
@@ -831,10 +803,10 @@ onUnmounted(() => {
           </Transition>
         </div>
 
-        <!-- Mini QR (bottom-right, cycles 2min on / 1min off) -->
+        <!-- Mini QR (bottom-right, visible while active) -->
         <Transition name="fade">
-          <div v-if="song && showQr && qrCycleVisible" class="mini-qr">
-            <img :src="qrCodeUrl" alt="QR" class="mini-qr-img" crossorigin="anonymous" />
+          <div v-if="song && showQr" class="mini-qr">
+            <img :src="qrCodeUrl" alt="QR" class="mini-qr-img" :style="{ width: QR_PX[qrSize] + 'px', height: QR_PX[qrSize] + 'px' }" crossorigin="anonymous" />
             <p class="mini-qr-label">Pide tu cancion</p>
           </div>
         </Transition>
@@ -1273,8 +1245,6 @@ onUnmounted(() => {
   text-align: center;
 }
 .mini-qr-img {
-  width: 140px;
-  height: 140px;
   border-radius: 12px;
   background: #fff;
   padding: 6px;

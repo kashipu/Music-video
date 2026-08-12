@@ -38,3 +38,6 @@ skills-lock.json
 
 # Logs ad-hoc
 *.log
+
+# Compose local (puertos publicados para dev)
+docker-compose.override.yml

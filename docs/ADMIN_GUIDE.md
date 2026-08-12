@@ -68,8 +68,7 @@ https://app.barqueue.com/admin
 - El cambio se refleja en tiempo real para todos los clientes
 
 #### Agregar una canción (como admin)
-- Click en **[+ Agregar canción]**
-- Pegar URL de YouTube
+- Buscar en YouTube o elegir de la Biblioteca
 - La canción se agrega sin restricción de rate limit
 - Se marca como agregada por "admin" en el historial
 

@@ -734,12 +734,18 @@ async def set_banner(
     return {"banner_text": text}
 
 
+QR_SIZES = {"S", "M", "L"}
+
+
 @router.post("/show-qr")
 async def toggle_show_qr(
-    show: bool = Query(...),
+    show: bool = Query(None),
+    size: str = Query(None),
     admin: dict = Depends(get_current_admin),
 ):
-    """Toggle QR visibility on kiosk screen."""
+    """Toggle QR visibility and/or size on kiosk screen."""
+    if size is not None and size not in QR_SIZES:
+        raise HTTPException(status_code=400, detail="Talla de QR invalida, usar S, M o L")
     venue_id = admin["venue_id"]
     db = await get_db()
     import json
@@ -748,14 +754,18 @@ async def toggle_show_qr(
     if rows and rows[0][0]:
         try: config = json.loads(rows[0][0])
         except: pass
-    config["show_qr"] = show
+    if show is not None:
+        config["show_qr"] = show
+    if size is not None:
+        config["qr_size"] = size
     await db.execute("UPDATE venues SET config = ? WHERE id = ?", (json.dumps(config), venue_id))
     await db.commit()
+    result = {"show_qr": config.get("show_qr", False), "qr_size": config.get("qr_size", "M")}
     await manager.broadcast(venue_id, {
         "event": "qr_visibility_changed",
-        "data": {"show_qr": show},
+        "data": result,
     })
-    return {"show_qr": show}
+    return result
 
 
 @router.get("/tables")
