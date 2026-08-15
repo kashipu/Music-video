@@ -60,6 +60,23 @@ Valores de `admin_action`:
 - `kick_table` - expulsar usuario (+ `table_number`)
 - `reset_limit` - resetear limite (+ `table_number`)
 
+### Eventos de la Landing (repitela.com)
+
+Se pushean desde `landing/src/lib/analytics.ts` (`track()`). No llevan `venue_slug`
+ni `session_duration_sec`: la landing es publica y no hay sesion de bar.
+
+| Evento | Donde se dispara | Parametros |
+|--------|-----------------|------------|
+| `repitela_landing_whatsapp_click` | Clic en cualquier CTA de WhatsApp directo | `location` |
+| `repitela_landing_demo_opened` | Se abre el modal del formulario de demo | `location` |
+| `repitela_landing_lead_submitted` | Se envia el formulario (nombre/bar/ciudad/direccion) | `location`, `ciudad` |
+
+Valores de `location`: `navbar`, `navbar_mobile`, `hero`, `for_bars`, `pricing`,
+`cta_final`, `footer`, `floating`.
+
+Las visitas (`page_view`, usuarios, fuentes de trafico) las reporta sola la
+etiqueta de Google (`G-JFQN47GREE`) que ya dispara en All Pages.
+
 ### Contexto comun (todos los eventos)
 
 Todos los eventos incluyen automaticamente:

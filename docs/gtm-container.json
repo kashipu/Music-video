@@ -514,6 +514,76 @@
                 "tagFiringOption": "ONCE_PER_EVENT",
                 "monitoringMetadata": { "type": "MAP" },
                 "consentSettings": { "consentStatus": "NOT_SET" }
+            },
+            {
+                "accountId": "6347537026",
+                "containerId": "248122299",
+                "tagId": "30",
+                "name": "GA4 - Landing WhatsApp Click",
+                "type": "gaawe",
+                "parameter": [
+                    { "type": "TEMPLATE", "key": "eventName", "value": "repitela_landing_whatsapp_click" },
+                    { "type": "TEMPLATE", "key": "measurementIdOverride", "value": "G-JFQN47GREE" },
+                    { "type": "LIST", "key": "eventParameters", "list": [
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "location" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - location}}" }
+                        ]}
+                    ]}
+                ],
+                "fingerprint": "1775082500001",
+                "firingTriggerId": ["29"],
+                "tagFiringOption": "ONCE_PER_EVENT",
+                "monitoringMetadata": { "type": "MAP" },
+                "consentSettings": { "consentStatus": "NOT_SET" }
+            },
+            {
+                "accountId": "6347537026",
+                "containerId": "248122299",
+                "tagId": "31",
+                "name": "GA4 - Landing Demo Opened",
+                "type": "gaawe",
+                "parameter": [
+                    { "type": "TEMPLATE", "key": "eventName", "value": "repitela_landing_demo_opened" },
+                    { "type": "TEMPLATE", "key": "measurementIdOverride", "value": "G-JFQN47GREE" },
+                    { "type": "LIST", "key": "eventParameters", "list": [
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "location" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - location}}" }
+                        ]}
+                    ]}
+                ],
+                "fingerprint": "1775082500002",
+                "firingTriggerId": ["30"],
+                "tagFiringOption": "ONCE_PER_EVENT",
+                "monitoringMetadata": { "type": "MAP" },
+                "consentSettings": { "consentStatus": "NOT_SET" }
+            },
+            {
+                "accountId": "6347537026",
+                "containerId": "248122299",
+                "tagId": "32",
+                "name": "GA4 - Landing Lead Submitted",
+                "type": "gaawe",
+                "parameter": [
+                    { "type": "TEMPLATE", "key": "eventName", "value": "repitela_landing_lead_submitted" },
+                    { "type": "TEMPLATE", "key": "measurementIdOverride", "value": "G-JFQN47GREE" },
+                    { "type": "LIST", "key": "eventParameters", "list": [
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "location" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - location}}" }
+                        ]},
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "ciudad" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - ciudad}}" }
+                        ]}
+                    ]}
+                ],
+                "fingerprint": "1775082500003",
+                "firingTriggerId": ["31"],
+                "tagFiringOption": "ONCE_PER_EVENT",
+                "monitoringMetadata": { "type": "MAP" },
+                "consentSettings": { "consentStatus": "NOT_SET" }
             }
         ],
         "trigger": [
@@ -531,7 +601,10 @@
             { "accountId": "6347537026", "containerId": "248122299", "triggerId": "25", "name": "CE - Fallback Activated", "type": "CUSTOM_EVENT", "customEventFilter": [{ "type": "EQUALS", "parameter": [{ "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" }, { "type": "TEMPLATE", "key": "arg1", "value": "repitela_fallback_activated" }] }], "fingerprint": "1775082300111" },
             { "accountId": "6347537026", "containerId": "248122299", "triggerId": "26", "name": "CE - Admin Action", "type": "CUSTOM_EVENT", "customEventFilter": [{ "type": "EQUALS", "parameter": [{ "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" }, { "type": "TEMPLATE", "key": "arg1", "value": "repitela_admin_action" }] }], "fingerprint": "1775082300112" },
             { "accountId": "6347537026", "containerId": "248122299", "triggerId": "27", "name": "CE - Search Result Selected", "type": "CUSTOM_EVENT", "customEventFilter": [{ "type": "EQUALS", "parameter": [{ "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" }, { "type": "TEMPLATE", "key": "arg1", "value": "repitela_search_result_selected" }] }], "fingerprint": "1775082400101" },
-            { "accountId": "6347537026", "containerId": "248122299", "triggerId": "28", "name": "CE - Session Expired", "type": "CUSTOM_EVENT", "customEventFilter": [{ "type": "EQUALS", "parameter": [{ "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" }, { "type": "TEMPLATE", "key": "arg1", "value": "repitela_session_expired" }] }], "fingerprint": "1775082400102" }
+            { "accountId": "6347537026", "containerId": "248122299", "triggerId": "28", "name": "CE - Session Expired", "type": "CUSTOM_EVENT", "customEventFilter": [{ "type": "EQUALS", "parameter": [{ "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" }, { "type": "TEMPLATE", "key": "arg1", "value": "repitela_session_expired" }] }], "fingerprint": "1775082400102" },
+            { "accountId": "6347537026", "containerId": "248122299", "triggerId": "29", "name": "CE - Landing WhatsApp Click", "type": "CUSTOM_EVENT", "customEventFilter": [{ "type": "EQUALS", "parameter": [{ "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" }, { "type": "TEMPLATE", "key": "arg1", "value": "repitela_landing_whatsapp_click" }] }], "fingerprint": "1775082500101" },
+            { "accountId": "6347537026", "containerId": "248122299", "triggerId": "30", "name": "CE - Landing Demo Opened", "type": "CUSTOM_EVENT", "customEventFilter": [{ "type": "EQUALS", "parameter": [{ "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" }, { "type": "TEMPLATE", "key": "arg1", "value": "repitela_landing_demo_opened" }] }], "fingerprint": "1775082500102" },
+            { "accountId": "6347537026", "containerId": "248122299", "triggerId": "31", "name": "CE - Landing Lead Submitted", "type": "CUSTOM_EVENT", "customEventFilter": [{ "type": "EQUALS", "parameter": [{ "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" }, { "type": "TEMPLATE", "key": "arg1", "value": "repitela_landing_lead_submitted" }] }], "fingerprint": "1775082500103" }
         ],
         "variable": [
             { "accountId": "6347537026", "containerId": "248122299", "variableId": "5", "name": "dlv - venue_slug", "type": "v", "parameter": [{ "type": "INTEGER", "key": "dataLayerVersion", "value": "2" }, { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" }, { "type": "TEMPLATE", "key": "name", "value": "venue_slug" }], "fingerprint": "1775081677779", "formatValue": {} },
@@ -555,7 +628,9 @@
             { "accountId": "6347537026", "containerId": "248122299", "variableId": "23", "name": "dlv - time_to_select_sec", "type": "v", "parameter": [{ "type": "INTEGER", "key": "dataLayerVersion", "value": "2" }, { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" }, { "type": "TEMPLATE", "key": "name", "value": "time_to_select_sec" }], "fingerprint": "1775082400207", "formatValue": {} },
             { "accountId": "6347537026", "containerId": "248122299", "variableId": "24", "name": "dlv - submission_source", "type": "v", "parameter": [{ "type": "INTEGER", "key": "dataLayerVersion", "value": "2" }, { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" }, { "type": "TEMPLATE", "key": "name", "value": "submission_source" }], "fingerprint": "1775082400208", "formatValue": {} },
             { "accountId": "6347537026", "containerId": "248122299", "variableId": "25", "name": "dlv - time_to_confirm_sec", "type": "v", "parameter": [{ "type": "INTEGER", "key": "dataLayerVersion", "value": "2" }, { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" }, { "type": "TEMPLATE", "key": "name", "value": "time_to_confirm_sec" }], "fingerprint": "1775082400209", "formatValue": {} },
-            { "accountId": "6347537026", "containerId": "248122299", "variableId": "26", "name": "dlv - expiry_reason", "type": "v", "parameter": [{ "type": "INTEGER", "key": "dataLayerVersion", "value": "2" }, { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" }, { "type": "TEMPLATE", "key": "name", "value": "expiry_reason" }], "fingerprint": "1775082400210", "formatValue": {} }
+            { "accountId": "6347537026", "containerId": "248122299", "variableId": "26", "name": "dlv - expiry_reason", "type": "v", "parameter": [{ "type": "INTEGER", "key": "dataLayerVersion", "value": "2" }, { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" }, { "type": "TEMPLATE", "key": "name", "value": "expiry_reason" }], "fingerprint": "1775082400210", "formatValue": {} },
+            { "accountId": "6347537026", "containerId": "248122299", "variableId": "27", "name": "dlv - location", "type": "v", "parameter": [{ "type": "INTEGER", "key": "dataLayerVersion", "value": "2" }, { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" }, { "type": "TEMPLATE", "key": "name", "value": "location" }], "fingerprint": "1775082500201", "formatValue": {} },
+            { "accountId": "6347537026", "containerId": "248122299", "variableId": "28", "name": "dlv - ciudad", "type": "v", "parameter": [{ "type": "INTEGER", "key": "dataLayerVersion", "value": "2" }, { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" }, { "type": "TEMPLATE", "key": "name", "value": "ciudad" }], "fingerprint": "1775082500202", "formatValue": {} }
         ],
         "builtInVariable": [
             { "accountId": "6347537026", "containerId": "248122299", "type": "PAGE_URL", "name": "Page URL" },

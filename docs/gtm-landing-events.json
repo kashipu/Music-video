@@ -1,0 +1,125 @@
+{
+    "exportFormatVersion": 2,
+    "exportTime": "2026-08-14 12:00:00",
+    "containerVersion": {
+        "path": "accounts/6347537026/containers/248122299/versions/0",
+        "accountId": "6347537026",
+        "containerId": "248122299",
+        "containerVersionId": "0",
+        "name": "Landing - eventos de CTA",
+        "description": "Solo los eventos de la landing (repitela.com). Importar con Combinar > Cambiar nombre de conflictos.",
+        "container": {
+            "path": "accounts/6347537026/containers/248122299",
+            "accountId": "6347537026",
+            "containerId": "248122299",
+            "name": "repitela.com",
+            "publicId": "GTM-PPVKNTZB",
+            "usageContext": ["WEB"],
+            "fingerprint": "1775076134502",
+            "tagManagerUrl": "https://tagmanager.google.com/#/container/accounts/6347537026/containers/248122299/workspaces?apiLink=container",
+            "features": {
+                "supportUserPermissions": true,
+                "supportEnvironments": true,
+                "supportWorkspaces": true,
+                "supportGtagConfigs": false,
+                "supportBuiltInVariables": true,
+                "supportClients": false,
+                "supportFolders": true,
+                "supportTags": true,
+                "supportTemplates": true,
+                "supportTriggers": true,
+                "supportVariables": true,
+                "supportVersions": true,
+                "supportZones": true,
+                "supportTransformations": false
+            },
+            "tagIds": ["GTM-PPVKNTZB"]
+        },
+        "tag": [
+            {
+                "accountId": "6347537026",
+                "containerId": "248122299",
+                "tagId": "30",
+                "name": "GA4 - Landing WhatsApp Click",
+                "type": "gaawe",
+                "parameter": [
+                    { "type": "TEMPLATE", "key": "eventName", "value": "repitela_landing_whatsapp_click" },
+                    { "type": "TEMPLATE", "key": "measurementIdOverride", "value": "G-JFQN47GREE" },
+                    { "type": "LIST", "key": "eventParameters", "list": [
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "location" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - location}}" }
+                        ]}
+                    ]}
+                ],
+                "fingerprint": "1775082500001",
+                "firingTriggerId": ["29"],
+                "tagFiringOption": "ONCE_PER_EVENT",
+                "monitoringMetadata": { "type": "MAP" },
+                "consentSettings": { "consentStatus": "NOT_SET" }
+            },
+            {
+                "accountId": "6347537026",
+                "containerId": "248122299",
+                "tagId": "31",
+                "name": "GA4 - Landing Demo Opened",
+                "type": "gaawe",
+                "parameter": [
+                    { "type": "TEMPLATE", "key": "eventName", "value": "repitela_landing_demo_opened" },
+                    { "type": "TEMPLATE", "key": "measurementIdOverride", "value": "G-JFQN47GREE" },
+                    { "type": "LIST", "key": "eventParameters", "list": [
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "location" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - location}}" }
+                        ]}
+                    ]}
+                ],
+                "fingerprint": "1775082500002",
+                "firingTriggerId": ["30"],
+                "tagFiringOption": "ONCE_PER_EVENT",
+                "monitoringMetadata": { "type": "MAP" },
+                "consentSettings": { "consentStatus": "NOT_SET" }
+            },
+            {
+                "accountId": "6347537026",
+                "containerId": "248122299",
+                "tagId": "32",
+                "name": "GA4 - Landing Lead Submitted",
+                "type": "gaawe",
+                "parameter": [
+                    { "type": "TEMPLATE", "key": "eventName", "value": "repitela_landing_lead_submitted" },
+                    { "type": "TEMPLATE", "key": "measurementIdOverride", "value": "G-JFQN47GREE" },
+                    { "type": "LIST", "key": "eventParameters", "list": [
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "location" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - location}}" }
+                        ]},
+                        { "type": "MAP", "map": [
+                            { "type": "TEMPLATE", "key": "name", "value": "ciudad" },
+                            { "type": "TEMPLATE", "key": "value", "value": "{{dlv - ciudad}}" }
+                        ]}
+                    ]}
+                ],
+                "fingerprint": "1775082500003",
+                "firingTriggerId": ["31"],
+                "tagFiringOption": "ONCE_PER_EVENT",
+                "monitoringMetadata": { "type": "MAP" },
+                "consentSettings": { "consentStatus": "NOT_SET" }
+            }
+        ],
+        "trigger": [
+            { "accountId": "6347537026", "containerId": "248122299", "triggerId": "29", "name": "CE - Landing WhatsApp Click", "type": "CUSTOM_EVENT", "customEventFilter": [{ "type": "EQUALS", "parameter": [{ "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" }, { "type": "TEMPLATE", "key": "arg1", "value": "repitela_landing_whatsapp_click" }] }], "fingerprint": "1775082500101" },
+            { "accountId": "6347537026", "containerId": "248122299", "triggerId": "30", "name": "CE - Landing Demo Opened", "type": "CUSTOM_EVENT", "customEventFilter": [{ "type": "EQUALS", "parameter": [{ "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" }, { "type": "TEMPLATE", "key": "arg1", "value": "repitela_landing_demo_opened" }] }], "fingerprint": "1775082500102" },
+            { "accountId": "6347537026", "containerId": "248122299", "triggerId": "31", "name": "CE - Landing Lead Submitted", "type": "CUSTOM_EVENT", "customEventFilter": [{ "type": "EQUALS", "parameter": [{ "type": "TEMPLATE", "key": "arg0", "value": "{{_event}}" }, { "type": "TEMPLATE", "key": "arg1", "value": "repitela_landing_lead_submitted" }] }], "fingerprint": "1775082500103" }
+        ],
+        "variable": [
+            { "accountId": "6347537026", "containerId": "248122299", "variableId": "27", "name": "dlv - location", "type": "v", "parameter": [{ "type": "INTEGER", "key": "dataLayerVersion", "value": "2" }, { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" }, { "type": "TEMPLATE", "key": "name", "value": "location" }], "fingerprint": "1775082500201", "formatValue": {} },
+            { "accountId": "6347537026", "containerId": "248122299", "variableId": "28", "name": "dlv - ciudad", "type": "v", "parameter": [{ "type": "INTEGER", "key": "dataLayerVersion", "value": "2" }, { "type": "BOOLEAN", "key": "setDefaultValue", "value": "false" }, { "type": "TEMPLATE", "key": "name", "value": "ciudad" }], "fingerprint": "1775082500202", "formatValue": {} }
+        ],
+        "builtInVariable": [
+            { "accountId": "6347537026", "containerId": "248122299", "type": "EVENT", "name": "Event" }
+        ],
+        "fingerprint": "1775082600000",
+        "tagManagerUrl": "https://tagmanager.google.com/#/versions/accounts/6347537026/containers/248122299/versions/0?apiLink=version"
+    }
+}
