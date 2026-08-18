@@ -1,6 +1,6 @@
-import { Music, MessageCircle, Instagram } from "lucide-react";
-import SoundEqualizer from "./SoundEqualizer";
+import { MessageCircle, Instagram } from "lucide-react";
 import { track } from "@/lib/analytics";
+import logo from "@/assets/logo-color-negativo.svg";
 
 const Footer = () => {
   return (
@@ -8,15 +8,9 @@ const Footer = () => {
       <div className="container mx-auto px-4 sm:px-6">
         <div className="flex flex-col lg:flex-row items-center justify-between gap-8 pb-10 border-b border-white/10">
           {/* Logo */}
-          <div className="flex items-center gap-3 text-center sm:text-left">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-primary to-orange-500 flex items-center justify-center text-white shrink-0">
-              <Music className="h-5 w-5" />
-            </div>
+          <div className="text-center sm:text-left">
             <div>
-              <div className="flex items-center gap-2">
-                <span className="font-black text-xl text-white tracking-tight font-display">Repítela</span>
-                <SoundEqualizer size="sm" color="bg-primary" />
-              </div>
+              <img src={logo} alt="Repítela" className="h-8 w-auto mx-auto sm:mx-0" />
               <span className="text-xs text-zinc-300 font-medium tracking-wide block">
                 Rockola digital con QR para bares
               </span>

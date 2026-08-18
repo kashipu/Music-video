@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Menu, X, Music, Sparkles } from "lucide-react";
-import SoundEqualizer from "./SoundEqualizer";
+import { Menu, X, Sparkles } from "lucide-react";
 import LeadDialog from "./LeadDialog";
+import logo from "@/assets/logo-color-negativo.svg";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -31,17 +31,11 @@ const Navbar = () => {
           : "bg-transparent border-b border-transparent"
       }`}
     >
-      <div className="container mx-auto px-4 sm:px-6 h-16 sm:h-18 flex items-center justify-between py-2 sm:py-3">
+      <div className="container mx-auto px-4 sm:px-6 h-16 sm:h-18 flex items-center justify-between gap-3 py-2 sm:py-3">
         {/* Brand Logo */}
-        <a href="#" className="flex items-center gap-2.5 group shrink-0">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-primary to-orange-500 flex items-center justify-center shadow-glow-primary group-hover:scale-105 transition-transform">
-            <Music className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
-          </div>
+        <a href="#" className="group shrink-0">
           <div className="flex flex-col">
-            <div className="flex items-center gap-1.5">
-              <span className="text-lg sm:text-xl font-extrabold text-white tracking-tight">Repítela</span>
-              <SoundEqualizer size="sm" color="bg-primary" />
-            </div>
+            <img src={logo} alt="Repítela" className="h-7 md:h-5 lg:h-8 w-auto transition-transform group-hover:scale-[1.02]" />
             <span className="text-xs text-zinc-300 font-medium tracking-wide hidden xs:inline">
               Rockola digital con QR
             </span>
@@ -49,7 +43,7 @@ const Navbar = () => {
         </a>
 
         {/* Desktop Nav Links */}
-        <nav aria-label="Navegación principal" className="hidden md:flex items-center gap-6 lg:gap-8">
+        <nav aria-label="Navegación principal" className="hidden md:flex items-center gap-4 lg:gap-8">
           {links.map((link) => (
             <a
               key={link.href}
