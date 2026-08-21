@@ -58,6 +58,6 @@ interface Props {
 }
 
 const { name, class: className = "w-5 h-5" } = Astro.props;
-const svg = icons[name].replace("<svg", `<svg class="${className}"`);
+const svg = icons[name].replace("<svg", `<svg class="${className}" aria-hidden="true" focusable="false"`);
 ---
 <Fragment set:html={svg} />

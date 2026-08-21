@@ -9,7 +9,7 @@ const particles = Array.from({ length: 20 }, (_, i) => ({
 }));
 ---
 
-<div class="absolute inset-0 overflow-hidden pointer-events-none">
+<div class="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
   {particles.map((p) => (
     <div
       class="absolute rounded-full"

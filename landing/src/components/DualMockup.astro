@@ -14,9 +14,13 @@ import SoundEqualizer from "@/components/SoundEqualizer.astro";
         <div class="relative aspect-video w-full rounded-xl sm:rounded-2xl overflow-hidden bg-black border border-white/15 shadow-2xl select-none">
           <img
             src="/karol-g-provenza.jpg"
-            alt="Karol G - PROVENZA Video Oficial"
+            alt="Karol G - PROVENZA Video Oficial reproduciéndose en la pantalla Kiosk de Repítela"
+            width="640"
+            height="360"
             class="absolute inset-0 w-full h-full object-cover object-center"
             loading="eager"
+            fetchpriority="high"
+            decoding="async"
           />
           <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-black/60 pointer-events-none"></div>
 
@@ -79,7 +83,7 @@ import SoundEqualizer from "@/components/SoundEqualizer.astro";
 
           <div class="p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-500/50 flex items-center gap-3 shadow-sm">
             <div class="w-12 h-10 rounded-lg overflow-hidden shrink-0 bg-black relative">
-              <img src="/karol-g-provenza.jpg" alt="Karol G - PROVENZA" class="w-full h-full object-cover" />
+              <img src="/karol-g-provenza.jpg" alt="Karol G - PROVENZA" width="48" height="40" loading="lazy" decoding="async" class="w-full h-full object-cover" />
               <div class="absolute inset-0 bg-black/30 flex items-center justify-center">
                 <SoundEqualizer size="sm" color="bg-emerald-400" />
               </div>
