@@ -316,7 +316,7 @@ migración de infraestructura para empezar a cobrar.
 - [x] **P1.3** `bcrypt` → `asyncio.to_thread` en login de admin/superadmin y creación de admins
 - [x] **P1.4** (parcial) Migraciones atómicas: cada archivo corre en `BEGIN…COMMIT` con `ROLLBACK` si falla — una migración a medias ya no deja la DB corrupta. Pendiente: transacciones explícitas en secuencias de app (venue+admin, canción+submission_log); los locks por venue ya las serializan, el riesgo residual es un crash a mitad.
 - [x] **P1.5** (parcial) Caché TTL de 5 min en la búsqueda (in-memory, por proceso) — elimina el scraping repetido y casi todo el valor como proxy. Pendiente: exigir auth (requiere aceptar token de usuario y de admin en el endpoint).
-- [x] **P1.6** nginx `worker_connections` 1024→8192 en `frontend/Dockerfile` (con `grep` que revienta el build si el patrón no matchea). Validación con carga real pendiente (ver CAPACITY.md).
+- [x] **P1.6** nginx `worker_connections` 1024→8192 en `frontend/Dockerfile` (con `grep` que revienta el build si el patrón no matchea). **Medido con A/B** emulando el server de 2 vCPU: config vieja 958/1200 usuarios (242 fallos), config nueva 1500/1500 sin fallos. Detalle en [CAPACITY.md](CAPACITY.md#la-medicion-del-2026-08-21).
 - [x] **BH-30** Thumbnails rotos: `@error` → placeholder SVG inline en los 8 `<img>` de thumbnails
 
 **Pendiente:**

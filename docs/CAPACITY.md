@@ -4,9 +4,10 @@ Medido el 2026-08-12. Escenario objetivo: **15 bares x 100 personas = 1500 usuar
 concurrentes**.
 
 Conclusion corta: el backend aguanta ese escenario con muchisimo margen. El primer
-techo real era `worker_connections` de nginx, **resuelto el 2026-08-21**
-(1024 -> 8192 en `frontend/Dockerfile`); falta validarlo con carga real (ver
-[Techo 1](#techo-1-worker_connections-de-nginx-resuelto-validacion-pendiente)).
+techo real era `worker_connections` de nginx, **resuelto y medido el 2026-08-21**
+(1024 -> 8192 en `frontend/Dockerfile`): con la config vieja solo entraban
+958 de 1200 usuarios; con la nueva entran los 1500 del escenario objetivo (ver
+[Techo 1](#techo-1-worker_connections-de-nginx-resuelto-y-medido)).
 
 ---
 
@@ -56,12 +57,12 @@ backend en 354 MB con 1500 WS no es un problema de memoria.
 
 ---
 
-## Techo 1: `worker_connections` de nginx (RESUELTO, validacion pendiente)
+## Techo 1: `worker_connections` de nginx (RESUELTO Y MEDIDO)
 
-> **2026-08-21**: aplicado el fix candidato en `frontend/Dockerfile`
-> (`worker_connections 1024 -> 8192`, con `grep` que rompe el build si el patron
-> no matchea). Queda pendiente la validacion con `scripts/load_test.py` contra el
-> contenedor de frontend descrita abajo.
+> **2026-08-21**: aplicado en `frontend/Dockerfile`
+> (`worker_connections 1024 -> 8192`, con un `grep` que rompe el build si el
+> patron deja de matchear). **Medido con A/B**, ya no es un calculo: ver
+> [La medicion del 2026-08-21](#la-medicion-del-2026-08-21) mas abajo.
 
 El unico limite que se choca **antes** de llegar a 15 bares llenos.
 
@@ -85,10 +86,26 @@ Fix candidato, en `frontend/Dockerfile`:
 RUN sed -i 's/worker_connections  1024/worker_connections  8192/' /etc/nginx/nginx.conf
 ```
 
-Como validarlo: correr `scripts/load_test.py` **contra el contenedor de frontend**
-(no contra el backend directo, que es lo que se midio arriba) con 1500 usuarios, y
-verificar que no haya fallos al establecer WS. La medicion de este documento salta
-nginx, asi que este techo esta calculado, no medido.
+### La medicion del 2026-08-21
+
+Prueba A/B de solo-WebSockets contra el contenedor de frontend (el resto de este
+documento mide el backend directo, saltando nginx). Ambas imagenes se forzaron a
+`worker_processes 2` para emular el server de produccion de 2 vCPU: el VM de
+Docker local tiene 10 CPUs y con `auto` el techo viejo ni se alcanza, que es
+precisamente por que este limite no se habia visto en pruebas locales.
+
+| Config | worker_processes x connections | 1200 usuarios | 1500 usuarios |
+|---|---|---|---|
+| Vieja (stock) | 2 x 1024 = 2048 | **958 de 1200** (242 fallos) | no probado |
+| Nueva | 2 x 8192 = 16384 | 1200 de 1200 | **1500 de 1500** |
+
+Los 958 confirman el calculo original (~1000 usuarios efectivos: cada WS proxeado
+consume 2 conexiones de nginx). El escenario objetivo completo entra sin fallos
+con la config nueva.
+
+Falta aun: la prueba con `scripts/load_test.py` (que ademas del WS genera el
+trafico HTTP de polling) contra el contenedor de frontend, para medir latencias
+end-to-end a traves de nginx y no solo el establecimiento de conexiones.
 
 ## Techos siguientes, en orden de cuando duelen
 
