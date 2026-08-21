@@ -213,6 +213,7 @@ def p0_3():
     c = db()
     c.execute("DELETE FROM admins WHERE username = 'p0_3_admin'")
     c.execute("DELETE FROM venues WHERE slug = 'p0-3-throwaway'")
+    c.execute("DELETE FROM blocked_videos WHERE youtube_id = 'p0v3blocked'")
     c.commit()
     c.close()
 

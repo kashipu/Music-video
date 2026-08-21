@@ -205,12 +205,19 @@ async def update_venue(venue_id: int, req: UpdateVenueRequest,
 async def delete_venue(venue_id: int, admin: dict = Depends(get_current_super_admin)):
     db = await get_db()
 
-    # Delete all related data
+    # Delete all related data. All of these have a NOT-NULL (or nullable, for
+    # blocked_videos) FK to venues without ON DELETE CASCADE, so with
+    # foreign_keys=ON the final DELETE FROM venues 500s unless every child
+    # table is cleared first.
     await db.execute("DELETE FROM submission_log WHERE venue_id = ?", (venue_id,))
     await db.execute("DELETE FROM play_history WHERE venue_id = ?", (venue_id,))
     await db.execute("DELETE FROM queue_songs WHERE venue_id = ?", (venue_id,))
     await db.execute("DELETE FROM user_sessions WHERE venue_id = ?", (venue_id,))
     await db.execute("DELETE FROM admins WHERE venue_id = ?", (venue_id,))
+    await db.execute("DELETE FROM fallback_songs WHERE venue_id = ?", (venue_id,))
+    await db.execute("DELETE FROM venue_daily_pins WHERE venue_id = ?", (venue_id,))
+    await db.execute("DELETE FROM analytics_events WHERE venue_id = ?", (venue_id,))
+    await db.execute("DELETE FROM blocked_videos WHERE venue_id = ?", (venue_id,))
     await db.execute("DELETE FROM venues WHERE id = ?", (venue_id,))
     await db.commit()
 
