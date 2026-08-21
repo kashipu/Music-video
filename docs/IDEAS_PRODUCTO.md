@@ -3,7 +3,7 @@
 > Backlog de ideas evaluadas sobre el código actual (2026-08-21).
 > Complementa `docs/PLAN_MEJORAS_ESCALA.md` (fixes + suscripciones + escalada).
 >
-> **Veredicto global: las 10 ideas son posibles.** Una ya está implementada (#5),
+> **Veredicto global: las 11 ideas son posibles.** Una ya está implementada (#5),
 > el chatbot (#9) se diseña con la API oficial de WhatsApp (Baileys descartado por
 > riesgo de baneo), y una necesita abogado además de código (#8). Ninguna
 > requiere cambiar de stack.
@@ -19,9 +19,10 @@ Fixes P0/P1 (PLAN_MEJORAS_ESCALA.md)
  ├── #1 Journey + alertas + salud     (necesita la tarea de fondo P1.2)
  ├── #4 Algoritmo de playlist         (necesita el fix P0.1: hoy las búsquedas NO se guardan)
  └── #2 Registro autogestionado + Wompi  ← LA PIEZA CENTRAL
-      ├── #3 Personalización y publicidad en pantalla (add-on cobrable)
+      ├── #3 Personalización, publicidad y redes sociales (add-on cobrable)
       ├── #6 Cupones en el teléfono (add-on cobrable)
-      └── #10 Repítela para fiestas (nuevo plan B2C)
+      ├── #10 Repítela para fiestas (nuevo plan B2C)
+      └── #11 Carta digital (add-on cobrable; v1-link no depende de nada)
 #5 ya existe · #7 independiente · #8 independiente (legal) · #9 independiente (canal de ventas)
 ```
 
@@ -118,6 +119,19 @@ logo, tema por venue, mostrar/ocultar marca. Falta empaquetarlo y cobrarlo.
 - **Publicidad de terceros** (marcas): mismo motor de `screen_promos` con
   `advertiser` distinto del venue y reportes de impresiones (el kiosko
   reporta qué promo mostró). Vender por red de pantallas cuando haya volumen.
+- **Redes sociales del bar en la vista del usuario** (parte de la
+  personalización): bloque "Síguenos" en la pantalla del cliente con
+  Instagram / TikTok / Facebook / WhatsApp del bar. Se guarda en
+  `venues.config.social` (mismo patrón que logo y tema) y se edita desde el
+  panel del bar.
+  - **Atribución conservada para Repítela, en dos sentidos**: (a) la marca
+    Repítela permanece visible en la vista aunque el bar personalice todo lo
+    demás, y (b) cada tap se registra como evento `social_click` en
+    `analytics_events` y los links salen con UTM
+    (`utm_source=repitela&utm_medium=app&utm_campaign=<slug>`), de modo que
+    puedes **demostrarle al bar cuántos seguidores y visitas le llevó
+    Repítela** — es el argumento de venta del add-on y aparece en el reporte
+    del bar y en el centro de control (#1).
 - **Cobro**: add-on mensual sobre la suscripción (#2) o incluido en plan Pro.
 
 ---
@@ -289,16 +303,43 @@ el 100% del producto existente con otro empaque.**
 
 ---
 
+## #11 — Carta digital del bar (servicio adicional)
+
+**Veredicto: POSIBLE — esfuerzo S en v1, M en v2. Add-on cobrable natural
+(depende de #2 para venderlo).**
+
+**Diseño propuesto — dos niveles:**
+- **v1 — Link a la carta (S, días)**: campo `menu_url` en `venues.config`. En
+  la vista del usuario aparece el botón "Ver la carta" junto al bloque de
+  redes; abre la carta que el bar ya tenga (PDF, link de terceros, etc.).
+  Cada tap se registra como evento `menu_click` — misma lógica de atribución
+  que las redes (#3): puedes mostrar cuántas veces se consultó la carta
+  desde Repítela. Incluible en cualquier plan como gancho.
+- **v2 — Carta digital alojada por Repítela (M, cobrable)**: módulo propio:
+  tablas `menu_categories` y `menu_items` (`venue_id`, nombre, descripción,
+  precio, foto, disponible, orden), página pública `/{slug}/carta` con el
+  tema del bar, editable desde el panel del admin, con su propio QR. El bar
+  deja de pagar otra herramienta de carta digital y lo tiene todo en un solo
+  lugar y un solo QR.
+- **Sinergias**: los cupones (#6) pueden enlazar productos de la carta
+  ("2x1 en este coctel"); las promos de pantalla (#3) también; los taps a la
+  carta alimentan el centro de control (#1). A futuro, "lo más visto de la
+  carta" es un dato que ningún bar tiene hoy.
+- Fuera de alcance (por ahora): pedidos y pagos desde la carta — eso es un
+  producto entero (comandas, cocina); la carta es solo consulta.
+
+---
+
 ## Priorización sugerida
 
 | Orden | Idea | Por qué |
 |---|---|---|
 | 1 | **#2** Registro + trials + Wompi | Desbloquea todo lo cobrable; es el negocio |
 | 2 | **#5** (ajustes) + **#1** salud/alertas | Baratos, mejoran operación diaria ya |
-| 3 | **#3** promos en pantalla + **#7** votos | Valor visible para bar y usuarios, esfuerzo M |
+| 3 | **#3** promos + redes sociales + **#11 v1** link a carta + **#7** votos | Valor visible para bar y usuarios; redes y link-carta son días de trabajo |
 | 4 | **#8** legal | Antes de crecer en usuarios y de campañas de marketing |
 | 5 | **#9** chatbot WhatsApp (Cloud API) | Motor de adquisición para vender #2 |
-| 6 | **#6** cupones + **#4** algoritmo playlist | Add-ons de retención/upsell |
+| 6 | **#6** cupones + **#4** algoritmo playlist + **#11 v2** carta alojada | Add-ons de retención/upsell |
 | 7 | **#10** fiestas | Nueva línea B2C sobre lo ya construido |
 
 > Recordatorio transversal: los fixes P0/P1 y la tarea de fondo de
