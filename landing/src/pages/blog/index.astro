@@ -1,0 +1,124 @@
+---
+import Base from "@/layouts/Base.astro";
+import Navbar from "@/components/Navbar.astro";
+import Footer from "@/components/Footer.astro";
+import FloatingWhatsApp from "@/components/FloatingWhatsApp.astro";
+import Icon from "@/components/Icon.astro";
+import { getCollection } from "astro:content";
+import { Image } from "astro:assets";
+import { readingTime } from "@/lib/reading-time";
+
+const posts = (await getCollection("blog", ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf()
+);
+
+const [featured, ...rest] = posts;
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Blog",
+  "@id": "https://repitela.com/blog/#blog",
+  name: "Blog de Repítela",
+  url: "https://repitela.com/blog/",
+  publisher: { "@type": "Organization", name: "Repítela", url: "https://repitela.com/" },
+  blogPost: posts.map((post) => ({
+    "@type": "BlogPosting",
+    headline: post.data.title,
+    url: `https://repitela.com/blog/${post.id}/`,
+    datePublished: post.data.pubDate.toISOString(),
+  })),
+};
+---
+
+<Base
+  title="Blog | Repítela"
+  description="Artículos sobre música, tecnología y gestión para bares y gastrobares en Colombia."
+>
+  <script slot="head" type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+
+  <Navbar />
+
+  <div class="min-h-screen">
+    <section class="relative pt-28 sm:pt-36 pb-12 sm:pb-16 overflow-hidden">
+      <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[400px] sm:w-[600px] h-[250px] sm:h-[350px] rounded-full bg-primary/15 blur-[130px] sm:blur-[160px] pointer-events-none"></div>
+
+      <div class="container mx-auto px-4 sm:px-6 max-w-5xl relative z-10 text-center">
+        <div class="inline-flex items-center gap-2 glass-card px-4 py-1.5 rounded-full text-xs font-bold text-orange-400 mb-5 border border-primary/30">
+          <Icon name="sparkles" class="w-3.5 h-3.5 text-amber-400" />
+          Blog de Repítela
+        </div>
+        <h1 class="text-4xl sm:text-5xl font-extrabold text-white mb-4 leading-tight">
+          Ideas para hacer sonar <span class="text-gradient">tu bar</span>
+        </h1>
+        <p class="text-zinc-300 text-base sm:text-lg max-w-2xl mx-auto">
+          Música, tecnología y gestión para bares y gastrobares en Colombia.
+        </p>
+      </div>
+    </section>
+
+    <main class="pb-20 container mx-auto px-4 sm:px-6 max-w-5xl">
+    {featured && (
+      <a
+        href={`/blog/${featured.id}/`}
+        class="group grid grid-cols-1 md:grid-cols-2 gap-0 glass-card rounded-2xl overflow-hidden border border-white/15 hover:border-primary/50 transition-all duration-300 mb-10"
+      >
+        <div class="aspect-[16/9] md:aspect-auto md:h-full overflow-hidden">
+          <Image
+            src={featured.data.heroImage}
+            alt={featured.data.heroImageAlt}
+            widths={[480, 960]}
+            sizes="(min-width: 768px) 50vw, 100vw"
+            loading="eager"
+            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+        </div>
+        <div class="p-6 sm:p-8 flex flex-col justify-center">
+          <p class="text-xs text-zinc-400 mb-3">
+            {featured.data.pubDate.toLocaleDateString("es-CO", { year: "numeric", month: "long", day: "numeric" })}
+            <span aria-hidden="true"> · </span>
+            {readingTime(featured.body ?? "")} min de lectura
+          </p>
+          <h2 class="text-2xl sm:text-3xl font-extrabold text-white group-hover:text-orange-400 transition-colors mb-3">
+            {featured.data.title}
+          </h2>
+          <p class="text-zinc-300 leading-relaxed">{featured.data.description}</p>
+        </div>
+      </a>
+    )}
+
+    {rest.length > 0 && (
+      <ul class="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
+        {rest.map((post) => (
+          <li>
+            <a href={`/blog/${post.id}/`} class="group block glass-card rounded-2xl overflow-hidden border border-white/15 hover:border-primary/50 transition-all duration-300 hover:-translate-y-1">
+              <div class="aspect-[16/9] overflow-hidden">
+                <Image
+                  src={post.data.heroImage}
+                  alt={post.data.heroImageAlt}
+                  widths={[400, 800]}
+                  sizes="(min-width: 640px) 480px, 100vw"
+                  class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+              </div>
+              <div class="p-5 sm:p-6">
+                <p class="text-xs text-zinc-400 mb-2">
+                  {post.data.pubDate.toLocaleDateString("es-CO", { year: "numeric", month: "long", day: "numeric" })}
+                  <span aria-hidden="true"> · </span>
+                  {readingTime(post.body ?? "")} min de lectura
+                </p>
+                <h2 class="text-lg font-bold text-white group-hover:text-orange-400 transition-colors mb-2">
+                  {post.data.title}
+                </h2>
+                <p class="text-sm text-zinc-300 leading-relaxed">{post.data.description}</p>
+              </div>
+            </a>
+          </li>
+        ))}
+      </ul>
+    )}
+    </main>
+  </div>
+
+  <Footer />
+  <FloatingWhatsApp />
+</Base>
