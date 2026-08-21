@@ -552,20 +552,50 @@ volver a entrar desde donde sea, y el JWT dura 24 h.
 3. **QR por mesa (#17) + re-validación**: entrar exige un token de mesa
    real; combinado con el PIN, "guardarse el link" exige además estar viendo
    la pantalla hoy.
-4. **Token rotativo en el QR de pantalla (opcional, la capa fuerte)**: el
-   kiosko muestra un QR cuyo token rota cada 2-5 min (firmado con
-   `expires_at`). Escanear un QR viejo o guardado → inválido. Es la versión
-   automática del PIN, sin pedirle nada al usuario. Costo: generar QR en el
-   kiosko (ya renderiza QR — `show_qr` existe) + validar el token en el
-   registro.
+4. **Token rotativo en pantalla (opcional, la capa fuerte)** — diseño
+   detallado abajo: los QRs físicos siguen operando sin reimprimirse nunca.
 5. **Geolocalización — NO recomendada como control**: el GPS del navegador es
    negable (fricción, pide permiso) y falsificable; solo serviría como señal
    secundaria, nunca como barrera.
 
+**Diseño de la capa 4 — token rotativo, conviviendo con los QRs físicos:**
+
+La clave es separar los dos trabajos de un QR: **identidad** (qué mesa) y
+**presencia** (estás aquí ahora). Cada trabajo lo hace el medio adecuado:
+
+- **QR físico de mesa (#17) = identidad, estático, no caduca nunca.**
+  Codifica `/{slug}/usuario?t=<token_de_mesa>`. No se reimprime jamás
+  (solo se regenera esa mesa si el token se filtra).
+- **Pantalla del kiosko = presencia, rotativa.** Al escanear el QR de mesa,
+  el registro pide el código que se ve en el TV en ese momento (4-6 dígitos
+  grandes, y/o un QR en pantalla que lo lleva embebido para no teclear).
+  El que guardó el link en su casa conoce la mesa pero no ve el código de
+  esta ventana → no entra.
+
+**Implementación (estilo TOTP, sin estado en la DB):**
+- Secreto por venue. Código vigente = `HMAC(secreto, ventana_de_tiempo)`
+  truncado a 4-6 dígitos; con ventana de 5 min rota solo.
+- Validación stateless: se acepta el código de la ventana actual y la
+  anterior (tolerancia al que tecleaba cuando rotó).
+- El kiosko lo obtiene por endpoint o por su WebSocket ya abierto y lo
+  muestra (ya sabe renderizar QR — `show_qr` existe).
+- **El PIN diario actual es este mismo mecanismo con ventana de 24 h**: se
+  generaliza lo existente con rotación configurable por venue —
+  24 h (relajado) / 4 h (media jornada) / 5 min (estricto). Un solo sistema,
+  tres niveles.
+
+**Reglas de borde:**
+- El código se exige solo al **crear** sesión, nunca a mitad de una sesión
+  activa — la rotación no interrumpe a quien ya está adentro.
+- Mesa sin vista al TV o TV apagado: el mesero ve el código vigente en el
+  panel del admin y lo dicta; o el bar usa ventana de 24 h esa jornada.
+- Grupos: todos los que llegan en la misma ventana usan el mismo código.
+
 **Recomendación**: capas 1+2 se activan casi gratis (config + #16); capa 3
-llega con #17; capa 4 solo si algún bar reporta abuso real. Documentar en el
-centro de ayuda (#13) qué hacer si un bar sospecha intrusos (regenerar PIN,
-expulsar mesa).
+llega con #17; capa 4 solo si algún bar reporta abuso real — y cuando se
+haga, reemplaza al PIN diario en vez de convivir con él. Documentar en el
+centro de ayuda (#13) qué hacer si un bar sospecha intrusos (regenerar
+código, expulsar mesa).
 
 ---
 
