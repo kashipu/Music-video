@@ -3,7 +3,7 @@
 > Backlog de ideas evaluadas sobre el código actual (2026-08-21).
 > Complementa `docs/PLAN_MEJORAS_ESCALA.md` (fixes + suscripciones + escalada).
 >
-> **Veredicto global: las 11 ideas son posibles.** Una ya está implementada (#5),
+> **Veredicto global: las 12 ideas son posibles.** Una ya está implementada (#5),
 > el chatbot (#9) se diseña con la API oficial de WhatsApp (Baileys descartado por
 > riesgo de baneo), y una necesita abogado además de código (#8). Ninguna
 > requiere cambiar de stack.
@@ -23,7 +23,9 @@ Fixes P0/P1 (PLAN_MEJORAS_ESCALA.md)
       ├── #6 Cupones en el teléfono (add-on cobrable)
       ├── #10 Repítela para fiestas (nuevo plan B2C)
       └── #11 Carta digital (add-on cobrable; v1-link no depende de nada)
-#5 ya existe · #7 independiente · #8 independiente (legal) · #9 independiente (canal de ventas)
+#5 ya existe · #7 independiente · #8 independiente (legal)
+#9 chatbot ventas ──┐
+#2 registro/pagos ──┴── #12 HubSpot (CRM: recibe leads de #9 y estados de #2)
 ```
 
 ---
@@ -330,6 +332,44 @@ el 100% del producto existente con otro empaque.**
 
 ---
 
+## #12 — Integración con HubSpot (CRM comercial)
+
+**Veredicto: POSIBLE — esfuerzo S-M.** HubSpot se vuelve la columna vertebral
+comercial (leads, pipeline, marketing B2B), sin duplicar lo que el backend ya
+hace. Regla de oro: **HubSpot maneja bares y prospectos (B2B); los usuarios
+finales de los bares nunca se suben a HubSpot** — son datos de los bares y
+aplica la Ley 1581 (#8).
+
+**Puntos de integración:**
+- **Chatbot WhatsApp (#9) → HubSpot**: cada lead capturado se crea/actualiza
+  como Contact + Deal vía API (private app token) en un pipeline de ventas:
+  `Lead → Contactado → Demo → Trial → Pagando → Perdido`. La tabla `leads`
+  local queda como espejo mínimo (o se elimina y HubSpot es la fuente).
+- **Registro autogestionado (#2) → HubSpot**: al crearse un venue con trial
+  se crea Company + Deal en etapa `Trial`; los eventos de suscripción mueven
+  el deal automáticamente: pago aprobado (webhook Wompi) → `Pagando`,
+  suspensión → `Perdido/En riesgo`, reactivación → `Pagando`. El pipeline
+  refleja el estado real de la base instalada sin trabajo manual.
+- **Ciclo de facturación → propiedades del deal**: `paid_until`, plan, MRR
+  del bar como propiedades custom — reportes de ingresos y churn salen de
+  HubSpot sin construirlos.
+- **Marketing B2B**: secuencias y correos a prospectos y bares (recordatorios
+  comerciales, novedades, upsell de add-ons #3/#6/#11) desde HubSpot en vez
+  de construir un motor de campañas propio.
+- **Centro de control (#1)**: link directo a la ficha HubSpot de cada bar.
+  División clara: HubSpot = vista comercial (pipeline, ingresos, tratos);
+  centro de control = vista operativa (salud, actividad, alertas). No
+  duplicar métricas operativas en HubSpot.
+- **Técnica**: API REST de HubSpot con private app token desde el backend
+  (crear/actualizar contacts, companies, deals); llamadas asíncronas y
+  best-effort (un fallo de HubSpot jamás bloquea un registro o un pago) con
+  reintentos en la tarea de fondo (P1.2).
+- **Costo**: CRM gratis alcanza para empezar (contacts, companies, deals,
+  pipeline); Starter (~USD 15-20/mes por asiento) cuando se necesiten
+  secuencias automatizadas de correo.
+
+---
+
 ## Priorización sugerida
 
 | Orden | Idea | Por qué |
@@ -338,7 +378,7 @@ el 100% del producto existente con otro empaque.**
 | 2 | **#5** (ajustes) + **#1** salud/alertas | Baratos, mejoran operación diaria ya |
 | 3 | **#3** promos + redes sociales + **#11 v1** link a carta + **#7** votos | Valor visible para bar y usuarios; redes y link-carta son días de trabajo |
 | 4 | **#8** legal | Antes de crecer en usuarios y de campañas de marketing |
-| 5 | **#9** chatbot WhatsApp (Cloud API) | Motor de adquisición para vender #2 |
+| 5 | **#9** chatbot WhatsApp (Cloud API) + **#12** HubSpot | Motor de adquisición para vender #2; HubSpot ordena el pipeline desde el primer lead |
 | 6 | **#6** cupones + **#4** algoritmo playlist + **#11 v2** carta alojada | Add-ons de retención/upsell |
 | 7 | **#10** fiestas | Nueva línea B2C sobre lo ya construido |
 
