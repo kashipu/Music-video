@@ -1,5 +1,5 @@
 <script setup>
-import { formatDuration } from '../utils/youtube.js'
+import { formatDuration, thumbFallback } from '../utils/youtube.js'
 
 defineProps({
   song: { type: Object, default: null },
@@ -10,7 +10,7 @@ defineProps({
   <div class="card now-playing" v-if="song">
     <p class="section-title">Sonando Ahora</p>
     <div class="np-content">
-      <img :src="song.thumbnail_url" class="np-thumb" />
+      <img :src="song.thumbnail_url" class="np-thumb" @error="thumbFallback" />
       <div class="np-info">
         <p class="np-title">{{ song.title }}</p>
         <p class="np-meta">

@@ -63,6 +63,17 @@ async def run_migrations(db: aiosqlite.Connection) -> None:
         if filename in applied:
             continue
         sql = (migrations_dir / filename).read_text(encoding="utf-8")
-        await db.executescript(sql)
+        # Atomic per file: without this, a migration failing mid-script leaves
+        # the DB half-migrated and unregistered — the next boot re-runs it and
+        # dies with e.g. "duplicate column". (executescript commits any pending
+        # txn first, so BEGIN/COMMIT must live inside the script itself.)
+        try:
+            await db.executescript("BEGIN;\n" + sql + "\n;COMMIT;")
+        except Exception:
+            try:
+                await db.execute("ROLLBACK")
+            except Exception:
+                pass
+            raise
         await db.execute("INSERT INTO _migrations (filename) VALUES (?)", (filename,))
         await db.commit()

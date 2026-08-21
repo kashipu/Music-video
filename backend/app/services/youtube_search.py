@@ -1,5 +1,29 @@
 import re
+import time
 import httpx
+
+# TTL cache: the endpoint is public and scrapes youtube.com on every call —
+# without this, repeated queries cost ~0.5-1s each, risk an IP ban, and the
+# endpoint is usable as a free search proxy by third parties.
+# ponytail: in-memory per-process cache; move to Redis when workers > 1
+_search_cache: dict[str, tuple[float, list]] = {}
+_CACHE_TTL = 300  # 5 min
+_CACHE_MAX = 500
+
+
+def _cache_get(query: str) -> list | None:
+    hit = _search_cache.get(query)
+    if hit and time.monotonic() - hit[0] < _CACHE_TTL:
+        return hit[1]
+    return None
+
+
+def _cache_put(query: str, results: list) -> None:
+    if len(_search_cache) >= _CACHE_MAX:
+        # Drop the oldest half — simpler than LRU and rare enough not to matter
+        for k in sorted(_search_cache, key=lambda k: _search_cache[k][0])[:_CACHE_MAX // 2]:
+            _search_cache.pop(k, None)
+    _search_cache[query] = (time.monotonic(), results)
 
 
 async def search_youtube(query: str, max_results: int = 8) -> list[dict]:
@@ -16,6 +40,10 @@ async def search_youtube(query: str, max_results: int = 8) -> list[dict]:
             "duration": "3:45",
             "url": f"https://www.youtube.com/watch?v={mock_id}",
         }]
+
+    cached = _cache_get(query)
+    if cached is not None:
+        return cached
 
     try:
         async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
@@ -76,6 +104,8 @@ async def search_youtube(query: str, max_results: int = 8) -> list[dict]:
                     if len(results) >= max_results:
                         break
 
+            if results:  # never cache empty/failed scrapes
+                _cache_put(query, results)
             return results
     except Exception:
         return []

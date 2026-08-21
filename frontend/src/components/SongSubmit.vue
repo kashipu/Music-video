@@ -2,6 +2,7 @@
 import { ref, computed, onUnmounted, watch } from 'vue'
 import { useQueueStore } from '../stores/queue.js'
 import { trackSongSearched, trackSongSubmitted, trackSearchResultSelected } from '../utils/analytics.js'
+import { thumbFallback } from '../utils/youtube.js'
 
 const API = import.meta.env.VITE_API_URL || ''
 
@@ -153,7 +154,7 @@ async function selectResult(result, index) {
           :class="{ 'result-item--loading': loadingItemId === r.youtube_id, 'result-item--blocked': loadingItemId && loadingItemId !== r.youtube_id }"
           @click="selectResult(r, i)"
         >
-          <img :src="r.thumbnail_url" class="result-thumb" />
+          <img :src="r.thumbnail_url" class="result-thumb" @error="thumbFallback" />
           <div class="result-info">
             <p class="result-title">{{ r.title }}</p>
             <p class="result-duration" v-if="r.duration">&#9654; {{ r.duration }}</p>

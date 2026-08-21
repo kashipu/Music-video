@@ -3,6 +3,7 @@ import os
 import uuid
 from datetime import date, timedelta
 
+import asyncio
 import bcrypt
 from fastapi import APIRouter, HTTPException, Depends, Header, Query, UploadFile, File
 from pydantic import BaseModel
@@ -141,7 +142,7 @@ async def create_venue(req: CreateVenueRequest, admin: dict = Depends(get_curren
     venue_id = cursor.lastrowid
 
     # Create admin for this venue
-    password_hash = bcrypt.hashpw(req.admin_password.encode(), bcrypt.gensalt()).decode()
+    password_hash = (await asyncio.to_thread(bcrypt.hashpw, req.admin_password.encode(), bcrypt.gensalt())).decode()
     await db.execute(
         "INSERT INTO admins (venue_id, username, password_hash) VALUES (?, ?, ?)",
         (venue_id, req.admin_username, password_hash),
@@ -298,7 +299,7 @@ async def add_venue_admin(venue_id: int, req: AddAdminRequest,
     if existing:
         raise HTTPException(status_code=409, detail="Este nombre de usuario ya existe")
 
-    password_hash = bcrypt.hashpw(req.password.encode(), bcrypt.gensalt()).decode()
+    password_hash = (await asyncio.to_thread(bcrypt.hashpw, req.password.encode(), bcrypt.gensalt())).decode()
     await db.execute(
         "INSERT INTO admins (venue_id, username, password_hash) VALUES (?, ?, ?)",
         (venue_id, req.username, password_hash),

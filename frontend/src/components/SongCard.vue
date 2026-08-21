@@ -1,5 +1,5 @@
 <script setup>
-import { formatDuration } from '../utils/youtube.js'
+import { formatDuration, thumbFallback } from '../utils/youtube.js'
 
 defineProps({
   song: { type: Object, required: true },
@@ -9,7 +9,7 @@ defineProps({
 <template>
   <div class="song-card">
     <span class="position">{{ song.position }}.</span>
-    <img v-if="song.thumbnail_url" :src="song.thumbnail_url" class="thumb" />
+    <img v-if="song.thumbnail_url" :src="song.thumbnail_url" class="thumb" @error="thumbFallback" />
     <div class="info">
       <p class="title">{{ song.title }}</p>
       <p class="meta">

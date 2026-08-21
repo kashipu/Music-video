@@ -314,7 +314,9 @@ Segunda tanda (menores del mismo checklist, rama `bugs-fixed`):
 
 ## Bugs abiertos
 
-- ⚠️ Thumbnails rotos cuando red bloquea `i.ytimg.com` (ver BH-30) — falta `@error` con placeholder.
+_(ninguno conocido)_
+
+- ✅ ~~Thumbnails rotos cuando red bloquea `i.ytimg.com` (BH-30)~~ — resuelto: `@error="thumbFallback"` con placeholder SVG inline en todos los `<img>` de thumbnails ([youtube.js](../frontend/src/utils/youtube.js)).
 
 ## Suite automatizada
 

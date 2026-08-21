@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { formatDuration } from '../utils/youtube.js'
+import { formatDuration, thumbFallback } from '../utils/youtube.js'
 import { useTheme } from '../composables/useTheme.js'
 
 const { currentMode, toggleMode } = useTheme()
@@ -507,7 +507,7 @@ async function deleteVenue() {
           <!-- Songs -->
           <div class="pl-list">
             <div v-for="song in playlist" :key="song.id" class="pl-item" :class="{ 'pl-disabled': !song.active }">
-              <img :src="song.thumbnail_url" class="pl-thumb" />
+              <img :src="song.thumbnail_url" class="pl-thumb" @error="thumbFallback" />
               <div class="pl-info">
                 <p class="pl-title">{{ song.title }}</p>
                 <p class="pl-meta">#{{ song.position }} &middot; {{ formatDuration(song.duration_sec) }}</p>

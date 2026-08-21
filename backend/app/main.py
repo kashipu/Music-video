@@ -25,6 +25,9 @@ async def cleanup_old_data():
         await db.execute("DELETE FROM submission_log WHERE submitted_at < datetime('now', '-7 days')")
         # play_history is now preserved for long-term analytics
         await db.execute("DELETE FROM user_sessions WHERE ended_at IS NOT NULL AND ended_at < datetime('now', '-7 days')")
+        # analytics_events otherwise grows unbounded; 180 days covers every
+        # dashboard the panel offers (max query range is 30 days)
+        await db.execute("DELETE FROM analytics_events WHERE created_at < datetime('now', '-180 days')")
         await db.commit()
     except Exception:
         pass
@@ -35,16 +38,28 @@ async def cleanup_old_data():
         expired = await expire_stale_sessions()
         if expired:
             import logging
-            logging.getLogger(__name__).info(f"Expired {expired} stale sessions on startup")
+            logging.getLogger(__name__).info(f"Expired {expired} stale sessions")
     except Exception:
         pass
 
 
+async def _hourly_cleanup_loop():
+    # The container runs for weeks (restart: unless-stopped), so a
+    # startup-only cleanup never fires again; this loop keeps it periodic.
+    import asyncio
+    while True:
+        await asyncio.sleep(3600)
+        await cleanup_old_data()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    import asyncio
     await init_db()
     await cleanup_old_data()
+    cleanup_task = asyncio.create_task(_hourly_cleanup_loop())
     yield
+    cleanup_task.cancel()
     await close_db()
 
 

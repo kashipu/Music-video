@@ -4,8 +4,9 @@ Medido el 2026-08-12. Escenario objetivo: **15 bares x 100 personas = 1500 usuar
 concurrentes**.
 
 Conclusion corta: el backend aguanta ese escenario con muchisimo margen. El primer
-techo real es `worker_connections` de nginx, y esta **sin resolver** (ver
-[Techo 1](#techo-1-worker_connections-de-nginx-pendiente)).
+techo real era `worker_connections` de nginx, **resuelto el 2026-08-21**
+(1024 -> 8192 en `frontend/Dockerfile`); falta validarlo con carga real (ver
+[Techo 1](#techo-1-worker_connections-de-nginx-resuelto-validacion-pendiente)).
 
 ---
 
@@ -55,7 +56,12 @@ backend en 354 MB con 1500 WS no es un problema de memoria.
 
 ---
 
-## Techo 1: `worker_connections` de nginx (PENDIENTE)
+## Techo 1: `worker_connections` de nginx (RESUELTO, validacion pendiente)
+
+> **2026-08-21**: aplicado el fix candidato en `frontend/Dockerfile`
+> (`worker_connections 1024 -> 8192`, con `grep` que rompe el build si el patron
+> no matchea). Queda pendiente la validacion con `scripts/load_test.py` contra el
+> contenedor de frontend descrita abajo.
 
 El unico limite que se choca **antes** de llegar a 15 bares llenos.
 

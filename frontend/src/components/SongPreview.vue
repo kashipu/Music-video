@@ -1,5 +1,5 @@
 <script setup>
-import { formatDuration } from '../utils/youtube.js'
+import { formatDuration, thumbFallback } from '../utils/youtube.js'
 
 const props = defineProps({
   preview: { type: Object, required: true },
@@ -14,7 +14,7 @@ const emit = defineEmits(['confirm', 'cancel'])
     <p class="preview-question">Quieres encolar esta cancion?</p>
 
     <div class="preview-content">
-      <img :src="preview.thumbnail_url" class="preview-thumb" />
+      <img :src="preview.thumbnail_url" class="preview-thumb" @error="thumbFallback" />
       <div class="preview-info">
         <p class="preview-title">{{ preview.title }}</p>
         <p class="preview-duration">Duracion: {{ preview.duration_formatted || formatDuration(preview.duration_sec) }}</p>

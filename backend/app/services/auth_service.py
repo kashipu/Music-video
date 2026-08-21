@@ -162,7 +162,9 @@ async def verify_super_admin(username: str, password: str) -> dict | None:
     if not rows:
         return None
     admin = rows[0]
-    if not bcrypt.checkpw(password.encode(), admin[2].encode()):
+    # bcrypt takes 100-300ms of sync CPU — off the event loop so a login
+    # never freezes every other request/WebSocket on the single worker
+    if not await asyncio.to_thread(bcrypt.checkpw, password.encode(), admin[2].encode()):
         return None
     return {"id": admin[0], "username": admin[1]}
 
@@ -183,7 +185,9 @@ async def verify_admin(username: str, password: str) -> dict | None:
         return None
 
     admin = rows[0]
-    if not bcrypt.checkpw(password.encode(), admin[2].encode()):
+    # bcrypt takes 100-300ms of sync CPU — off the event loop so a login
+    # never freezes every other request/WebSocket on the single worker
+    if not await asyncio.to_thread(bcrypt.checkpw, password.encode(), admin[2].encode()):
         return None
 
     return {

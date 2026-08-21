@@ -312,15 +312,20 @@ migración de infraestructura para empezar a cobrar.
 - [x] **P1.7** JWT validado en el handshake del WebSocket: la identidad sale solo del token (venue verificado); el `user_id` de la query ya no se confía. Frontend (`useWebSocket` + CustomerDashboard) envía el token.
 - [x] Locks por venue (`_playback_locks[venue_id]`, `_position_locks[venue_id]`) — un bar ya no bloquea la reproducción/cola de otro
 
+- [x] **P1.2** Tarea de fondo horaria: `_hourly_cleanup_loop` en el lifespan — limpieza de datos viejos, expiración de sesiones y poda de `analytics_events` (retención 180 días)
+- [x] **P1.3** `bcrypt` → `asyncio.to_thread` en login de admin/superadmin y creación de admins
+- [x] **P1.4** (parcial) Migraciones atómicas: cada archivo corre en `BEGIN…COMMIT` con `ROLLBACK` si falla — una migración a medias ya no deja la DB corrupta. Pendiente: transacciones explícitas en secuencias de app (venue+admin, canción+submission_log); los locks por venue ya las serializan, el riesgo residual es un crash a mitad.
+- [x] **P1.5** (parcial) Caché TTL de 5 min en la búsqueda (in-memory, por proceso) — elimina el scraping repetido y casi todo el valor como proxy. Pendiente: exigir auth (requiere aceptar token de usuario y de admin en el endpoint).
+- [x] **P1.6** nginx `worker_connections` 1024→8192 en `frontend/Dockerfile` (con `grep` que revienta el build si el patrón no matchea). Validación con carga real pendiente (ver CAPACITY.md).
+- [x] **BH-30** Thumbnails rotos: `@error` → placeholder SVG inline en los 8 `<img>` de thumbnails
+
 **Pendiente:**
 
-- [ ] **P1.1** Backups automáticos (cron `VACUUM INTO` o Litestream) — **el riesgo #1: la DB de producción no tiene ningún respaldo**
-- [ ] **P1.2** Tarea de fondo horaria (limpieza + sesiones + poda de `analytics_events`)
-- [ ] **P1.3** `bcrypt` → `asyncio.to_thread` (cada login de admin congela el worker 100-300 ms)
-- [ ] **P1.4** Transacciones explícitas donde importan + migraciones atómicas (hoy `isolation_level=None` hace los `commit()` decorativos)
-- [ ] **P1.5** Caché + auth en `/api/queue/search` (scrapea YouTube en cada llamada, usable como proxy por terceros)
-- [ ] **P1.6** nginx `worker_connections` (techo identificado en CAPACITY.md)
+- [ ] **P1.1** Backups automáticos (cron `VACUUM INTO` o Litestream) — **el riesgo #1: la DB de producción no tiene ningún respaldo**. No se cierra desde el repo: hay que decidir dónde guardar las copias (bucket S3/B2, otro servidor) y configurarlo en el server de Dokploy.
+- [ ] **P1.4b** Transacciones explícitas en secuencias multi-statement de la app (ver arriba)
+- [ ] **P1.5b** Auth en `/api/queue/search` (ver arriba)
 - [ ] **P1.8** Decidir si `blocked_videos` debe ser por venue (hoy un error en un bar bloquea el video para todos)
+- [ ] **QA visual** BH-01…BH-07 (sincronización Admin/Kiosk/Customer) siguen siendo manuales; automatización planeada en QA_PLAYWRIGHT_PLAN.md
 - [ ] **P2** Tablas `plans` / `subscriptions` / `payments` / `billing_notifications`
 - [ ] **P2** Alta autogestionada con trial
 - [ ] **P2** Webhook de pasarela (Wompi/Mercado Pago) con idempotencia

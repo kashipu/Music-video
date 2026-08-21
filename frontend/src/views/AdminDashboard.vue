@@ -5,7 +5,7 @@ import { useAuthStore } from '../stores/auth.js'
 import { useWebSocket } from '../composables/useWebSocket.js'
 import { useTheme } from '../composables/useTheme.js'
 import { useToast, safeFetch } from '../composables/useToast.js'
-import { formatDuration } from '../utils/youtube.js'
+import { formatDuration, thumbFallback } from '../utils/youtube.js'
 import { trackAdminAction } from '../utils/analytics.js'
 
 const toast = useToast()
@@ -904,7 +904,7 @@ function logout() {
             <p v-if="ytSearching" class="search-status">Buscando...</p>
             <div class="library-list" v-if="ytResults.length">
               <div v-for="r in ytResults" :key="r.youtube_id" class="lib-item">
-                <img :src="r.thumbnail_url" class="lib-thumb" />
+                <img :src="r.thumbnail_url" class="lib-thumb" @error="thumbFallback" />
                 <div class="lib-info">
                   <p class="lib-title">{{ r.title }}</p>
                   <p class="lib-artist">{{ r.duration }}</p>
@@ -919,7 +919,7 @@ function logout() {
             <input v-model="librarySearch" class="input-field" placeholder="Buscar en biblioteca..." @input="fetchLibrary" />
             <div class="library-list">
               <div v-for="song in library" :key="song.youtube_id" class="lib-item">
-                <img :src="song.thumbnail_url" class="lib-thumb" />
+                <img :src="song.thumbnail_url" class="lib-thumb" @error="thumbFallback" />
                 <div class="lib-info">
                   <p class="lib-title">{{ song.title }}</p>
                   <p class="lib-artist">{{ song.artist }} &middot; {{ formatDuration(song.duration_sec) }}</p>
@@ -1001,7 +1001,7 @@ function logout() {
           <p class="text-hint">{{ fallbackPaused ? 'Playlist pausada — no suena cuando la cola esta vacia' : 'Suena automaticamente cuando no hay canciones de las mesas' }}</p>
           <div class="fb-scroll" v-if="fallbackSongs.length">
             <div v-for="song in fallbackSongs" :key="song.id" class="q-item" :class="{ 'q-item-played': !song.active }">
-              <img :src="song.thumbnail_url" class="q-thumb" />
+              <img :src="song.thumbnail_url" class="q-thumb" @error="thumbFallback" />
               <div class="q-info">
                 <p class="q-title">{{ song.title }}</p>
                 <p class="q-meta">{{ formatDuration(song.duration_sec) }}</p>
