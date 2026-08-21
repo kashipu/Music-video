@@ -5,7 +5,7 @@ const WS_URL = import.meta.env.VITE_WS_URL ||
     ? import.meta.env.VITE_API_URL.replace(/^http/, 'ws') 
     : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`)
 
-export function useWebSocket(venueSlug, userId = null) {
+export function useWebSocket(venueSlug, userId = null, token = null) {
   const ws = ref(null)
   const connected = ref(false)
   const lastEvent = ref(null)
@@ -23,6 +23,9 @@ export function useWebSocket(venueSlug, userId = null) {
 
     let url = `${WS_URL}/ws/queue?venue=${venueSlug}`
     if (userId) url += `&user_id=${userId}`
+    // The backend only delivers personal events (your_song_playing, rate_limit_reset,
+    // session_kicked) when identity is proven with the JWT
+    if (token) url += `&token=${encodeURIComponent(token)}`
 
     try {
       ws.value = new WebSocket(url)

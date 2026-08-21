@@ -1,5 +1,6 @@
 import asyncio
 import json
+from collections import defaultdict
 from typing import Optional
 
 from app.database import get_db
@@ -7,11 +8,12 @@ from app.database import get_db
 # In-memory: which fallback song is currently playing per venue (cleared when a real song starts)
 _fallback_now_playing: dict = {}
 
-# Serializes mutations of queue_songs.status (skip / finish / error). Without this,
-# concurrent admin double-clicks or admin-skip + kiosk-finished arriving in the same
-# tick can both read 'playing' and both advance the queue, ending with two songs in
-# 'playing' state or a song silently lost. Pairs with the lock in queue_service.py.
-_playback_lock = asyncio.Lock()
+# Serializes mutations of queue_songs.status (skip / finish / error) per venue.
+# Without this, concurrent admin double-clicks or admin-skip + kiosk-finished
+# arriving in the same tick can both read 'playing' and both advance the queue,
+# ending with two songs in 'playing' state or a song silently lost. Per-venue so
+# one bar's playback never blocks another's. Pairs with the lock in queue_service.py.
+_playback_locks: defaultdict[int, asyncio.Lock] = defaultdict(asyncio.Lock)
 
 
 def set_fallback_now_playing(venue_id: int, song: Optional[dict]) -> None:
@@ -122,7 +124,7 @@ async def finish_song(song_id: int, venue_id: int) -> dict:
     """
     db = await get_db()
 
-    async with _playback_lock:
+    async with _playback_locks[venue_id]:
         # Idempotency: only mark as played if it's still 'playing'. If admin already
         # skipped it, this is a no-op and we still advance to whatever is current.
         rows = await db.execute_fetchall(
@@ -180,7 +182,7 @@ async def finish_song(song_id: int, venue_id: int) -> dict:
 
 
 async def _advance_queue(venue_id: int) -> Optional[dict]:
-    """Promote the next pending song to 'playing'. Caller must hold _playback_lock."""
+    """Promote the next pending song to 'playing'. Caller must hold the venue playback lock."""
     db = await get_db()
 
     rows = await db.execute_fetchall(
@@ -221,8 +223,6 @@ async def _advance_queue_safe(venue_id: int) -> Optional[dict]:
         return {"id": r[0], "youtube_id": r[1], "title": r[2], "user_id": r[3]}
     return await _advance_queue(venue_id)
 
-    return {"id": r[0], "youtube_id": r[1], "title": r[2], "user_id": r[3]}
-
 
 async def skip_song(venue_id: int) -> dict:
     """Atomic skip: marks current playing song as 'played' and advances queue.
@@ -232,7 +232,7 @@ async def skip_song(venue_id: int) -> dict:
     """
     db = await get_db()
 
-    async with _playback_lock:
+    async with _playback_locks[venue_id]:
         # Re-check current playing INSIDE the lock — a sibling call may have just
         # advanced the queue between our handler entry and the lock acquisition.
         current = await db.execute_fetchall(
@@ -267,9 +267,9 @@ async def skip_song(venue_id: int) -> dict:
     }
 
 
-async def try_start_song(venue_id: int, song_id: int) -> Optional[dict]:
+async def try_start_song(venue_id: int, song_id: int, unless_fallback: bool = False) -> Optional[dict]:
     """Atomically promote a specific pending song to 'playing', but only if
-    nothing else is currently playing. Serialized via _playback_lock with
+    nothing else is currently playing. Serialized via the per-venue playback lock with
     skip/finish/error and every other auto-start caller, so two concurrent
     triggers (e.g. two confirms landing with an empty queue, or an admin
     action racing an auto-start) can't both flip a song to 'playing'.
@@ -279,12 +279,17 @@ async def try_start_song(venue_id: int, song_id: int) -> Optional[dict]:
     anymore by the time we got the lock.
     """
     db = await get_db()
-    async with _playback_lock:
+    async with _playback_locks[venue_id]:
         current = await db.execute_fetchall(
             "SELECT id FROM queue_songs WHERE venue_id = ? AND status = 'playing' LIMIT 1",
             (venue_id,),
         )
         if current:
+            return None
+
+        # Re-checked inside the lock: a fallback song may have started between the
+        # caller's pre-check and lock acquisition (confirm_song auto-start path).
+        if unless_fallback and get_fallback_now_playing(venue_id) is not None:
             return None
 
         cursor = await db.execute(
@@ -310,7 +315,7 @@ async def try_start_song(venue_id: int, song_id: int) -> Optional[dict]:
 
 async def play_specific_song(venue_id: int, song_id: int) -> Optional[dict]:
     """Force-play a specific pending song immediately, skipping whatever is
-    currently playing (real song or fallback). Serialized via _playback_lock
+    currently playing (real song or fallback). Serialized via the per-venue playback lock
     with skip/finish/error/other auto-starts, so this can't race a concurrent
     skip/finish into two songs marked 'playing'.
 
@@ -318,7 +323,7 @@ async def play_specific_song(venue_id: int, song_id: int) -> Optional[dict]:
     isn't pending for this venue.
     """
     db = await get_db()
-    async with _playback_lock:
+    async with _playback_locks[venue_id]:
         rows = await db.execute_fetchall(
             "SELECT id, youtube_id, title, user_id FROM queue_songs "
             "WHERE id = ? AND venue_id = ? AND status = 'pending'",
@@ -363,7 +368,7 @@ async def play_specific_song(venue_id: int, song_id: int) -> Optional[dict]:
 async def error_song(song_id: int, venue_id: int, error_code: int) -> dict:
     db = await get_db()
 
-    async with _playback_lock:
+    async with _playback_locks[venue_id]:
         # Get song info; only finalize if it's still in a non-terminal state
         rows = await db.execute_fetchall(
             "SELECT venue_id, user_id, youtube_id, title, duration_sec, status FROM queue_songs WHERE id = ?",

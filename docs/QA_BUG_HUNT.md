@@ -301,7 +301,16 @@ Cada caso tiene: BR vinculado, pasos, resultado esperado, **señales de bug** (q
 - ✅ Rate limit re-verificado fuera del lock en `/confirm` — dos confirms simultáneos del mismo usuario con 1 slot podían pasar ambos. Fix: mover el re-chequeo dentro de `_position_lock` ([queue_service.py](../backend/app/services/queue_service.py)).
 - ✅ Auto-starts (confirm, start-playing, play-now, admin_add_song, playback/start, fallback-skip) hacían "check nothing playing" + `UPDATE status='playing'` sin lock — dos confirms simultáneos con cola vacía podían dejar 2 canciones `playing` a la vez (reproducido: 2/2 llamadas concurrentes ganaban antes del fix). Fix: `playback_service.try_start_song`/`play_specific_song`, con UPDATE condicional bajo `_playback_lock` ([playback_service.py](../backend/app/services/playback_service.py)).
 
-Los 6 anteriores vienen del checklist P0 de la revisión de backend/BD (rama `claude/backend-database-review-i1ebnh`, nunca mergeada — el detalle completo de cada uno está solo ahí). Verificados con [scripts/verify_p0_bugs.py](../scripts/verify_p0_bugs.py) (`python -m scripts.verify_p0_bugs`).
+Los 6 anteriores vienen del checklist P0 de la revisión de backend/BD, ahora documentada en [PLAN_MEJORAS_ESCALA.md](PLAN_MEJORAS_ESCALA.md). Verificados con [scripts/verify_p0_bugs.py](../scripts/verify_p0_bugs.py) (`python -m scripts.verify_p0_bugs`).
+
+Segunda tanda (menores del mismo checklist, rama `bugs-fixed`):
+
+- ✅ `return` muerto/inalcanzable en `_advance_queue_safe` ([playback_service.py](../backend/app/services/playback_service.py)) — código confuso, sin efecto funcional.
+- ✅ `datetime.now()` naive comparado con timestamps UTC de SQLite en `minutes_ago` ([queue_service.py](../backend/app/services/queue_service.py), 2 sitios) — daba minutos erróneos si el servidor no corría en UTC. Fix: comparar en UTC aware.
+- ✅ `/api/health` exponía sin auth la ruta absoluta del directorio de logos y la lista de archivos. Fix: la respuesta solo incluye status/version/database ([main.py](../backend/app/main.py)).
+- ✅ El WebSocket aceptaba cualquier `user_id` de la query sin validar — cualquiera podía recibir eventos personales de otro usuario (`your_song_playing`, `session_kicked`, `rate_limit_reset`). Fix: la identidad sale solo de un JWT válido del venue pasado como `?token=`; el `user_id` de la query se acepta pero ya no se confía ([websocket.py](../backend/app/routers/websocket.py), [useWebSocket.js](../frontend/src/composables/useWebSocket.js), [CustomerDashboard.vue](../frontend/src/views/CustomerDashboard.vue)).
+- ✅ Los locks de reproducción y de cola eran globales — un bar serializaba skip/confirm de todos los demás. Fix: `defaultdict(asyncio.Lock)` por `venue_id` en `playback_service` y `queue_service`.
+- ✅ El auto-start de `/confirm` chequeaba "fallback activo" fuera del lock — un fallback arrancando en ese instante podía ser pisado. Fix: `try_start_song(..., unless_fallback=True)` re-chequea dentro del lock.
 
 ## Bugs abiertos
 

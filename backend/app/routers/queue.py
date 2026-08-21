@@ -229,29 +229,28 @@ async def confirm_song(req: SongConfirmRequest, user: dict = Depends(get_current
     # Auto-start only when nothing is playing AND fallback is not active.
     # If fallback is active, keep the song as 'pending' — the Kiosk will call
     # /api/queue/start-playing/{id} when it actually begins playing it.
-    # try_start_song() re-checks "nothing playing" atomically under
-    # _playback_lock, so two concurrent confirms landing with an empty queue
-    # can't both flip their song to 'playing'.
-    fallback_now = playback_service.get_fallback_now_playing(venue_id)
-    if not fallback_now:
-        started = await playback_service.try_start_song(venue_id, result["id"])
-        if started:
-            await playback_service.set_playback_status(venue_id, "playing")
-            await manager.broadcast(venue_id, {
-                "event": "playback_status_changed",
-                "data": {"status": "playing"},
-            })
-            await manager.broadcast(venue_id, {
-                "event": "now_playing_changed",
-                "data": {"song": {"id": result["id"], "youtube_id": req.youtube_id, "title": title}},
-            })
-            await manager.send_to_user(venue_id, user_id, {
-                "event": "your_song_playing",
-                "data": {
-                    "song": {"id": result["id"], "youtube_id": req.youtube_id, "title": title},
-                    "message": "Tu cancion esta sonando ahora",
-                },
-            })
+    # try_start_song() re-checks "nothing playing" AND "no fallback active"
+    # atomically under the venue playback lock, so two concurrent confirms
+    # landing with an empty queue can't both flip their song to 'playing',
+    # and a fallback starting mid-flight can't be talked over.
+    started = await playback_service.try_start_song(venue_id, result["id"], unless_fallback=True)
+    if started:
+        await playback_service.set_playback_status(venue_id, "playing")
+        await manager.broadcast(venue_id, {
+            "event": "playback_status_changed",
+            "data": {"status": "playing"},
+        })
+        await manager.broadcast(venue_id, {
+            "event": "now_playing_changed",
+            "data": {"song": {"id": result["id"], "youtube_id": req.youtube_id, "title": title}},
+        })
+        await manager.send_to_user(venue_id, user_id, {
+            "event": "your_song_playing",
+            "data": {
+                "song": {"id": result["id"], "youtube_id": req.youtube_id, "title": title},
+                "message": "Tu cancion esta sonando ahora",
+            },
+        })
 
     return result
 

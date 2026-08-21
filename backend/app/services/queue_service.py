@@ -1,16 +1,18 @@
 import asyncio
 import json
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 from app.config import settings
 from app.database import get_db
 
-# Serializes the SELECT MAX(position) + INSERT pair for queue insertions.
-# Without this, two concurrent confirms read the same MAX and assign the same
-# position, breaking FIFO (BR-04). The shared aiosqlite connection runs in a
-# single thread but the async statements interleave between awaits, so a Python
-# lock is needed even though SQLite itself serializes writes.
-_position_lock = asyncio.Lock()
+# Serializes the SELECT MAX(position) + INSERT pair for queue insertions, per
+# venue. Without this, two concurrent confirms read the same MAX and assign the
+# same position, breaking FIFO (BR-04). The shared aiosqlite connection runs in
+# a single thread but the async statements interleave between awaits, so a
+# Python lock is needed even though SQLite itself serializes writes. Per-venue
+# so one bar's inserts never block another's.
+_position_locks: defaultdict[int, asyncio.Lock] = defaultdict(asyncio.Lock)
 
 
 async def _commit_with_retry(db, retries: int = 3, delay: float = 0.3):
@@ -108,7 +110,7 @@ async def add_song(venue_id: int, user_id: int, session_id: str,
     # confirms from the same user (or of the same video) can't both pass the
     # earlier check — one outside the lock, racing the other's insert — and
     # end up with N+1 songs or two queue entries.
-    async with _position_lock:
+    async with _position_locks[venue_id]:
         rate_info = await get_rate_limit_info(user_id, venue_id)
         if rate_info["songs_remaining"] <= 0:
             from fastapi import HTTPException
@@ -268,7 +270,10 @@ async def get_recent_history(user_id: int, venue_id: int, hours: int = 2) -> lis
         minutes_ago = 0
         try:
             dt = datetime.fromisoformat(added_at)
-            minutes_ago = int((datetime.now() - dt).total_seconds() / 60)
+            # SQLite CURRENT_TIMESTAMP is UTC without timezone info
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            minutes_ago = int((datetime.now(timezone.utc) - dt).total_seconds() / 60)
         except (ValueError, TypeError):
             pass
         result.append({
@@ -290,7 +295,10 @@ async def check_recently_played_by_user(user_id: int, venue_id: int, youtube_id:
         return False, None
     try:
         dt = datetime.fromisoformat(rows[0][0])
-        minutes_ago = int((datetime.now() - dt).total_seconds() / 60)
+        # SQLite CURRENT_TIMESTAMP is UTC without timezone info
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        minutes_ago = int((datetime.now(timezone.utc) - dt).total_seconds() / 60)
         return True, minutes_ago
     except (ValueError, TypeError):
         return True, None

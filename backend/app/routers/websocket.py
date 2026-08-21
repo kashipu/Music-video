@@ -58,7 +58,8 @@ manager = ConnectionManager()
 async def websocket_endpoint(
     websocket: WebSocket,
     venue: str = Query(...),
-    user_id: int | None = Query(None),
+    user_id: int | None = Query(None),  # legacy, no longer trusted for identity
+    token: str | None = Query(None),
 ):
     from app.database import get_db
 
@@ -75,7 +76,22 @@ async def websocket_endpoint(
         return
 
     venue_id = rows[0][0]
-    await manager.connect(websocket, venue_id, user_id)
+
+    # Identity comes only from a valid JWT for this venue — a bare user_id in the
+    # query string would let anyone receive another user's personal events.
+    # Without (valid) token the client still connects and gets broadcasts,
+    # just no per-user events.
+    effective_user_id = None
+    if token:
+        try:
+            from app.services.auth_service import decode_token
+            payload = decode_token(token)
+            if payload.get("venue_id") == venue_id:
+                effective_user_id = payload.get("user_id")
+        except Exception:
+            pass
+
+    await manager.connect(websocket, venue_id, effective_user_id)
 
     try:
         while True:

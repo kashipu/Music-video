@@ -45,7 +45,7 @@ function refreshAll() {
 }
 
 // WebSocket
-const { onEvent, onReconnect, connected: wsConnected } = useWebSocket(venueSlug, auth.user?.id)
+const { onEvent, onReconnect, connected: wsConnected } = useWebSocket(venueSlug, auth.user?.id, auth.token)
 
 // Subtle WS state — only show banner when disconnected for >2s (avoids flicker on quick reconnects)
 const wsOffline = ref(false)

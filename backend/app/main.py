@@ -103,13 +103,9 @@ async def health():
     except Exception:
         db_status = "disconnected"
 
-    logos_dir = get_logos_dir()
-    logo_files = os.listdir(logos_dir) if os.path.isdir(logos_dir) else []
-
+    # No filesystem paths / file listings here: /api/health is public
     return {
         "status": "ok" if db_status == "connected" else "error",
         "version": "1.0.2",
         "database": db_status,
-        "logos_dir": os.path.abspath(logos_dir),
-        "logo_files": logo_files,
     }
