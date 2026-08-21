@@ -17,13 +17,16 @@ async def search_youtube(query: str, max_results: int = 8) -> list[dict]:
             "url": f"https://www.youtube.com/watch?v={mock_id}",
         }]
 
-    url = f"https://www.youtube.com/results?search_query={query}"
     try:
         async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
-            resp = await client.get(url, headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                "Accept-Language": "es-CO,es;q=0.9,en;q=0.8",
-            })
+            resp = await client.get(
+                "https://www.youtube.com/results",
+                params={"search_query": query},
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                    "Accept-Language": "es-CO,es;q=0.9,en;q=0.8",
+                },
+            )
             if resp.status_code != 200:
                 return []
 
