@@ -16,18 +16,23 @@ import Icon from "@/components/Icon.astro";
 
       <h1 class="text-2xl sm:text-3xl font-extrabold text-white mb-3">¡Gracias por contactarnos!</h1>
       <p class="text-zinc-300 mb-8">
-        Te estamos redirigiendo a WhatsApp...
+        Ya casi terminamos.
       </p>
+
+      <div id="demo-loader" class="flex flex-col items-center gap-3">
+        <div class="w-8 h-8 border-[3px] border-emerald-500/25 border-t-emerald-400 rounded-full animate-spin"></div>
+        <span class="text-sm font-semibold text-emerald-400">Redirigiendo a WhatsApp...</span>
+      </div>
 
       <a
         id="demo-whatsapp-link"
         href="https://wa.me/573028336170"
         target="_blank"
         rel="noopener noreferrer"
-        class="inline-flex items-center justify-center gap-2 w-full h-12 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-bold rounded-xl shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
+        class="hidden items-center justify-center gap-2 w-full h-12 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-bold rounded-xl shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
       >
         <Icon name="message-circle" class="h-5 w-5 shrink-0" />
-        Te estamos redirigiendo a WhatsApp
+        Abrir WhatsApp
       </a>
 
       <a href="/" class="block mt-6 text-sm text-zinc-400 hover:text-white transition-colors">
@@ -55,6 +60,7 @@ import Icon from "@/components/Icon.astro";
 
     const waLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
 
+    const loader = document.getElementById("demo-loader");
     const link = document.getElementById("demo-whatsapp-link") as HTMLAnchorElement | null;
     if (link) link.href = waLink;
 
@@ -62,6 +68,16 @@ import Icon from "@/components/Icon.astro";
       setTimeout(() => {
         window.location.href = waLink;
       }, 600);
+      // Safety net: if the redirect is somehow blocked, reveal the fallback link.
+      setTimeout(() => {
+        loader?.classList.add("hidden");
+        link?.classList.remove("hidden");
+        link?.classList.add("inline-flex");
+      }, 4000);
+    } else {
+      loader?.classList.add("hidden");
+      link?.classList.remove("hidden");
+      link?.classList.add("inline-flex");
     }
   </script>
 </Base>
