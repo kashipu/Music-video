@@ -5,27 +5,32 @@ import logo from "@/assets/logo-color-negativo.svg";
 
 <footer class="border-t border-white/15 py-12 sm:py-16 bg-brand-darker relative z-10">
   <div class="container mx-auto px-4 sm:px-6">
-    <div class="flex flex-col lg:flex-row items-center justify-between gap-8 pb-10 border-b border-white/10">
-      <div class="text-center sm:text-left">
-        <img src={logo.src} alt="Repítela" width="128" height="32" class="h-8 w-auto mx-auto sm:mx-0" />
-        <span class="text-xs text-zinc-300 font-medium tracking-wide block">Rockola digital con QR para bares</span>
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-8 pb-10 border-b border-white/10">
+      <div class="md:col-span-6 text-center sm:text-left">
+        <img src={logo.src} alt="Repítela" width="128" height="32" class="h-8 w-auto mx-auto sm:mx-0 mb-3" />
+        <span class="text-xs text-orange-400 font-bold uppercase tracking-wider block mb-2">Rockola digital con QR para bares</span>
+        <p class="text-xs sm:text-sm text-zinc-300 max-w-md leading-relaxed font-normal">
+          Repítela es la plataforma de entretenimiento musical interactivo para bares, gastrobares y discotecas en Colombia. Conectamos a los clientes con las pantallas de tu local mediante códigos QR para que elijan su música en tiempo real, transformando el ambiente y aumentando las ventas de tu negocio.
+        </p>
       </div>
 
-      <div class="flex flex-wrap items-center justify-center gap-6 text-sm text-zinc-200 font-medium">
+      <div class="md:col-span-3 flex flex-col items-center sm:items-start space-y-2.5 text-sm text-zinc-200 font-medium">
+        <span class="text-xs font-bold text-white uppercase tracking-wider mb-1">Navegación</span>
         <a href="/#como-funciona" class="hover:text-white transition-colors">Cómo funciona</a>
         <a href="/#para-bares" class="hover:text-white transition-colors">Para bares</a>
         <a href="/#precio" class="hover:text-white transition-colors">Precio</a>
-        <a href="/#faq" class="hover:text-white transition-colors">Preguntas</a>
+        <a href="/#faq" class="hover:text-white transition-colors">Preguntas frecuentes</a>
         <a href="/blog/" class="hover:text-white transition-colors">Blog</a>
-        <a href="https://app.repitela.com/admin" target="_blank" rel="noopener noreferrer" class="hover:text-orange-400 transition-colors">Panel</a>
+        <a href="https://app.repitela.com/admin" target="_blank" rel="noopener noreferrer" class="hover:text-orange-400 transition-colors">Entrar al panel</a>
       </div>
 
-      <div class="flex items-center gap-3 text-xs font-semibold text-zinc-100">
+      <div class="md:col-span-3 flex flex-col items-center sm:items-start space-y-3 text-xs font-semibold text-zinc-100">
+        <span class="text-xs font-bold text-white uppercase tracking-wider mb-1">Contacto y redes</span>
         <a
           href="https://instagram.com/repitela.musica"
           target="_blank"
           rel="noopener noreferrer"
-          class="flex items-center gap-2 glass-card bg-white/10 border-white/20 px-4 py-2.5 rounded-xl hover:text-white hover:border-primary/50 transition-colors"
+          class="flex items-center gap-2 glass-card bg-white/10 border-white/20 px-4 py-2.5 rounded-xl hover:text-white hover:border-primary/50 transition-colors w-full sm:w-auto justify-center sm:justify-start"
         >
           <Icon name="instagram" class="h-4 w-4 text-orange-400" />
           @repitela.musica
@@ -35,10 +40,10 @@ import logo from "@/assets/logo-color-negativo.svg";
           target="_blank"
           rel="noopener noreferrer"
           data-track-location="footer"
-          class="flex items-center gap-2 glass-card bg-white/10 border-white/20 px-4 py-2.5 rounded-xl hover:text-white hover:border-emerald-500/50 transition-colors"
+          class="flex items-center gap-2 glass-card bg-white/10 border-white/20 px-4 py-2.5 rounded-xl hover:text-white hover:border-emerald-500/50 transition-colors w-full sm:w-auto justify-center sm:justify-start"
         >
           <Icon name="message-circle" class="h-4 w-4 text-emerald-400" />
-          WhatsApp
+          WhatsApp (+57 302 833 6170)
         </a>
       </div>
     </div>

@@ -42,10 +42,16 @@ const jsonLd = {
   datePublished: publishedIso,
   dateModified: publishedIso,
   mainEntityOfPage: { "@type": "WebPage", "@id": canonical },
-  author: { "@type": "Organization", name: "Repítela", url: "https://repitela.com/" },
+  author: {
+    "@type": "Organization",
+    name: "Repítela",
+    url: "https://repitela.com/",
+    description: "Plataforma de rockola digital interactiva con QR para bares y gastrobares en Colombia.",
+  },
   publisher: {
     "@type": "Organization",
     name: "Repítela",
+    url: "https://repitela.com/",
     logo: { "@type": "ImageObject", url: "https://repitela.com/og-repitela.jpg" },
   },
 };
@@ -114,13 +120,16 @@ const shareUrl = encodeURIComponent(canonical);
         <aside class="lg:pt-1 space-y-6">
           <div class="glass-card rounded-2xl p-5 border border-white/15">
             <p class="text-xs uppercase tracking-wide text-zinc-400 font-bold mb-3">Escrito por</p>
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center shrink-0">
+            <div class="flex items-start gap-3">
+              <div class="w-10 h-10 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center shrink-0 mt-0.5">
                 <Icon name="sparkles" class="w-5 h-5 text-orange-400" />
               </div>
               <div>
                 <div class="text-sm font-bold text-white">Repítela</div>
-                <div class="text-xs text-zinc-400">Rockola digital con QR</div>
+                <div class="text-xs text-orange-400 font-semibold mb-1">Rockola digital con QR</div>
+                <p class="text-xs text-zinc-300 leading-relaxed">
+                  Plataforma colombiana de entretenimiento musical interactivo para bares y gastrobares.
+                </p>
               </div>
             </div>
           </div>
