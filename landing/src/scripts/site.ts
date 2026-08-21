@@ -42,26 +42,21 @@ document.querySelectorAll<HTMLElement>("[data-close-lead]").forEach((btn) => {
   btn.addEventListener("click", () => leadDialog?.close());
 });
 
-const WHATSAPP_NUMBER = "573028336170";
-
 leadForm?.addEventListener("submit", (e) => {
   e.preventDefault();
   const data = new FormData(leadForm);
   const location = leadDialog?.dataset.location ?? "unknown";
-  const text = [
-    "Hola, quiero una demo de Repítela para mi bar.",
-    `Nombre: ${data.get("nombre")}`,
-    `Bar: ${data.get("bar")}`,
-    `Ciudad: ${data.get("ciudad")}`,
-    `Dirección: ${data.get("direccion")}`,
-  ].join("\n");
 
   track("repitela_landing_lead_submitted", {
     location,
     ciudad: String(data.get("ciudad") ?? ""),
   });
 
-  window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`, "_blank", "noopener");
-  leadDialog?.close();
-  leadForm.reset();
+  const params = new URLSearchParams({
+    nombre: String(data.get("nombre") ?? ""),
+    bar: String(data.get("bar") ?? ""),
+    ciudad: String(data.get("ciudad") ?? ""),
+    direccion: String(data.get("direccion") ?? ""),
+  });
+  window.location.href = `/demo?${params.toString()}`;
 });

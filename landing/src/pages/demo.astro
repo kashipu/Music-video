@@ -1,0 +1,67 @@
+---
+import Base from "@/layouts/Base.astro";
+import Navbar from "@/components/Navbar.astro";
+import Footer from "@/components/Footer.astro";
+import Icon from "@/components/Icon.astro";
+---
+
+<Base title="¡Gracias! | Repítela" noindex>
+  <Navbar />
+
+  <main class="min-h-screen pt-28 sm:pt-36 pb-20 flex items-center justify-center px-4">
+    <div class="glass-card rounded-3xl p-8 sm:p-12 max-w-lg w-full text-center border-2 border-primary/40 shadow-glow-primary">
+      <div class="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center mx-auto mb-6">
+        <Icon name="check-circle-2" class="w-9 h-9 text-emerald-400" />
+      </div>
+
+      <h1 class="text-2xl sm:text-3xl font-extrabold text-white mb-3">¡Gracias por contactarnos!</h1>
+      <p class="text-zinc-300 mb-8">
+        Te estamos redirigiendo a WhatsApp...
+      </p>
+
+      <a
+        id="demo-whatsapp-link"
+        href="https://wa.me/573028336170"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center justify-center gap-2 w-full h-12 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-bold rounded-xl shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
+      >
+        <Icon name="message-circle" class="h-5 w-5 shrink-0" />
+        Te estamos redirigiendo a WhatsApp
+      </a>
+
+      <a href="/" class="block mt-6 text-sm text-zinc-400 hover:text-white transition-colors">
+        Volver al inicio
+      </a>
+    </div>
+  </main>
+
+  <Footer />
+
+  <script>
+    const WHATSAPP_NUMBER = "573028336170";
+
+    const params = new URLSearchParams(window.location.search);
+    const hasLead = params.has("nombre");
+    const text = hasLead
+      ? [
+          "Hola, quiero una demo de Repítela para mi bar.",
+          `Nombre: ${params.get("nombre") ?? ""}`,
+          `Bar: ${params.get("bar") ?? ""}`,
+          `Ciudad: ${params.get("ciudad") ?? ""}`,
+          `Dirección: ${params.get("direccion") ?? ""}`,
+        ].join("\n")
+      : "Hola, quiero una demo de Repítela para mi bar.";
+
+    const waLink = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
+
+    const link = document.getElementById("demo-whatsapp-link") as HTMLAnchorElement | null;
+    if (link) link.href = waLink;
+
+    if (hasLead) {
+      setTimeout(() => {
+        window.location.href = waLink;
+      }, 600);
+    }
+  </script>
+</Base>
