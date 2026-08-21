@@ -104,9 +104,20 @@ async def add_song(venue_id: int, user_id: int, session_id: str,
                    duration_sec: int) -> dict:
     db = await get_db()
 
-    # Re-check duplicate inside the lock so two concurrent confirms of the same
-    # video can't both pass the earlier check and end up with two queue entries.
+    # Re-check rate limit and duplicate inside the lock so two concurrent
+    # confirms from the same user (or of the same video) can't both pass the
+    # earlier check — one outside the lock, racing the other's insert — and
+    # end up with N+1 songs or two queue entries.
     async with _position_lock:
+        rate_info = await get_rate_limit_info(user_id, venue_id)
+        if rate_info["songs_remaining"] <= 0:
+            from fastapi import HTTPException
+            raise HTTPException(
+                status_code=429,
+                detail="Ya usaste tus canciones, espera un momento",
+                headers={"X-Error-Code": "RATE_LIMIT_EXCEEDED"},
+            )
+
         existing = await db.execute_fetchall(
             "SELECT id FROM queue_songs WHERE venue_id = ? AND youtube_id = ? AND status IN ('pending', 'playing')",
             (venue_id, youtube_id),
