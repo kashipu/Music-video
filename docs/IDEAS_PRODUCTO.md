@@ -3,7 +3,7 @@
 > Backlog de ideas evaluadas sobre el código actual (2026-08-21).
 > Complementa `docs/PLAN_MEJORAS_ESCALA.md` (fixes + suscripciones + escalada).
 >
-> **Veredicto global: las 12 ideas son posibles.** Una ya está implementada (#5),
+> **Veredicto global: las 15 ideas son posibles.** Una ya está implementada (#5),
 > el chatbot (#9) se diseña con la API oficial de WhatsApp (Baileys descartado por
 > riesgo de baneo), y una necesita abogado además de código (#8). Ninguna
 > requiere cambiar de stack.
@@ -22,10 +22,14 @@ Fixes P0/P1 (PLAN_MEJORAS_ESCALA.md)
       ├── #3 Personalización, publicidad y redes sociales (add-on cobrable)
       ├── #6 Cupones en el teléfono (add-on cobrable)
       ├── #10 Repítela para fiestas (nuevo plan B2C)
-      └── #11 Carta digital (add-on cobrable; v1-link no depende de nada)
+      ├── #11 Carta digital (add-on cobrable; v1-link no depende de nada)
+      ├── #13 Onboarding del bar (sin él, los trials de #2 no activan)
+      └── #15 Micropagos del usuario final (reusa el checkout/webhook de #2)
 #5 ya existe · #7 independiente · #8 independiente (legal)
 #9 chatbot ventas ──┐
 #2 registro/pagos ──┴── #12 HubSpot (CRM: recibe leads de #9 y estados de #2)
+#14 medición/UTMs — transversal: instrumenta la landing, #2, #9, #12 y #13
+                    (hacerla ANTES de invertir en adquisición)
 ```
 
 ---
@@ -370,17 +374,114 @@ aplica la Ley 1581 (#8).
 
 ---
 
+## #13 — Onboarding y documentación para el usuario final
+
+**Veredicto: POSIBLE — esfuerzo S-M.** Hoy la documentación vive en el repo
+(`ADMIN_GUIDE.md`, `USER_FLOW.md`) — sirve para desarrollo, no para un bar
+que se registra solo. Sin esto, el registro autogestionado (#2) genera
+trials que no se activan.
+
+**Diseño propuesto — tres audiencias:**
+- **El bar (admin), al registrarse**: checklist guiado dentro del panel la
+  primera vez: ① sube tu logo → ② importa tu playlist de respaldo →
+  ③ descarga e imprime tu QR → ④ abre el kiosko en el TV → ⑤ pide tu primera
+  canción de prueba. Con barra de progreso y estado persistido
+  (`venues.config.onboarding_step`). Un bar que completa el checklist en su
+  primer día es un trial que convierte — y el checklist incompleto es una
+  alerta en el centro de control (#1) y un trigger de secuencia en
+  HubSpot (#12): "vimos que no has impreso tu QR, ¿te ayudamos?".
+- **El bar, operación diaria**: centro de ayuda público (`/ayuda`) con guías
+  cortas por tarea ("cómo saltar una canción", "cómo funciona el PIN", "qué
+  hago si un video falla", "cómo leo mis analíticas") + videos de 60 s.
+  Generable desde los docs existentes; alojable en la landing (Astro ya
+  está).
+- **El cliente en el bar**: micro-onboarding de 3 pantallas la primera vez
+  que escanea el QR ("busca tu canción → confírmala → mírala en pantalla"),
+  con las reglas visibles (cuántas canciones tienes, cuándo se renuevan).
+  Reduce el abandono en el primer uso — medible con el journey de #1.
+
+---
+
+## #14 — Medición correcta: UTMs, eventos y el funnel completo hasta el bar que compra
+
+**Veredicto: POSIBLE Y URGENTE — esfuerzo S-M.** Hoy llega mucho `(not set)`
+a Analytics: tráfico sin atribución. Sin esto, no se puede saber qué canal
+trae bares que pagan — y todo lo comercial (#9, #12) queda a ciegas.
+La base ya existe: GTM en la landing (`docs/ANALYTICS.md`,
+`docs/gtm-container.json`) y analítica de producto en el backend.
+
+**Diseño propuesto:**
+- **Plan de medición escrito** (una página, fuente de verdad): taxonomía de
+  eventos GA4 con nomenclatura fija (`snake_case`, prefijos por superficie:
+  `landing_*`, `app_*`, `kiosk_*`), parámetros obligatorios y qué pregunta
+  responde cada evento. El `(not set)` casi siempre es eventos sin parámetros
+  consistentes o tráfico sin UTM — se ataca por ambos lados.
+- **Convención UTM única para todo link saliente de Repítela**:
+  `utm_source` (whatsapp, instagram, qr, chatbot, hubspot) ·
+  `utm_medium` (social, chat, print, email) · `utm_campaign` (nombre fijo
+  por campaña) · `utm_content` (variante). Aplica a: landing, links del
+  chatbot (#9), QRs impresos (¡cada QR de bar/mesa con su UTM — el QR es un
+  canal!), redes del bar (#3) y correos de HubSpot (#12).
+- **El funnel completo, punta a punta**:
+  `visita landing → lead (form o WhatsApp) → demo → registro/trial (#2) →
+  activación (checklist #13 completo) → pago (webhook Wompi)`.
+  Los pasos de servidor (registro, activación, pago) se reportan a GA4 por
+  **Measurement Protocol** desde el backend — el pago nunca ocurre en el
+  navegador, así que sin esto el funnel siempre estará roto. El mismo evento
+  actualiza el deal en HubSpot (#12): una sola verdad, dos destinos.
+- **Consent mode** en GTM condicionado al banner de cookies (#8) — medir
+  bien y legal a la vez.
+- **Higiene GA4**: filtrar tráfico interno y de los kioskos (¡un TV
+  reproduciendo 24/7 contamina todo!), marcar conversiones clave
+  (lead, trial, pago), y auditar el contenedor GTM actual contra el plan.
+
+---
+
+## #15 — Funcionalidades que el usuario final pagaría desde su teléfono
+
+**Veredicto: POSIBLE — esfuerzo M (una vez exista el micropago). Es la
+segunda línea de ingresos: el que paga no es solo el bar, también su
+cliente.** Todo con micropagos Wompi (Nequi/tarjeta) y **reparto con el bar**
+(ej. 70/30) — así el bar promueve estas features en vez de tolerarlas.
+
+**Catálogo propuesto, de mayor a menor potencial:**
+- **Cola VIP** ($3.000-5.000 COP): tu canción sube de posición. El modelo
+  probado de las rockolas digitales (TouchTunes). Reglas: máximo N saltos por
+  hora, nunca desplaza a otra VIP, el admin puede desactivarla. Es la
+  feature #1 de esta lista por ingreso esperado.
+- **Dedicatorias en pantalla** ($2.000-4.000): mensaje junto a tu canción
+  cuando suena ("Feliz cumpleaños, Laura 🎂"). Moderación automática con IA
+  (Haiku, centavos — ver roadmap IA) antes de mostrarse; el admin puede
+  vetar. Emocional, viral y de margen altísimo.
+- **Canciones extra**: compra un slot adicional cuando agotaste tu límite de
+  la ventana. Convierte la frustración del rate limit en ingreso; límites
+  duros por hora para no romper la equidad de la cola.
+- **Saludo/foto en pantalla** ($5.000-10.000): foto + mensaje en el kiosko
+  entre canciones (cumpleaños, despedidas). Moderación IA + aprobación del
+  admin obligatoria. Precio premium por lo prominente.
+- **Turno de karaoke prioritario**: cuando exista el modo karaoke, reservar
+  turno pagando. Mismo motor que la cola VIP.
+- **Infraestructura común**: tabla `microtransactions` (`user_id`,
+  `venue_id`, tipo, monto, estado, referencia Wompi, reparto), checkout Wompi
+  embebido en la vista del cliente, webhook compartido con #2, y liquidación
+  mensual al bar visible en su panel ("este mes tus clientes gastaron X, tu
+  parte es Y") — ese reporte es, en sí mismo, la mejor herramienta de
+  retención del bar.
+
+---
+
 ## Priorización sugerida
 
 | Orden | Idea | Por qué |
 |---|---|---|
-| 1 | **#2** Registro + trials + Wompi | Desbloquea todo lo cobrable; es el negocio |
+| 1 | **#2** Registro + trials + Wompi, con **#13** onboarding y **#14** medición integrados desde el día 1 | El negocio; un trial sin onboarding no activa y un funnel sin medición no se puede optimizar |
 | 2 | **#5** (ajustes) + **#1** salud/alertas | Baratos, mejoran operación diaria ya |
 | 3 | **#3** promos + redes sociales + **#11 v1** link a carta + **#7** votos | Valor visible para bar y usuarios; redes y link-carta son días de trabajo |
-| 4 | **#8** legal | Antes de crecer en usuarios y de campañas de marketing |
+| 4 | **#8** legal | Antes de crecer en usuarios y de campañas de marketing; el consent mode de #14 depende de esto |
 | 5 | **#9** chatbot WhatsApp (Cloud API) + **#12** HubSpot | Motor de adquisición para vender #2; HubSpot ordena el pipeline desde el primer lead |
-| 6 | **#6** cupones + **#4** algoritmo playlist + **#11 v2** carta alojada | Add-ons de retención/upsell |
-| 7 | **#10** fiestas | Nueva línea B2C sobre lo ya construido |
+| 6 | **#15** micropagos del usuario (cola VIP primero) | Segunda línea de ingresos; reusa el checkout de #2 y convierte al bar en socio |
+| 7 | **#6** cupones + **#4** algoritmo playlist + **#11 v2** carta alojada | Add-ons de retención/upsell |
+| 8 | **#10** fiestas | Nueva línea B2C sobre lo ya construido |
 
 > Recordatorio transversal: los fixes P0/P1 y la tarea de fondo de
 > `PLAN_MEJORAS_ESCALA.md` son prerequisito de #1 y #4, y el modelo de
