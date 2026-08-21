@@ -578,31 +578,28 @@ software), y (b) que el objeto físico entregue algo distinto cada vez
   de tu mesa para volver a pedir". Escanear ya es el gesto de entrada;
   ahora también es el de re-entrada. Cero códigos.
 
-**Protección de la URL impresa (la de la taquilla), sin red ni GPS:**
+**Riesgo residual — aceptado por decisión de negocio:** la URL impresa de
+la taquilla, copiada deliberadamente desde la cámara, seguiría funcionando
+(la tinta no puede rotar). Se acepta porque **el daño está acotado por
+diseño**: el rate limit da ~3 canciones por ventana, la inactividad (#16)
+mata la sesión en 1 h, y el admin puede quitar la canción y expulsar la
+mesa en dos taps. Blindar ese último resquicio (QR físico dinámico vía NFC,
+verificación de red o ubicación) **queda explícitamente descartado** — el
+costo y la fricción no se justifican contra un abuso de 3 canciones.
 
+Mitigaciones baratas que sí quedan (opcionales, del lado del bar):
 - **Taquilla solo con el bar abierto**: solo emite grants mientras el
-  kiosko del venue está encendido y transmitiendo (el backend ya lo sabe —
-  el kiosko le habla cada 10 s). Es una señal del *bar*, no del usuario:
-  no se le pide nada a nadie. La URL impresa abierta fuera del horario del
-  bar no despacha.
-- **Alarma + revocación por mesa**: patrón anómalo de grants en una mesa
-  (ritmo, horarios) → alerta en el centro de control (#1); el admin
-  regenera solo ese `token_de_mesa` con un tap y reimprime ese papel (#17).
-- **QR de pantalla como puerta preferida**: su token rota cada pocos
-  minutos gratis (es un render — `show_qr` ya existe). Un bar que quiera
-  cero riesgo dirige a la gente a escanear la pantalla.
-
-**Opción premium — el "QR físico que cambia solo" existe y es NFC:**
-tags **NTAG 424 DNA** (~USD 1-2 por mesa, sin batería, pegado bajo la
-mesa): cada tap genera una URL criptográficamente única e irrepetible
-(SUN/MAC con contador) — replay imposible por diseño. Es la única forma de
-que el objeto físico rote de verdad. Add-on para bares que quieran blindaje
-total; el QR impreso queda de respaldo para teléfonos sin NFC.
+  kiosko del venue está encendido (el backend ya lo sabe — el kiosko le
+  habla cada 10 s). Señal del bar, no del usuario.
+- **Revocación por mesa** (#17): si una mesa muestra un patrón raro, el
+  admin regenera solo ese token y reimprime ese papel.
+- **QR de pantalla**: su token puede rotar gratis (es un render); bares
+  estrictos pueden dirigir a la gente a escanear la pantalla.
 
 **Recomendación**: capas 1+2 casi gratis (config + #16); capa 3 con #17;
-capa 4 = grants + taquilla-con-bar-abierto + alertas por mesa; NFC solo
-como add-on. El PIN diario existente queda como opción manual para bares
-que lo prefieran, pero deja de ser el mecanismo principal.
+capa 4 = grants de un solo uso + las mitigaciones opcionales de arriba.
+El PIN diario existente queda como opción manual para bares que lo
+prefieran, pero deja de ser el mecanismo principal.
 
 ---
 
