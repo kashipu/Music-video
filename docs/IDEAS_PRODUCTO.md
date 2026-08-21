@@ -597,10 +597,36 @@ sesión no se destruye (puede seguir viendo la cola); solo se bloquea pedir.
   esto al 100%. El GPS falsificado exige herramientas de desarrollador —
   fuera del perfil — y la inactividad (#16) remata.
 
+**Complemento — re-entrada solo por QR (grants de un solo uso):**
+
+Objetivo: cuando la sesión caduque (#16), la única forma de volver a entrar
+es escanear de nuevo un QR del bar (físico o de pantalla); la URL guardada
+no sirve. Mecanismo:
+
+- El QR no apunta a la app sino a un **endpoint de entrada** ("taquilla"):
+  `repitela.co/e/<token_de_mesa>`. Al visitarse, el backend emite un
+  **grant de un solo uso** (~60 s de vida, tabla `entry_grants` o firmado
+  con nonce) y redirige a `/{slug}/usuario?g=<grant>`.
+- La app canjea el grant por la sesión; **el grant muere al usarse**. La URL
+  que queda en el historial lleva un grant consumido → guardarla es inútil.
+- **`/api/auth/register` pasa a exigir un grant válido** — hoy basta conocer
+  el slug; ese es el cambio de fondo.
+- QR de pantalla: su token puede rotar cada pocos minutos (render gratis).
+  QR físico: la tinta no cambia, pero el token es **por mesa y revocable**
+  (#17) — si se filtra, se regenera solo esa mesa.
+- ¿Y si guardan la URL de la taquilla (la impresa)? La taquilla aplica la
+  verificación de presencia de arriba (IP del bar / ubicación) **antes de
+  emitir el grant**: desde la casa no despacha.
+- UX: escanear ya es el gesto de entrada; ahora también es el de
+  re-entrada tras caducar la sesión. Cero códigos, cero teclear. Pantalla
+  de sesión vencida: "Tu sesión terminó — escanea el QR de tu mesa para
+  volver a pedir".
+
 **Recomendación**: capas 1+2 casi gratis (config + #16); capa 3 con #17;
-capa 4 en modo `solo avisar` primero, `bloquear` cuando el radio y las IPs
-estén calibrados. El PIN diario existente queda como opción manual para
-bares que lo prefieran, pero deja de ser el mecanismo principal.
+capa 4 (presencia invisible + grants de un solo uso) en modo `solo avisar`
+primero, `bloquear` cuando el radio y las IPs estén calibrados. El PIN
+diario existente queda como opción manual para bares que lo prefieran, pero
+deja de ser el mecanismo principal.
 
 ---
 
