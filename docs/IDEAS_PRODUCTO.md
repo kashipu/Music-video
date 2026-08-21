@@ -552,50 +552,55 @@ volver a entrar desde donde sea, y el JWT dura 24 h.
 3. **QR por mesa (#17) + re-validación**: entrar exige un token de mesa
    real; combinado con el PIN, "guardarse el link" exige además estar viendo
    la pantalla hoy.
-4. **Token rotativo en pantalla (opcional, la capa fuerte)** — diseño
-   detallado abajo: los QRs físicos siguen operando sin reimprimirse nunca.
-5. **Geolocalización — NO recomendada como control**: el GPS del navegador es
-   negable (fricción, pide permiso) y falsificable; solo serviría como señal
-   secundaria, nunca como barrera.
+4. **Presencia invisible (la capa fuerte, cero fricción)** — diseño
+   detallado abajo. Requisito de producto: **nada de teclear códigos**; el
+   usuario no hace nada, y el que se va del bar no puede pedir aunque tenga
+   la URL guardada.
 
-**Diseño de la capa 4 — token rotativo, conviviendo con los QRs físicos:**
+**Diseño de la capa 4 — presencia invisible:**
 
-La clave es separar los dos trabajos de un QR: **identidad** (qué mesa) y
-**presencia** (estás aquí ahora). Cada trabajo lo hace el medio adecuado:
+La verificación se mueve al momento que importa: **cada confirmación de
+canción** (no solo el registro). Así, salir del bar corta el acceso de
+inmediato aunque la sesión siga viva. Dos señales que el teléfono ya emite,
+y la canción entra si pasa **cualquiera** de las dos:
 
-- **QR físico de mesa (#17) = identidad, estático, no caduca nunca.**
-  Codifica `/{slug}/usuario?t=<token_de_mesa>`. No se reimprime jamás
-  (solo se regenera esa mesa si el token se filtra).
-- **Pantalla del kiosko = presencia, rotativa.** Al escanear el QR de mesa,
-  el registro pide el código que se ve en el TV en ese momento (4-6 dígitos
-  grandes, y/o un QR en pantalla que lo lleva embebido para no teclear).
-  El que guardó el link en su casa conoce la mesa pero no ve el código de
-  esta ventana → no entra.
+- **Señal 1 — la red del bar (invisible total):** el kiosko le habla al
+  backend cada 10 s, así que **el servidor ya conoce la IP pública del bar
+  en todo momento sin configurar nada** — se aprende sola y se mantiene
+  actualizada (columna `venues.last_kiosk_ip`, refrescada por los requests
+  del kiosko; tolerar las últimas 2-3 IPs vistas por si el ISP rota). Al
+  confirmar una canción se compara la IP del teléfono
+  (`X-Forwarded-For` vía nginx) con la del bar: en el Wi-Fi del bar →
+  coincide → pasa; en su casa → no coincide. Cero fricción; el bar además
+  gana un motivo para promover su Wi-Fi.
+- **Señal 2 — ubicación (para los que usan datos móviles):** permiso de
+  ubicación pedido **una sola vez** al registrarse (un tap); después se
+  verifica en silencio en cada confirmación, sin más prompts. El bar se
+  georreferencia en el onboarding (#13) con un paso trivial: el admin,
+  parado en el bar, toca "estoy aquí" → se guardan lat/lng. Radio ~150 m,
+  configurable.
 
-**Implementación (estilo TOTP, sin estado en la DB):**
-- Secreto por venue. Código vigente = `HMAC(secreto, ventana_de_tiempo)`
-  truncado a 4-6 dígitos; con ventana de 5 min rota solo.
-- Validación stateless: se acepta el código de la ventana actual y la
-  anterior (tolerancia al que tecleaba cuando rotó).
-- El kiosko lo obtiene por endpoint o por su WebSocket ya abierto y lo
-  muestra (ya sabe renderizar QR — `show_qr` existe).
-- **El PIN diario actual es este mismo mecanismo con ventana de 24 h**: se
-  generaliza lo existente con rotación configurable por venue —
-  24 h (relajado) / 4 h (media jornada) / 5 min (estricto). Un solo sistema,
-  tres niveles.
+**Si no pasa ninguna**: mensaje amable, nunca un código — *"Parece que no
+estás en {bar}. Conéctate al Wi-Fi del bar para pedir tu canción."* La
+sesión no se destruye (puede seguir viendo la cola); solo se bloquea pedir.
 
-**Reglas de borde:**
-- El código se exige solo al **crear** sesión, nunca a mitad de una sesión
-  activa — la rotación no interrumpe a quien ya está adentro.
-- Mesa sin vista al TV o TV apagado: el mesero ve el código vigente en el
-  panel del admin y lo dicta; o el bar usa ventana de 24 h esa jornada.
-- Grupos: todos los que llegan en la misma ventana usan el mismo código.
+**Reglas y bordes:**
+- Modo por venue: `off` / `solo avisar` (registra el evento sin bloquear —
+  ideal para calibrar radio e IPs las primeras semanas) / `bloquear`.
+- Kiosko caído → no hay IP fresca: cae a solo-ubicación, y si tampoco hay
+  permiso, no bloquear (fail-open) — un falso bloqueo en el bar duele más
+  que un colado.
+- Privacidad (Ley 1581, #8): la ubicación se usa solo para comparar en el
+  momento; se guarda el veredicto (dentro/fuera + distancia aproximada),
+  nunca las coordenadas del usuario.
+- Amenaza real = el cliente casual con la URL guardada; a ese lo detiene
+  esto al 100%. El GPS falsificado exige herramientas de desarrollador —
+  fuera del perfil — y la inactividad (#16) remata.
 
-**Recomendación**: capas 1+2 se activan casi gratis (config + #16); capa 3
-llega con #17; capa 4 solo si algún bar reporta abuso real — y cuando se
-haga, reemplaza al PIN diario en vez de convivir con él. Documentar en el
-centro de ayuda (#13) qué hacer si un bar sospecha intrusos (regenerar
-código, expulsar mesa).
+**Recomendación**: capas 1+2 casi gratis (config + #16); capa 3 con #17;
+capa 4 en modo `solo avisar` primero, `bloquear` cuando el radio y las IPs
+estén calibrados. El PIN diario existente queda como opción manual para
+bares que lo prefieran, pero deja de ser el mecanismo principal.
 
 ---
 
