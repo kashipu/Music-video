@@ -552,81 +552,57 @@ volver a entrar desde donde sea, y el JWT dura 24 h.
 3. **QR por mesa (#17) + re-validación**: entrar exige un token de mesa
    real; combinado con el PIN, "guardarse el link" exige además estar viendo
    la pantalla hoy.
-4. **Presencia invisible (la capa fuerte, cero fricción)** — diseño
-   detallado abajo. Requisito de producto: **nada de teclear códigos**; el
-   usuario no hace nada, y el que se va del bar no puede pedir aunque tenga
-   la URL guardada.
+4. **Re-entrada solo por escaneo (grants de un solo uso)** — la capa
+   principal. Requisitos de producto: **cero fricción** (nada de teclear
+   códigos) y **sin señales de red ni geolocalización**. Diseño abajo.
 
-**Diseño de la capa 4 — presencia invisible:**
+**Restricción física a aceptar primero:** un QR impreso es tinta — su URL
+no puede cambiar sola. Por eso el diseño separa dos problemas: (a) que la
+URL que la gente guarda en su navegador muera sola (resuelto 100% por
+software), y (b) que el objeto físico entregue algo distinto cada vez
+(resuelto por la pantalla gratis, o por NFC con hardware barato).
 
-La verificación se mueve al momento que importa: **cada confirmación de
-canción** (no solo el registro). Así, salir del bar corta el acceso de
-inmediato aunque la sesión siga viva. Dos señales que el teléfono ya emite,
-y la canción entra si pasa **cualquiera** de las dos:
-
-- **Señal 1 — la red del bar (invisible total):** el kiosko le habla al
-  backend cada 10 s, así que **el servidor ya conoce la IP pública del bar
-  en todo momento sin configurar nada** — se aprende sola y se mantiene
-  actualizada (columna `venues.last_kiosk_ip`, refrescada por los requests
-  del kiosko; tolerar las últimas 2-3 IPs vistas por si el ISP rota). Al
-  confirmar una canción se compara la IP del teléfono
-  (`X-Forwarded-For` vía nginx) con la del bar: en el Wi-Fi del bar →
-  coincide → pasa; en su casa → no coincide. Cero fricción; el bar además
-  gana un motivo para promover su Wi-Fi.
-- **Señal 2 — ubicación (para los que usan datos móviles):** permiso de
-  ubicación pedido **una sola vez** al registrarse (un tap); después se
-  verifica en silencio en cada confirmación, sin más prompts. El bar se
-  georreferencia en el onboarding (#13) con un paso trivial: el admin,
-  parado en el bar, toca "estoy aquí" → se guardan lat/lng. Radio ~150 m,
-  configurable.
-
-**Si no pasa ninguna**: mensaje amable, nunca un código — *"Parece que no
-estás en {bar}. Conéctate al Wi-Fi del bar para pedir tu canción."* La
-sesión no se destruye (puede seguir viendo la cola); solo se bloquea pedir.
-
-**Reglas y bordes:**
-- Modo por venue: `off` / `solo avisar` (registra el evento sin bloquear —
-  ideal para calibrar radio e IPs las primeras semanas) / `bloquear`.
-- Kiosko caído → no hay IP fresca: cae a solo-ubicación, y si tampoco hay
-  permiso, no bloquear (fail-open) — un falso bloqueo en el bar duele más
-  que un colado.
-- Privacidad (Ley 1581, #8): la ubicación se usa solo para comparar en el
-  momento; se guarda el veredicto (dentro/fuera + distancia aproximada),
-  nunca las coordenadas del usuario.
-- Amenaza real = el cliente casual con la URL guardada; a ese lo detiene
-  esto al 100%. El GPS falsificado exige herramientas de desarrollador —
-  fuera del perfil — y la inactividad (#16) remata.
-
-**Complemento — re-entrada solo por QR (grants de un solo uso):**
-
-Objetivo: cuando la sesión caduque (#16), la única forma de volver a entrar
-es escanear de nuevo un QR del bar (físico o de pantalla); la URL guardada
-no sirve. Mecanismo:
+**Diseño de la capa 4 — grants de un solo uso:**
 
 - El QR no apunta a la app sino a un **endpoint de entrada** ("taquilla"):
   `repitela.co/e/<token_de_mesa>`. Al visitarse, el backend emite un
   **grant de un solo uso** (~60 s de vida, tabla `entry_grants` o firmado
   con nonce) y redirige a `/{slug}/usuario?g=<grant>`.
-- La app canjea el grant por la sesión; **el grant muere al usarse**. La URL
-  que queda en el historial lleva un grant consumido → guardarla es inútil.
-- **`/api/auth/register` pasa a exigir un grant válido** — hoy basta conocer
-  el slug; ese es el cambio de fondo.
-- QR de pantalla: su token puede rotar cada pocos minutos (render gratis).
-  QR físico: la tinta no cambia, pero el token es **por mesa y revocable**
-  (#17) — si se filtra, se regenera solo esa mesa.
-- ¿Y si guardan la URL de la taquilla (la impresa)? La taquilla aplica la
-  verificación de presencia de arriba (IP del bar / ubicación) **antes de
-  emitir el grant**: desde la casa no despacha.
-- UX: escanear ya es el gesto de entrada; ahora también es el de
-  re-entrada tras caducar la sesión. Cero códigos, cero teclear. Pantalla
-  de sesión vencida: "Tu sesión terminó — escanea el QR de tu mesa para
-  volver a pedir".
+- La app canjea el grant por la sesión y **lo borra de la barra de
+  direcciones** (`history.replaceState`). El grant muere al usarse: la URL
+  que queda en el navegador/historial lleva una boleta consumida —
+  **guardarla hoy no sirve mañana, ni en una hora**.
+- **`/api/auth/register` pasa a exigir un grant válido** — hoy basta
+  conocer el slug del bar; ese es el cambio de fondo.
+- Al caducar la sesión (#16): pantalla "Tu sesión terminó — escanea el QR
+  de tu mesa para volver a pedir". Escanear ya es el gesto de entrada;
+  ahora también es el de re-entrada. Cero códigos.
+
+**Protección de la URL impresa (la de la taquilla), sin red ni GPS:**
+
+- **Taquilla solo con el bar abierto**: solo emite grants mientras el
+  kiosko del venue está encendido y transmitiendo (el backend ya lo sabe —
+  el kiosko le habla cada 10 s). Es una señal del *bar*, no del usuario:
+  no se le pide nada a nadie. La URL impresa abierta fuera del horario del
+  bar no despacha.
+- **Alarma + revocación por mesa**: patrón anómalo de grants en una mesa
+  (ritmo, horarios) → alerta en el centro de control (#1); el admin
+  regenera solo ese `token_de_mesa` con un tap y reimprime ese papel (#17).
+- **QR de pantalla como puerta preferida**: su token rota cada pocos
+  minutos gratis (es un render — `show_qr` ya existe). Un bar que quiera
+  cero riesgo dirige a la gente a escanear la pantalla.
+
+**Opción premium — el "QR físico que cambia solo" existe y es NFC:**
+tags **NTAG 424 DNA** (~USD 1-2 por mesa, sin batería, pegado bajo la
+mesa): cada tap genera una URL criptográficamente única e irrepetible
+(SUN/MAC con contador) — replay imposible por diseño. Es la única forma de
+que el objeto físico rote de verdad. Add-on para bares que quieran blindaje
+total; el QR impreso queda de respaldo para teléfonos sin NFC.
 
 **Recomendación**: capas 1+2 casi gratis (config + #16); capa 3 con #17;
-capa 4 (presencia invisible + grants de un solo uso) en modo `solo avisar`
-primero, `bloquear` cuando el radio y las IPs estén calibrados. El PIN
-diario existente queda como opción manual para bares que lo prefieran, pero
-deja de ser el mecanismo principal.
+capa 4 = grants + taquilla-con-bar-abierto + alertas por mesa; NFC solo
+como add-on. El PIN diario existente queda como opción manual para bares
+que lo prefieran, pero deja de ser el mecanismo principal.
 
 ---
 
