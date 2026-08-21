@@ -569,7 +569,7 @@ async def add_song_to_fallback(youtube_id: str = Query(...), admin: dict = Depen
     )
     position = rows[0][0] + 1
 
-    await db.execute(
+    cursor = await db.execute(
         "INSERT INTO fallback_songs (venue_id, youtube_id, title, thumbnail_url, duration_sec, position) "
         "VALUES (?, ?, ?, ?, ?, ?)",
         (venue_id, youtube_id, metadata["title"], metadata.get("thumbnail_url", ""),
@@ -578,7 +578,7 @@ async def add_song_to_fallback(youtube_id: str = Query(...), admin: dict = Depen
     await db.commit()
     return {
         "message": "Cancion agregada a la playlist de respaldo",
-        "song": {"id": db.lastrowid, "youtube_id": youtube_id, "title": metadata["title"], "position": position},
+        "song": {"id": cursor.lastrowid, "youtube_id": youtube_id, "title": metadata["title"], "position": position},
     }
 
 
