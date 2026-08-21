@@ -4,8 +4,9 @@
 > Complementa `docs/PLAN_MEJORAS_ESCALA.md` (fixes + suscripciones + escalada).
 >
 > **Veredicto global: las 10 ideas son posibles.** Una ya está implementada (#5),
-> una requiere cambiar la herramienta propuesta por riesgo real de baneo (#9), y
-> una necesita abogado además de código (#8). Ninguna requiere cambiar de stack.
+> el chatbot (#9) se diseña con la API oficial de WhatsApp (Baileys descartado por
+> riesgo de baneo), y una necesita abogado además de código (#8). Ninguna
+> requiere cambiar de stack.
 
 **Esfuerzo**: S = días · M = 1-3 semanas · L = 1-2 meses
 
@@ -26,30 +27,44 @@ Fixes P0/P1 (PLAN_MEJORAS_ESCALA.md)
 
 ---
 
-## #1 — Journey de usuario, alertas y salud del bar (superadmin)
+## #1 — Centro de control superadmin: journey, alertas y salud de los bares
 
-**Veredicto: POSIBLE — esfuerzo M.** Los datos ya se capturan
+**Veredicto: POSIBLE — esfuerzo M-L.** Los datos ya se capturan
 (`analytics_events`, `user_sessions`, `play_history`); falta agregarlos y
-mostrarlos.
+convertir el panel superadmin en un **centro de control de toda la red**: la
+vista desde donde se opera el negocio completo, no solo un CRUD de venues.
 
-**Diseño propuesto:**
+**Diseño propuesto — dos niveles:**
+
+**Nivel red (la vista de "mi negocio"):**
+- **Tablero general**: bares activos ahora, usuarios conectados en toda la
+  red, canciones sonando, ingresos del mes (cuando exista #2), bares en
+  trial / gracia / suspendidos, mapa o lista ordenada por actividad.
+- **Alertas operativas**: tabla `superadmin_alerts` + reglas en el job
+  nocturno y en tiempo real: "bar X se conectó hoy por primera vez",
+  "bar Y lleva 2 días sin actividad", "bar Z con tasa de error > 20%",
+  "pago de W vence en 3 días", "kiosko de V desconectado en horario de
+  apertura". Canal: campana en el panel + WhatsApp/email al superadmin.
+- **Feed de actividad**: línea de tiempo de la red (registros, pagos,
+  desconexiones, picos) para entrar en la mañana y ver qué pasó anoche.
+
+**Nivel bar (drill-down por venue):**
+- **Salud del bar** (semáforo): kiosko conectado (el kiosko ya hace polling a
+  `/now-playing` cada 10 s → registrar `last_kiosk_seen_at` por venue),
+  última canción reproducida, tasa de errores de video, sesiones activas,
+  estado de pago. Verde / amarillo / rojo.
+- **Resumen diario**: job nocturno (la tarea de fondo P1.2) que materializa
+  una fila por venue/día en `venue_daily_stats` (usuarios únicos, canciones,
+  búsquedas, errores, horas pico). Evita recalcular sobre `analytics_events`
+  en cada carga y sobrevive a la poda de eventos. "¿Cuántos usuarios tuvo el
+  bar X ayer?" se responde con un SELECT a esta tabla.
 - **Journey por usuario**: ya existe la cadena de eventos
   (`session_started` → `song_searched` → `song_confirmed` → `song_played`).
-  Un endpoint superadmin que la reconstruya por `session_id` y la muestre como
-  línea de tiempo. *Depende del fix P0.1 para que `song_searched` se guarde.*
-- **Salud del bar** (semáforo por venue): kiosko conectado (el kiosko ya hace
-  polling a `/now-playing` cada 10 s → registrar `last_kiosk_seen_at` por
-  venue), última canción reproducida, tasa de errores de video, sesiones
-  activas, estado de pago. Verde / amarillo / rojo.
-- **Resumen diario por bar**: job nocturno (la tarea de fondo P1.2) que
-  materializa una fila por venue/día en una tabla `venue_daily_stats`
-  (usuarios únicos, canciones, búsquedas, errores, horas pico). Evita
-  recalcular sobre `analytics_events` en cada carga del panel y sobrevive a
-  la poda de eventos.
-- **Alertas**: tabla `superadmin_alerts` + reglas en el job: "bar X se conectó
-  por primera vez hoy", "bar Y lleva 2 días sin actividad", "bar Z con tasa de
-  error > 20%", "pago de W vence en 3 días". Canal: panel + WhatsApp/email al
-  superadmin.
+  Un endpoint que la reconstruya por `session_id` y la muestre como línea de
+  tiempo: dónde entra la gente, dónde abandona, cuánto tarda en pedir su
+  primera canción. *Depende del fix P0.1 para que `song_searched` se guarde.*
+- Acceso directo a las analíticas que ya existen (`/api/admin/analytics`)
+  vistas como superadmin, sin pedirle credenciales al bar.
 
 ---
 
@@ -224,27 +239,32 @@ eliminación de datos (derecho de supresión).
 
 ## #9 — Chatbot de WhatsApp para capturar leads y vender la app
 
-**Veredicto: POSIBLE, pero NO con Baileys — esfuerzo M.**
+**Veredicto: POSIBLE — esfuerzo M. Con WhatsApp Business Cloud API (la API
+oficial de Meta).**
 
-**Por qué no Baileys:** es una librería no oficial (ingeniería inversa de
-WhatsApp Web). Viola los términos de servicio de WhatsApp y **Meta banea
-números que la usan** — perderías tu número comercial de ventas, justo el
-activo que el chatbot debe cuidar. Para un canal de ventas del negocio el
-riesgo es inaceptable.
+**Diseño propuesto:**
+- **Canal**: WhatsApp Business Cloud API. Costo: el tier de servicio es
+  gratis dentro de la ventana de 24 h de conversación iniciada por el usuario
+  (los leads entrantes son exactamente eso); las plantillas salientes de
+  marketing se pagan (~USD 0,01-0,05/mensaje). Número verificado y estable —
+  es un activo del negocio.
+- **Webhook de mensajes entrantes** → endpoint en el backend FastAPI (encaja
+  natural con la arquitectura actual).
+- **Bot con IA**: Claude Haiku 4.5 con un prompt que conoce la app, los
+  planes, precios y objeciones frecuentes + tool use para: guardar el lead
+  (tabla `leads`: teléfono, nombre, bar, ciudad, etapa del funnel), agendar
+  demo, y enviar el link de registro con trial (#2). Costo IA: centavos por
+  conversación. Escalamiento a humano con palabra clave o cuando el bot
+  detecta intención de compra caliente.
+- **Sinergia**: el mismo número y la misma integración sirven después para
+  los avisos de pago (#2), las campañas de cupones (#6) y las alertas al
+  superadmin (#1).
+- Los leads capturados alimentan el centro de control (#1): funnel de ventas
+  visible junto a la operación.
 
-**Alternativa recomendada: WhatsApp Business Cloud API (oficial, de Meta).**
-- Costo: gratis el tier de servicio dentro de la ventana de 24 h de
-  conversación iniciada por el usuario (los leads entrantes son exactamente
-  eso); las plantillas salientes de marketing se pagan (~USD 0,01-0,05/msj).
-- Webhook de mensajes entrantes → tu backend FastAPI (encaja natural).
-- **Bot con IA**: Claude Haiku 4.5 respondiendo con un prompt que conoce la
-  app, precios y objeciones + tool use para: guardar el lead (tabla `leads`:
-  teléfono, nombre, bar, ciudad, etapa), agendar demo, enviar link de registro
-  (#2). Costo IA: centavos por conversación. Escalamiento a humano con una
-  palabra clave.
-- El mismo número sirve después para los avisos de pago (#2) y campañas (#6).
-- Si aún así se quisiera Baileys (costo cero): solo con un número desechable y
-  asumiendo el baneo como evento esperado — no recomendado para producción.
+> Nota: se descartó Baileys (librería no oficial de WhatsApp Web): viola los
+> términos de servicio de WhatsApp y Meta banea los números que la usan —
+> inaceptable para el número comercial de ventas.
 
 ---
 
