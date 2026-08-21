@@ -127,6 +127,15 @@ dialog#lead-dialog::backdrop {
 .prose-blog a {
   @apply text-orange-400 hover:text-orange-300 underline underline-offset-2;
 }
+.prose-blog ul {
+  @apply list-disc pl-6 mb-5;
+}
+.prose-blog ol {
+  @apply list-decimal pl-6 mb-5;
+}
+.prose-blog li {
+  @apply mb-2;
+}
 
 /* Native <details> FAQ chevron */
 details.faq-item > summary {

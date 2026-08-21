@@ -65,8 +65,8 @@ const shareUrl = encodeURIComponent(canonical);
 
   <Navbar />
 
-  <main class="min-h-screen pt-20 sm:pt-24 pb-20">
-    <div class="relative w-full aspect-[21/9] max-h-[220px] sm:max-h-[320px] overflow-hidden">
+  <main class="min-h-screen pb-20">
+    <div class="relative w-full min-h-[180px] aspect-[21/9] max-h-[220px] sm:max-h-[320px] overflow-hidden">
       <Image
         src={post.data.heroImage}
         alt={post.data.heroImageAlt}
@@ -74,13 +74,15 @@ const shareUrl = encodeURIComponent(canonical);
         sizes="100vw"
         loading="eager"
         fetchpriority="high"
-        class="w-full h-full object-cover"
+        class="w-full h-full object-cover object-[center_80%]"
       />
       <div class="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-background/10"></div>
+      <div class="absolute top-0 left-0 w-1/2 h-1/2 bg-gradient-to-br from-black via-black/85 via-55% to-transparent pointer-events-none"></div>
     </div>
+    <div class="h-16 sm:h-24 -mt-16 sm:-mt-24 relative bg-gradient-to-t from-background to-transparent pointer-events-none"></div>
 
-    <div class="container mx-auto px-4 sm:px-6 max-w-5xl -mt-16 sm:-mt-20 relative z-10">
-      <nav aria-label="Breadcrumb" class="text-sm text-zinc-400 mb-6">
+    <div class="container mx-auto px-4 sm:px-6 max-w-5xl -mt-4 sm:-mt-20 relative z-10">
+      <nav aria-label="Breadcrumb" class="text-sm text-zinc-400 mb-6 pt-6 sm:pt-0">
         <a href="/blog/" class="text-orange-400 hover:text-orange-300">Blog</a>
         <span class="mx-1.5">/</span>
         <span class="text-zinc-300">{post.data.title}</span>
@@ -88,9 +90,9 @@ const shareUrl = encodeURIComponent(canonical);
 
       <div class="grid grid-cols-1 lg:grid-cols-[1fr_260px] gap-10 lg:gap-14">
         <div class="min-w-0">
-          <h1 class="text-3xl sm:text-4xl font-extrabold text-white mb-3">{post.data.title}</h1>
-          <div class="flex items-center gap-2 text-sm text-zinc-400 mb-10">
-            <span>{post.data.pubDate.toLocaleDateString("es-CO", { year: "numeric", month: "long", day: "numeric" })}</span>
+          <h1 class="text-3xl sm:text-4xl font-extrabold text-white mb-4">{post.data.title}</h1>
+          <div class="flex items-center gap-2 text-sm text-zinc-400 mb-8 sm:mb-10">
+            <span>{post.data.pubDate.toLocaleDateString("es-CO", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" })}</span>
             <span aria-hidden="true">·</span>
             <span>{minutes} min de lectura</span>
           </div>

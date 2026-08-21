@@ -62,7 +62,7 @@ const jsonLd = {
         href={`/blog/${featured.id}/`}
         class="group grid grid-cols-1 md:grid-cols-2 gap-0 glass-card rounded-2xl overflow-hidden border border-white/15 hover:border-primary/50 transition-all duration-300 mb-10"
       >
-        <div class="aspect-[16/9] md:aspect-auto md:h-full overflow-hidden">
+        <div class="relative aspect-[16/9] md:aspect-auto md:h-full overflow-hidden">
           <Image
             src={featured.data.heroImage}
             alt={featured.data.heroImageAlt}
@@ -71,10 +71,11 @@ const jsonLd = {
             loading="eager"
             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
+          <div class="absolute top-0 left-0 w-1/2 h-1/2 bg-gradient-to-br from-black via-black/85 via-55% to-transparent pointer-events-none"></div>
         </div>
         <div class="p-6 sm:p-8 flex flex-col justify-center">
           <p class="text-xs text-zinc-400 mb-3">
-            {featured.data.pubDate.toLocaleDateString("es-CO", { year: "numeric", month: "long", day: "numeric" })}
+            {featured.data.pubDate.toLocaleDateString("es-CO", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" })}
             <span aria-hidden="true"> · </span>
             {readingTime(featured.body ?? "")} min de lectura
           </p>
@@ -91,7 +92,7 @@ const jsonLd = {
         {rest.map((post) => (
           <li>
             <a href={`/blog/${post.id}/`} class="group block glass-card rounded-2xl overflow-hidden border border-white/15 hover:border-primary/50 transition-all duration-300 hover:-translate-y-1">
-              <div class="aspect-[16/9] overflow-hidden">
+              <div class="relative aspect-[16/9] overflow-hidden">
                 <Image
                   src={post.data.heroImage}
                   alt={post.data.heroImageAlt}
@@ -99,10 +100,11 @@ const jsonLd = {
                   sizes="(min-width: 640px) 480px, 100vw"
                   class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
+                <div class="absolute top-0 left-0 w-1/2 h-1/2 bg-gradient-to-br from-black via-black/85 via-55% to-transparent pointer-events-none"></div>
               </div>
               <div class="p-5 sm:p-6">
                 <p class="text-xs text-zinc-400 mb-2">
-                  {post.data.pubDate.toLocaleDateString("es-CO", { year: "numeric", month: "long", day: "numeric" })}
+                  {post.data.pubDate.toLocaleDateString("es-CO", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" })}
                   <span aria-hidden="true"> · </span>
                   {readingTime(post.body ?? "")} min de lectura
                 </p>
