@@ -58,5 +58,6 @@ leadForm?.addEventListener("submit", (e) => {
     ciudad: String(data.get("ciudad") ?? ""),
     direccion: String(data.get("direccion") ?? ""),
   });
+  leadForm.reset();
   window.location.href = `/demo?${params.toString()}`;
 });
