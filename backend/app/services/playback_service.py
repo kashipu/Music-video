@@ -267,6 +267,99 @@ async def skip_song(venue_id: int) -> dict:
     }
 
 
+async def try_start_song(venue_id: int, song_id: int) -> Optional[dict]:
+    """Atomically promote a specific pending song to 'playing', but only if
+    nothing else is currently playing. Serialized via _playback_lock with
+    skip/finish/error and every other auto-start caller, so two concurrent
+    triggers (e.g. two confirms landing with an empty queue, or an admin
+    action racing an auto-start) can't both flip a song to 'playing'.
+
+    Returns the started song (id, youtube_id, title, user_id, was_fallback)
+    or None if something was already playing or the song wasn't pending
+    anymore by the time we got the lock.
+    """
+    db = await get_db()
+    async with _playback_lock:
+        current = await db.execute_fetchall(
+            "SELECT id FROM queue_songs WHERE venue_id = ? AND status = 'playing' LIMIT 1",
+            (venue_id,),
+        )
+        if current:
+            return None
+
+        cursor = await db.execute(
+            "UPDATE queue_songs SET status = 'playing', played_at = CURRENT_TIMESTAMP "
+            "WHERE id = ? AND venue_id = ? AND status = 'pending'",
+            (song_id, venue_id),
+        )
+        if cursor.rowcount == 0:
+            return None
+
+        rows = await db.execute_fetchall(
+            "SELECT id, youtube_id, title, user_id FROM queue_songs WHERE id = ?",
+            (song_id,),
+        )
+        was_fallback = get_fallback_now_playing(venue_id) is not None
+        if was_fallback:
+            set_fallback_now_playing(venue_id, None)
+        await _commit_with_retry(db)
+
+    r = rows[0]
+    return {"id": r[0], "youtube_id": r[1], "title": r[2], "user_id": r[3], "was_fallback": was_fallback}
+
+
+async def play_specific_song(venue_id: int, song_id: int) -> Optional[dict]:
+    """Force-play a specific pending song immediately, skipping whatever is
+    currently playing (real song or fallback). Serialized via _playback_lock
+    with skip/finish/error/other auto-starts, so this can't race a concurrent
+    skip/finish into two songs marked 'playing'.
+
+    Returns {"song", "previous_user_id", "was_fallback"} or None if the song
+    isn't pending for this venue.
+    """
+    db = await get_db()
+    async with _playback_lock:
+        rows = await db.execute_fetchall(
+            "SELECT id, youtube_id, title, user_id FROM queue_songs "
+            "WHERE id = ? AND venue_id = ? AND status = 'pending'",
+            (song_id, venue_id),
+        )
+        if not rows:
+            return None
+        song = rows[0]
+
+        current_playing = await db.execute_fetchall(
+            "SELECT user_id FROM queue_songs WHERE venue_id = ? AND status = 'playing' LIMIT 1",
+            (venue_id,),
+        )
+
+        await db.execute(
+            "UPDATE queue_songs SET status = 'played', played_at = CURRENT_TIMESTAMP "
+            "WHERE venue_id = ? AND status = 'playing'",
+            (venue_id,),
+        )
+        await db.execute(
+            "UPDATE queue_songs SET position = position + 1 "
+            "WHERE venue_id = ? AND status = 'pending'",
+            (venue_id,),
+        )
+        await db.execute(
+            "UPDATE queue_songs SET status = 'playing', position = 0, played_at = CURRENT_TIMESTAMP "
+            "WHERE id = ?",
+            (song_id,),
+        )
+        was_fallback = get_fallback_now_playing(venue_id) is not None
+        if was_fallback:
+            set_fallback_now_playing(venue_id, None)
+        await _commit_with_retry(db)
+
+    return {
+        "song": {"id": song[0], "youtube_id": song[1], "title": song[2], "user_id": song[3]},
+        "previous_user_id": current_playing[0][0] if current_playing else None,
+        "was_fallback": was_fallback,
+    }
+
+
 async def error_song(song_id: int, venue_id: int, error_code: int) -> dict:
     db = await get_db()
 

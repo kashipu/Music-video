@@ -162,70 +162,31 @@ async def remove_song(song_id: int, admin: dict = Depends(get_current_admin)):
 async def play_now(song_id: int, admin: dict = Depends(get_current_admin)):
     """Skip current song and play this one immediately."""
     venue_id = admin["venue_id"]
-    db = await get_db()
 
-    # Verify song exists and is pending
-    rows = await db.execute_fetchall(
-        "SELECT id, youtube_id, title, user_id FROM queue_songs "
-        "WHERE id = ? AND venue_id = ? AND status = 'pending'",
-        (song_id, venue_id),
-    )
-    if not rows:
+    result = await playback_service.play_specific_song(venue_id, song_id)
+    if result is None:
         raise HTTPException(status_code=404, detail="Cancion no encontrada")
 
-    song = rows[0]
-
-    # Get current playing song's owner before marking as played
-    current_playing = await db.execute_fetchall(
-        "SELECT user_id FROM queue_songs WHERE venue_id = ? AND status = 'playing' LIMIT 1",
-        (venue_id,),
-    )
-
-    # Mark current playing song as played
-    await db.execute(
-        "UPDATE queue_songs SET status = 'played', played_at = CURRENT_TIMESTAMP "
-        "WHERE venue_id = ? AND status = 'playing'",
-        (venue_id,),
-    )
+    song = result["song"]
+    now_playing = {"id": song["id"], "youtube_id": song["youtube_id"], "title": song["title"]}
 
     # Notify previous song's owner
-    if current_playing and current_playing[0][0]:
-        await manager.send_to_user(venue_id, current_playing[0][0], {
+    if result["previous_user_id"]:
+        await manager.send_to_user(venue_id, result["previous_user_id"], {
             "event": "rate_limit_reset",
             "data": {"message": "Tu cancion termino"},
         })
-
-    # Move this song to position 1 (before all others)
-    await db.execute(
-        "UPDATE queue_songs SET position = position + 1 "
-        "WHERE venue_id = ? AND status = 'pending'",
-        (venue_id,),
-    )
-    await db.execute(
-        "UPDATE queue_songs SET status = 'playing', position = 0, played_at = CURRENT_TIMESTAMP "
-        "WHERE id = ?",
-        (song_id,),
-    )
-    await db.commit()
-
-    now_playing = {"id": song[0], "youtube_id": song[1], "title": song[2]}
-
-    # Detect if fallback was active so we can tell the Kiosk to switch immediately
-    from app.services.playback_service import get_fallback_now_playing, set_fallback_now_playing
-    was_fallback = get_fallback_now_playing(venue_id) is not None
-    if was_fallback:
-        set_fallback_now_playing(venue_id, None)
 
     await manager.broadcast(venue_id, {
         "event": "now_playing_changed",
         "data": {"song": now_playing},
     })
-    if song[3]:
-        await manager.send_to_user(venue_id, song[3], {
+    if song["user_id"]:
+        await manager.send_to_user(venue_id, song["user_id"], {
             "event": "your_song_playing",
             "data": {"song": now_playing, "message": "Tu cancion esta sonando ahora"},
         })
-    if was_fallback:
+    if result["was_fallback"]:
         # Kiosk stored it as pendingUserSong — trigger immediate switch
         await manager.broadcast(venue_id, {"event": "fallback_skip", "data": {}})
 
@@ -327,17 +288,11 @@ async def admin_add_song(req: AdminSongAddRequest, admin: dict = Depends(get_cur
         },
     })
 
-    # If nothing is playing, auto-start this song
-    playing = await db.execute_fetchall(
-        "SELECT id FROM queue_songs WHERE venue_id = ? AND status = 'playing'",
-        (venue_id,),
-    )
-    if not playing:
-        await db.execute(
-            "UPDATE queue_songs SET status = 'playing', played_at = CURRENT_TIMESTAMP WHERE id = ?",
-            (result["id"],),
-        )
-        await db.commit()
+    # If nothing is playing, auto-start this song. try_start_song() re-checks
+    # atomically under _playback_lock, so this can't race a concurrent
+    # confirm/skip/finish into two songs marked 'playing'.
+    started = await playback_service.try_start_song(venue_id, result["id"])
+    if started:
         now_playing = {"id": result["id"], "youtube_id": video_id, "title": metadata["title"]}
         await manager.broadcast(venue_id, {
             "event": "now_playing_changed",
@@ -414,52 +369,40 @@ async def start_playback(admin: dict = Depends(get_current_admin)):
     venue_id = admin["venue_id"]
     db = await get_db()
 
-    # Check if something is already playing
-    playing = await db.execute_fetchall(
-        "SELECT id FROM queue_songs WHERE venue_id = ? AND status = 'playing'",
-        (venue_id,),
-    )
-    if playing:
-        return {"message": "Already playing"}
-
     # Get first pending song
     pending = await db.execute_fetchall(
-        "SELECT id, youtube_id, title, user_id FROM queue_songs "
+        "SELECT id FROM queue_songs "
         "WHERE venue_id = ? AND status = 'pending' ORDER BY position ASC LIMIT 1",
         (venue_id,),
     )
     if not pending:
         return {"message": "No songs in queue"}
 
-    song = pending[0]
-    await db.execute(
-        "UPDATE queue_songs SET status = 'playing', played_at = CURRENT_TIMESTAMP WHERE id = ?",
-        (song[0],),
-    )
-    await playback_service.set_playback_status(venue_id, "playing")
-    await db.commit()
+    # try_start_song() atomically checks "nothing already playing" under
+    # _playback_lock and does the transition; covers the former separate
+    # "Already playing" pre-check too.
+    started = await playback_service.try_start_song(venue_id, pending[0][0])
+    if not started:
+        return {"message": "Already playing"}
 
-    from app.services.playback_service import get_fallback_now_playing, set_fallback_now_playing
-    was_fallback = get_fallback_now_playing(venue_id) is not None
-    if was_fallback:
-        set_fallback_now_playing(venue_id, None)
+    await playback_service.set_playback_status(venue_id, "playing")
 
     await manager.broadcast(venue_id, {
         "event": "playback_status_changed",
         "data": {"status": "playing"},
     })
 
-    now_playing = {"id": song[0], "youtube_id": song[1], "title": song[2]}
+    now_playing = {"id": started["id"], "youtube_id": started["youtube_id"], "title": started["title"]}
     await manager.broadcast(venue_id, {
         "event": "now_playing_changed",
         "data": {"song": now_playing},
     })
-    if song[3]:
-        await manager.send_to_user(venue_id, song[3], {
+    if started["user_id"]:
+        await manager.send_to_user(venue_id, started["user_id"], {
             "event": "your_song_playing",
             "data": {"song": now_playing, "message": "Tu cancion esta sonando ahora"},
         })
-    if was_fallback:
+    if started["was_fallback"]:
         await manager.broadcast(venue_id, {"event": "fallback_skip", "data": {}})
 
     return {"message": "Playback started", "now_playing": now_playing}
@@ -510,34 +453,31 @@ async def skip_fallback_song(admin: dict = Depends(get_current_admin)):
 
     # Check for pending queue songs first
     pending = await db.execute_fetchall(
-        "SELECT id, youtube_id, title, user_id FROM queue_songs "
+        "SELECT id FROM queue_songs "
         "WHERE venue_id = ? AND status = 'pending' ORDER BY position ASC LIMIT 1",
         (venue_id,),
     )
 
     if pending:
-        r = pending[0]
-        await db.execute(
-            "UPDATE queue_songs SET status = 'playing', played_at = CURRENT_TIMESTAMP WHERE id = ?",
-            (r[0],),
-        )
-        await db.commit()
-        from app.services.playback_service import set_fallback_now_playing
-        set_fallback_now_playing(venue_id, None)
-        next_song = {"id": r[0], "youtube_id": r[1], "title": r[2], "user_id": r[3]}
-        # 1. now_playing_changed → Kiosk stores as pendingUserSong (fallback still playing)
-        await manager.broadcast(venue_id, {
-            "event": "now_playing_changed",
-            "data": {"song": next_song},
-        })
-        if r[3]:
-            await manager.send_to_user(venue_id, r[3], {
-                "event": "your_song_playing",
-                "data": {"song": next_song, "message": "Tu cancion esta sonando ahora"},
+        started = await playback_service.try_start_song(venue_id, pending[0][0])
+        if started:
+            next_song = {
+                "id": started["id"], "youtube_id": started["youtube_id"],
+                "title": started["title"], "user_id": started["user_id"],
+            }
+            # 1. now_playing_changed → Kiosk stores as pendingUserSong (fallback still playing)
+            await manager.broadcast(venue_id, {
+                "event": "now_playing_changed",
+                "data": {"song": next_song},
             })
-        # 2. fallback_skip → Kiosk calls handleFallbackSkip → finds pendingUserSong → switches immediately
-        await manager.broadcast(venue_id, {"event": "fallback_skip", "data": {}})
-        return {"message": "Cambiado a cancion de la cola", "now_playing": next_song}
+            if next_song["user_id"]:
+                await manager.send_to_user(venue_id, next_song["user_id"], {
+                    "event": "your_song_playing",
+                    "data": {"song": next_song, "message": "Tu cancion esta sonando ahora"},
+                })
+            # 2. fallback_skip → Kiosk calls handleFallbackSkip → finds pendingUserSong → switches immediately
+            await manager.broadcast(venue_id, {"event": "fallback_skip", "data": {}})
+            return {"message": "Cambiado a cancion de la cola", "now_playing": next_song}
 
     # No queue songs — tell kiosk to play next fallback song
     await manager.broadcast(venue_id, {"event": "fallback_skip", "data": {}})

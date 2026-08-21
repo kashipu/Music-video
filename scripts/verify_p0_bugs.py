@@ -10,6 +10,7 @@ Usage:
 """
 import asyncio
 import json
+import os
 import sqlite3
 import sys
 import time
@@ -293,42 +294,79 @@ def p0_6():
 # ---------------------------------------------------------------------------
 
 def p0_5():
-    venue_id = get_venue_id()
-    c = db()
-    c.execute("DELETE FROM queue_songs WHERE venue_id = ?", (venue_id,))
-    c.execute("DELETE FROM submission_log WHERE venue_id = ?", (venue_id,))
-    c.execute(
-        "UPDATE venues SET config = json_set(COALESCE(config, '{}'), '$.max_songs_per_window', 5, '$.window_minutes', 5) WHERE id = ?",
-        (venue_id,),
-    )
-    c.commit()
-    c.close()
+    """Two concurrent auto-starts (e.g. two confirms landing with an empty
+    queue) must not both flip a song to 'playing'.
 
+    A real HTTP-level race (threads or even asyncio.gather over separate
+    connections) turned out too jittery to land inside the same event-loop
+    tick reliably — see confirm_concurrent()'s docstring and P0.6, which DID
+    catch it that way once. So this test calls the fixed function directly,
+    in-process, via asyncio.gather against the SAME db connection the
+    real server would use — that's how the pre-fix race was first confirmed
+    (2 songs landed 'playing' from 2 concurrent calls) before playback_service
+    even had try_start_song.
+    """
+    import asyncio as _asyncio
+    import uuid as _uuid
+    from app.config import settings as _settings
+    from app import database as _database
+    from app.services import playback_service as _playback_service
+
+    venue_id = get_venue_id()
     token_a = register_user(venue_id, table="p0_5_a")
     token_b = register_user(venue_id, table="p0_5_b")
 
-    for i, yid in enumerate(["p0start0001", "p0start0002"]):
-        c = db()
-        c.execute(
-            "INSERT OR REPLACE INTO song_metadata (youtube_id, title, duration_sec) VALUES (?, ?, 120)",
-            (yid, f"P0 Start {i}"),
-        )
-        c.commit()
-        c.close()
+    c = db()
+    c.execute("UPDATE queue_songs SET status = 'played' WHERE venue_id = ? AND status = 'playing'", (venue_id,))
+    row_a = c.execute(
+        "SELECT user_id, id FROM user_sessions WHERE venue_id=? AND table_number='p0_5_a' AND ended_at IS NULL "
+        "ORDER BY started_at DESC LIMIT 1", (venue_id,),
+    ).fetchone()
+    row_b = c.execute(
+        "SELECT user_id, id FROM user_sessions WHERE venue_id=? AND table_number='p0_5_b' AND ended_at IS NULL "
+        "ORDER BY started_at DESC LIMIT 1", (venue_id,),
+    ).fetchone()
+    yid_a, yid_b = f"p0race5a{_uuid.uuid4().hex[:4]}", f"p0race5b{_uuid.uuid4().hex[:4]}"
+    cur_a = c.execute(
+        "INSERT INTO queue_songs (venue_id, user_id, session_id, youtube_id, title, position, status) "
+        "VALUES (?,?,?,?,?,900,'pending')", (venue_id, row_a[0], row_a[1], yid_a, "P0.5 race A"),
+    )
+    cur_b = c.execute(
+        "INSERT INTO queue_songs (venue_id, user_id, session_id, youtube_id, title, position, status) "
+        "VALUES (?,?,?,?,?,901,'pending')", (venue_id, row_b[0], row_b[1], yid_b, "P0.5 race B"),
+    )
+    song_id_a, song_id_b = cur_a.lastrowid, cur_b.lastrowid
+    c.commit()
+    c.close()
 
-    confirm_concurrent([(token_a, "p0start0001"), (token_b, "p0start0002")])
+    async def _run():
+        # init_db() and the actual gather must share ONE event loop: aiosqlite's
+        # background thread schedules completions back onto the loop that was
+        # active when the connection was created — split across two separate
+        # asyncio.run() calls, the second loop's awaits never resolve (hang).
+        if _database._db is None:
+            _settings.database_path = str(DB)
+            await _database.init_db()
+        return await _asyncio.gather(
+            _playback_service.try_start_song(venue_id, song_id_a),
+            _playback_service.try_start_song(venue_id, song_id_b),
+        )
+
+    started_a, started_b = _asyncio.run(_run())
+    winners = sum(1 for s in (started_a, started_b) if s is not None)
 
     c = db()
     playing = c.execute(
-        "SELECT COUNT(*) FROM queue_songs WHERE venue_id = ? AND status = 'playing'", (venue_id,)
+        "SELECT COUNT(*) FROM queue_songs WHERE venue_id = ? AND status = 'playing' AND id IN (?, ?)",
+        (venue_id, song_id_a, song_id_b),
     ).fetchone()[0]
     c.close()
 
-    ok = playing <= 1
+    ok = winners == 1 and playing == 1
     if ok:
-        log("P0.5", "PASS", f"cola vacía, 2 confirms simultáneos -> {playing} canción(es) en 'playing' (esperado <=1)")
+        log("P0.5", "PASS", f"2 llamadas concurrentes a try_start_song -> {winners} ganador, {playing} en 'playing' (esperado 1 y 1)")
     else:
-        log("P0.5", "FAIL", f"cola vacía, 2 confirms simultáneos -> {playing} canciones en 'playing' (RACE)")
+        log("P0.5", "FAIL", f"2 llamadas concurrentes a try_start_song -> {winners} ganadores, {playing} en 'playing' (RACE)")
     return ok
 
 
@@ -347,4 +385,7 @@ if __name__ == "__main__":
     passed = sum(1 for _, s, _ in results if s == "PASS")
     failed = sum(1 for _, s, _ in results if s == "FAIL")
     print(f"\n  PASS: {passed}   FAIL: {failed}")
-    sys.exit(1 if failed else 0)
+    sys.stdout.flush()
+    # p0_5 opens a standalone aiosqlite connection whose background thread is
+    # non-daemon — a normal process exit would hang waiting to join it.
+    os._exit(1 if failed else 0)
