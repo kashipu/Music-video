@@ -1,0 +1,63 @@
+---
+import menu from "lucide-static/icons/menu.svg?raw";
+import x from "lucide-static/icons/x.svg?raw";
+import sparkles from "lucide-static/icons/sparkles.svg?raw";
+import tv from "lucide-static/icons/tv.svg?raw";
+import smartphone from "lucide-static/icons/smartphone.svg?raw";
+import shieldCheck from "lucide-static/icons/shield-check.svg?raw";
+import arrowDown from "lucide-static/icons/arrow-down.svg?raw";
+import qrCode from "lucide-static/icons/qr-code.svg?raw";
+import search from "lucide-static/icons/search.svg?raw";
+import play from "lucide-static/icons/play.svg?raw";
+import clock from "lucide-static/icons/clock.svg?raw";
+import music from "lucide-static/icons/music.svg?raw";
+import shield from "lucide-static/icons/shield.svg?raw";
+import trendingUp from "lucide-static/icons/trending-up.svg?raw";
+import star from "lucide-static/icons/star.svg?raw";
+import quote from "lucide-static/icons/quote.svg?raw";
+import xCircle from "lucide-static/icons/circle-x.svg?raw";
+import checkCircle2 from "lucide-static/icons/circle-check-big.svg?raw";
+import zap from "lucide-static/icons/zap.svg?raw";
+import monitorPlay from "lucide-static/icons/monitor-play.svg?raw";
+import barChart3 from "lucide-static/icons/chart-column.svg?raw";
+import sliders from "lucide-static/icons/sliders-horizontal.svg?raw";
+import listMusic from "lucide-static/icons/list-music.svg?raw";
+import check from "lucide-static/icons/check.svg?raw";
+import messageCircle from "lucide-static/icons/message-circle.svg?raw";
+import helpCircle from "lucide-static/icons/circle-help.svg?raw";
+import instagram from "lucide-static/icons/instagram.svg?raw";
+import facebook from "lucide-static/icons/facebook.svg?raw";
+import link from "lucide-static/icons/link.svg?raw";
+
+const icons = {
+  menu, x, sparkles, tv, smartphone,
+  "shield-check": shieldCheck,
+  "arrow-down": arrowDown,
+  "qr-code": qrCode,
+  search, play, clock, music, shield,
+  "trending-up": trendingUp,
+  star, quote,
+  "x-circle": xCircle,
+  "check-circle-2": checkCircle2,
+  zap,
+  "monitor-play": monitorPlay,
+  "bar-chart-3": barChart3,
+  sliders,
+  "list-music": listMusic,
+  check,
+  "message-circle": messageCircle,
+  "help-circle": helpCircle,
+  instagram,
+  facebook,
+  link,
+} as const;
+
+interface Props {
+  name: keyof typeof icons;
+  class?: string;
+}
+
+const { name, class: className = "w-5 h-5" } = Astro.props;
+const svg = icons[name].replace("<svg", `<svg class="${className}"`);
+---
+<Fragment set:html={svg} />

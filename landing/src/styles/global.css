@@ -1,0 +1,140 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 240 18% 4%;
+    --foreground: 0 0% 98%;
+
+    --card: 240 16% 7%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 240 16% 7%;
+    --popover-foreground: 0 0% 98%;
+
+    /* Neon Sunset Orange */
+    --primary: 16 100% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Deep Electric Violet */
+    --secondary: 270 85% 65%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 240 14% 14%;
+    --muted-foreground: 240 6% 75%;
+
+    /* Neon Cyan */
+    --accent: 195 100% 50%;
+    --accent-foreground: 240 18% 4%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 240 12% 22%;
+    --input: 240 12% 22%;
+    --ring: 16 100% 60%;
+
+    --radius: 1rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans antialiased selection:bg-primary/30 selection:text-white;
+    background-color: #07070b;
+    background-image:
+      radial-gradient(at 0% 0%, rgba(255, 85, 34, 0.08) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, rgba(168, 85, 247, 0.08) 0px, transparent 50%);
+    background-attachment: fixed;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display tracking-tight;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #FF6B35 0%, #FF2A6D 50%, #A855F7 100%);
+  }
+
+  .glass-card {
+    background: rgba(14, 14, 20, 0.7);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .glow-sm {
+    box-shadow: 0 0 20px rgba(255, 85, 34, 0.18);
+  }
+
+  .animate-fade-up {
+    animation: fade-up 0.6s ease-out both;
+  }
+}
+
+@keyframes fade-up {
+  0% { opacity: 0; transform: translateY(30px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes particle {
+  0% { transform: translateY(0) translateX(0); opacity: 0; }
+  10% { opacity: 0.6; }
+  90% { opacity: 0.6; }
+  100% { transform: translateY(-100vh) translateX(40px); opacity: 0; }
+}
+
+/* Scroll-reveal (replaces React IntersectionObserver hook) */
+[data-animate] {
+  opacity: 0;
+  transform: translateY(2.5rem);
+  transition: opacity 0.7s ease-out, transform 0.7s ease-out;
+}
+[data-animate].in-view {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Native <dialog> reset */
+dialog#lead-dialog {
+  padding: 0;
+  border: none;
+  background: transparent;
+  max-width: 28rem;
+  width: calc(100% - 2rem);
+}
+dialog#lead-dialog::backdrop {
+  background: rgba(4, 4, 7, 0.8);
+  backdrop-filter: blur(4px);
+}
+
+/* Blog post typography (replaces @tailwindcss/typography for a single content type) */
+.prose-blog {
+  line-height: 1.75;
+}
+.prose-blog h2 {
+  @apply text-2xl font-bold text-white mt-10 mb-4;
+}
+.prose-blog p {
+  @apply mb-5;
+}
+.prose-blog a {
+  @apply text-orange-400 hover:text-orange-300 underline underline-offset-2;
+}
+
+/* Native <details> FAQ chevron */
+details.faq-item > summary {
+  list-style: none;
+}
+details.faq-item > summary::-webkit-details-marker {
+  display: none;
+}
+details.faq-item[open] > summary .faq-chevron {
+  transform: rotate(180deg);
+}

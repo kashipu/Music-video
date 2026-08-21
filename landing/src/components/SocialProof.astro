@@ -1,0 +1,58 @@
+---
+import Icon from "@/components/Icon.astro";
+
+const stats = [
+  { icon: "trending-up", value: "+35%", label: "Mayor Permanencia", desc: "Las mesas se quedan más tiempo esperando su canción y piden rondas extra." },
+  { icon: "clock", value: "< 30s", label: "Registro Rápido", desc: "El cliente abre la cámara, escanea y pide. Cero fricción, cero descargas." },
+  { icon: "music", value: "100%", label: "Música Continua", desc: "Playlist de respaldo que suena automáticamente si la cola se vacía." },
+  { icon: "shield", value: "$50.000", label: "COP al Mes", desc: "Precio fijo y transparente. Todo incluido, sin comisiones ni sorpresas." },
+] as const;
+
+const cities = ["Bogotá D.C.", "Medellín", "Cali", "Cartagena"];
+---
+
+<section class="py-20 sm:py-28 relative overflow-hidden border-y border-white/10 bg-brand-card/40">
+  <div class="container mx-auto px-4 sm:px-6 relative z-10">
+    <div class="text-center mb-12 sm:mb-16">
+      <div class="text-xs uppercase tracking-widest font-extrabold text-orange-400 mb-4">
+        Presente en bares y gastrobares de Colombia
+      </div>
+      <div class="flex flex-wrap items-center justify-center gap-2 sm:gap-3 max-w-4xl mx-auto">
+        {cities.map((city) => (
+          <span class="text-xs sm:text-sm font-semibold bg-white/10 border border-white/20 px-4 py-1.5 rounded-full text-zinc-100 shadow-sm">
+            📍 {city}
+          </span>
+        ))}
+      </div>
+    </div>
+
+    <div data-animate class="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 max-w-5xl mx-auto">
+      {stats.map((stat) => (
+        <div class="p-5 sm:p-7 rounded-2xl sm:rounded-3xl glass-card border border-white/15 hover:border-primary/50 transition-all duration-300 group">
+          <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center mb-4 group-hover:bg-primary/25 transition-colors">
+            <Icon name={stat.icon} class="h-5 w-5 sm:h-6 sm:w-6 text-orange-400" />
+          </div>
+          <div class="text-3xl sm:text-4xl font-black text-white mb-1.5 tracking-tight font-display">{stat.value}</div>
+          <div class="text-sm font-extrabold text-zinc-100 mb-1.5">{stat.label}</div>
+          <div class="text-xs text-zinc-300 leading-relaxed hidden sm:block font-medium">{stat.desc}</div>
+        </div>
+      ))}
+    </div>
+
+    <div data-animate class="mt-14 sm:mt-20 max-w-3xl mx-auto text-center">
+      <div class="glass-card rounded-3xl p-6 sm:p-10 border border-white/15 relative">
+        <Icon name="quote" class="w-8 h-8 sm:w-10 sm:h-10 text-primary/30 absolute top-5 left-5 -scale-x-100" />
+        <div class="flex justify-center gap-1 mb-4">
+          {[1, 2, 3, 4, 5].map(() => (
+            <Icon name="star" class="h-4 w-4 fill-amber-400 text-amber-400" />
+          ))}
+        </div>
+        <p class="text-sm sm:text-base md:text-lg text-zinc-100 font-medium italic mb-5 leading-relaxed relative z-10 px-2 sm:px-6">
+          "Antes la gente llamaba al mesero a cada rato para que cambiara la música o peleaban por el Spotify. Con Repítela las mesas están felices eligiendo sus canciones y el consumo en cerveza y cócteles subió notablemente porque nadie se quiere ir antes de que suene su tema."
+        </p>
+        <div class="text-sm font-bold text-white">Andrés Morales</div>
+        <div class="text-xs text-orange-300 font-semibold mt-0.5">Administrador de Gastrobar en Medellín, Antioquia</div>
+      </div>
+    </div>
+  </div>
+</section>

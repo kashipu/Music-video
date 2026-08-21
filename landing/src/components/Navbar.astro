@@ -1,0 +1,132 @@
+---
+import Icon from "@/components/Icon.astro";
+import logo from "@/assets/logo-color-negativo.svg";
+
+const links = [
+  { label: "Cómo funciona", href: "/#como-funciona" },
+  { label: "Para tu bar", href: "/#para-bares" },
+  { label: "Precio", href: "/#precio" },
+  { label: "Preguntas", href: "/#faq" },
+];
+---
+
+<header id="navbar" class="fixed top-0 left-0 right-0 z-[60] transition-all duration-300 bg-transparent border-b border-transparent">
+  <div class="container mx-auto px-4 sm:px-6 h-16 sm:h-18 flex items-center justify-between gap-3 py-2 sm:py-3">
+    <a href="/" class="group shrink-0">
+      <div class="flex flex-col">
+        <img src={logo.src} alt="Repítela" class="h-7 md:h-5 lg:h-8 w-auto transition-transform group-hover:scale-[1.02]" />
+        <span class="text-xs text-zinc-300 font-medium tracking-wide hidden xs:inline">Rockola digital con QR</span>
+      </div>
+    </a>
+
+    <nav aria-label="Navegación principal" class="hidden md:flex items-center gap-4 lg:gap-8">
+      {links.map((link) => (
+        <a href={link.href} class="text-sm font-medium text-zinc-200 hover:text-white transition-colors">
+          {link.label}
+        </a>
+      ))}
+    </nav>
+
+    <div class="hidden md:flex items-center gap-4">
+      <a
+        href="https://app.repitela.com/admin"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="text-xs font-semibold text-zinc-200 hover:text-white px-2.5 py-1.5 rounded-lg border border-white/10 hover:border-white/30 transition-colors"
+      >
+        Entrar al panel
+      </a>
+      <button
+        type="button"
+        data-open-lead="navbar"
+        class="inline-flex items-center justify-center gap-2 h-10 bg-gradient-to-r from-primary to-orange-500 hover:opacity-90 text-white font-bold text-xs lg:text-sm px-4 lg:px-5 py-2.5 rounded-xl shadow-glow-primary transition-all hover:shadow-lg"
+      >
+        <Icon name="sparkles" class="w-3.5 h-3.5" />
+        Pide una demo
+      </button>
+    </div>
+
+    <button
+      id="navbar-toggle"
+      class="md:hidden p-2 rounded-xl text-white hover:bg-white/10 transition-colors focus:outline-none relative z-[70]"
+      aria-label="Abrir menú"
+      aria-expanded="false"
+    >
+      <span id="navbar-toggle-menu-icon"><Icon name="menu" class="w-[22px] h-[22px]" /></span>
+      <span id="navbar-toggle-close-icon" class="hidden"><Icon name="x" class="w-[22px] h-[22px]" /></span>
+    </button>
+  </div>
+
+  <div
+    id="navbar-mobile"
+    class="hidden md:hidden fixed left-0 right-0 top-16 sm:top-18 h-[calc(100dvh-4rem)] sm:h-[calc(100dvh-4.5rem)] z-[60] bg-brand-dark/98 backdrop-blur-2xl overflow-y-auto"
+  >
+    <div class="flex flex-col min-h-full px-6 py-8">
+      <nav class="flex-1 flex flex-col justify-center space-y-1">
+        {links.map((link) => (
+          <a href={link.href} class="block py-3.5 text-2xl font-bold text-zinc-100 hover:text-white transition-colors active:text-white">
+            {link.label}
+          </a>
+        ))}
+      </nav>
+      <div class="pt-6 border-t border-white/15 space-y-4 shrink-0">
+        <a href="https://app.repitela.com/admin" class="block text-center text-base font-semibold text-zinc-200 py-2 hover:text-white">
+          Entrar al panel
+        </a>
+        <button
+          type="button"
+          data-open-lead="navbar_mobile"
+          class="inline-flex items-center justify-center gap-2 h-12 w-full bg-gradient-to-r from-primary to-orange-500 text-white font-bold py-3.5 rounded-xl shadow-glow-primary"
+        >
+          <Icon name="sparkles" class="w-4 h-4" />
+          Pide una demo
+        </button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<script>
+  const header = document.getElementById("navbar");
+  const toggle = document.getElementById("navbar-toggle");
+  const mobileMenu = document.getElementById("navbar-mobile");
+  const menuIcon = document.getElementById("navbar-toggle-menu-icon");
+  const closeIcon = document.getElementById("navbar-toggle-close-icon");
+
+  window.addEventListener("scroll", () => {
+    const scrolled = window.scrollY > 20;
+    header?.classList.toggle("glass-card", scrolled);
+    header?.classList.toggle("border-white/15", scrolled);
+    header?.classList.toggle("bg-brand-dark/95", scrolled);
+    header?.classList.toggle("backdrop-blur-xl", scrolled);
+    header?.classList.toggle("shadow-lg", scrolled);
+    header?.classList.toggle("border-transparent", !scrolled);
+  });
+
+  const setMenuOpen = (isOpen: boolean) => {
+    mobileMenu?.classList.toggle("hidden", !isOpen);
+    toggle?.setAttribute("aria-expanded", String(isOpen));
+    toggle?.setAttribute("aria-label", isOpen ? "Cerrar menú" : "Abrir menú");
+    menuIcon?.classList.toggle("hidden", isOpen);
+    closeIcon?.classList.toggle("hidden", !isOpen);
+    document.body.classList.toggle("overflow-hidden", isOpen);
+    document.documentElement.classList.toggle("overflow-hidden", isOpen);
+  };
+
+  toggle?.addEventListener("click", () => {
+    const isOpen = mobileMenu?.classList.contains("hidden");
+    setMenuOpen(Boolean(isOpen));
+  });
+
+  mobileMenu?.querySelectorAll("a, button[data-open-lead]").forEach((el) => {
+    el.addEventListener("click", () => setMenuOpen(false));
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !mobileMenu?.classList.contains("hidden")) setMenuOpen(false);
+  });
+
+  window.addEventListener("resize", () => {
+    if (window.innerWidth >= 768 && !mobileMenu?.classList.contains("hidden")) setMenuOpen(false);
+  });
+</script>

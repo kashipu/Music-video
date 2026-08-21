@@ -1,0 +1,92 @@
+---
+import Base from "@/layouts/Base.astro";
+import Navbar from "@/components/Navbar.astro";
+import Hero from "@/components/Hero.astro";
+import SocialProof from "@/components/SocialProof.astro";
+import PainVsGain from "@/components/PainVsGain.astro";
+import HowItWorks from "@/components/HowItWorks.astro";
+import ForBars from "@/components/ForBars.astro";
+import Pricing from "@/components/Pricing.astro";
+import FAQ from "@/components/FAQ.astro";
+import CTAFinal from "@/components/CTAFinal.astro";
+import Footer from "@/components/Footer.astro";
+import FloatingWhatsApp from "@/components/FloatingWhatsApp.astro";
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://repitela.com/#organization",
+      name: "Repítela",
+      alternateName: "Repitela",
+      url: "https://repitela.com/",
+      sameAs: ["https://www.instagram.com/repitela.musica/"],
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://repitela.com/#website",
+      url: "https://repitela.com/",
+      name: "Repítela",
+      inLanguage: "es-CO",
+      publisher: { "@id": "https://repitela.com/#organization" },
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://repitela.com/#software",
+      name: "Repítela",
+      url: "https://repitela.com/",
+      image: "https://repitela.com/og-repitela.jpg",
+      applicationCategory: "BusinessApplication",
+      operatingSystem: "Web",
+      inLanguage: "es-CO",
+      description: "Rockola digital con QR para bares en Colombia. Los clientes piden canciones desde su celular y el bar controla la cola de reproducción.",
+      featureList: [
+        "Pedidos de canciones mediante código QR",
+        "Cola de reproducción visible en tiempo real",
+        "Panel de administración para el bar",
+        "Lista de respaldo cuando no hay pedidos",
+        "Códigos QR listos para imprimir",
+      ],
+      audience: {
+        "@type": "BusinessAudience",
+        audienceType: "Bares, gastrobares y restaurantes en Colombia",
+      },
+      publisher: { "@id": "https://repitela.com/#organization" },
+      offers: {
+        "@type": "Offer",
+        url: "https://repitela.com/#precio",
+        price: "50000",
+        priceCurrency: "COP",
+        availability: "https://schema.org/InStock",
+        areaServed: { "@type": "Country", name: "Colombia" },
+        priceSpecification: {
+          "@type": "UnitPriceSpecification",
+          price: "50000",
+          priceCurrency: "COP",
+          billingDuration: "P1M",
+          unitText: "mes",
+        },
+      },
+    },
+  ],
+};
+---
+
+<Base title="Rockola digital con QR para bares en Colombia | Repítela">
+  <script slot="head" type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+
+  <Navbar />
+  <main class="overflow-x-hidden">
+    <Hero />
+    <SocialProof />
+    <PainVsGain />
+    <HowItWorks />
+    <ForBars />
+    <Pricing />
+    <FAQ />
+    <CTAFinal />
+  </main>
+  <Footer />
+  <FloatingWhatsApp />
+</Base>

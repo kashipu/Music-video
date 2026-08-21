@@ -1,0 +1,24 @@
+---
+import Icon from "@/components/Icon.astro";
+
+const WHATSAPP_LINK = "https://wa.me/573028336170?text=" + encodeURIComponent("Hola, quiero una demo de Repítela para mi bar");
+---
+
+<aside aria-label="Soporte y contacto por WhatsApp" class="fixed bottom-5 right-4 sm:bottom-6 sm:right-6 z-50 flex items-center group">
+  <span class="hidden sm:inline-block mr-2.5 px-3.5 py-1.5 rounded-full glass-card bg-brand-dark/95 border border-emerald-500/40 text-xs font-bold text-emerald-300 shadow-xl opacity-90 group-hover:opacity-100 transition-opacity">
+    ¿Dudas? Chatea con nosotros
+  </span>
+
+  <a
+    href={WHATSAPP_LINK}
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label="Chatear por WhatsApp con un asesor de Repítela"
+    data-track-location="floating"
+    class="relative flex items-center justify-center w-[52px] h-[52px] sm:w-14 sm:h-14 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-110 active:scale-95 focus:outline-none focus:ring-4 focus:ring-emerald-500/40"
+  >
+    <span class="absolute -inset-1 rounded-full bg-emerald-500/30 animate-ping pointer-events-none"></span>
+    <span class="absolute -inset-2 rounded-full bg-emerald-500/10 pointer-events-none"></span>
+    <Icon name="message-circle" class="w-7 h-7 text-white relative z-10" />
+  </a>
+</aside>

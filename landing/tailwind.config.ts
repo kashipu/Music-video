@@ -2,7 +2,7 @@ import type { Config } from "tailwindcss";
 
 export default {
   darkMode: ["class"],
-  content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
+  content: ["./src/**/*.{astro,html,ts,md}"],
   prefix: "",
   theme: {
     container: {
@@ -37,16 +37,6 @@ export default {
           darker: "#040407",
           card: "#0E0E14",
         },
-        sidebar: {
-          DEFAULT: "hsl(var(--sidebar-background))",
-          foreground: "hsl(var(--sidebar-foreground))",
-          primary: "hsl(var(--sidebar-primary))",
-          "primary-foreground": "hsl(var(--sidebar-primary-foreground))",
-          accent: "hsl(var(--sidebar-accent))",
-          "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
-          border: "hsl(var(--sidebar-border))",
-          ring: "hsl(var(--sidebar-ring))",
-        },
       },
       borderRadius: {
         "3xl": "1.5rem",
@@ -63,8 +53,6 @@ export default {
         "glass": "0 8px 32px 0 rgba(0, 0, 0, 0.45)",
       },
       keyframes: {
-        "accordion-down": { from: { height: "0" }, to: { height: "var(--radix-accordion-content-height)" } },
-        "accordion-up": { from: { height: "var(--radix-accordion-content-height)" }, to: { height: "0" } },
         "equalizer": {
           "0%, 100%": { height: "4px" },
           "50%": { height: "20px" },
@@ -75,8 +63,6 @@ export default {
         },
       },
       animation: {
-        "accordion-down": "accordion-down 0.2s ease-out",
-        "accordion-up": "accordion-up 0.2s ease-out",
         "equalizer-1": "equalizer 0.8s ease-in-out infinite alternate",
         "equalizer-2": "equalizer 1.1s ease-in-out infinite alternate 0.2s",
         "equalizer-3": "equalizer 0.6s ease-in-out infinite alternate 0.4s",
@@ -85,5 +71,5 @@ export default {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [],
 } satisfies Config;

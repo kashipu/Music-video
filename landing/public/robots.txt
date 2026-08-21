@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://repitela.com/sitemap.xml
+Sitemap: https://repitela.com/sitemap-index.xml
