@@ -3,7 +3,7 @@ import json
 from app.database import get_db
 
 
-async def log_event(venue_id: int, event_type: str, event_data: dict = None,
+async def log_event(venue_id: int | None, event_type: str, event_data: dict = None,
                     user_id: int = None, session_id: str = None):
     """Log an analytics event."""
     db = await get_db()

@@ -35,7 +35,7 @@ async def search_songs(q: str = Query(..., min_length=2)):
     try:
         from app.services.analytics_service import log_event
         await log_event(
-            venue_id=0,  # no auth required for search
+            venue_id=None,  # public endpoint — no venue context to attribute this to
             event_type="song_searched",
             event_data={"query": q, "results_count": len(results)},
         )
