@@ -5,7 +5,7 @@ Cada caso tiene: BR vinculado, pasos, resultado esperado, **señales de bug** (q
 
 > **Estado actual:** 20/20 casos automatizables PASAN ([scripts/qa_bug_hunt.py](../scripts/qa_bug_hunt.py)).
 > Los casos visuales (Kiosk + multi-vista) están planeados con Playwright en [QA_PLAYWRIGHT_PLAN.md](QA_PLAYWRIGHT_PLAN.md).
-> Última actualización: 2026-05-05.
+> Última actualización: 2026-08-21.
 
 > Cómo usar: corre los casos en orden de prioridad (P0 → P2). Para cada uno, ten abiertos a la vez **Admin + Kiosk + Usuario** (3 ventanas/dispositivos) y observa los 3 simultáneamente — la mayoría de bugs son desincronizaciones entre estas vistas.
 
@@ -294,6 +294,14 @@ Cada caso tiene: BR vinculado, pasos, resultado esperado, **señales de bug** (q
 - ✅ Race condition en `add_song` — `SELECT MAX(position)+1` y el INSERT no eran atómicos. 3 confirms concurrentes producían `[1,2,2]`. Violaba BR-04. Fix con `asyncio.Lock` + dedupe re-check ([queue_service.py:13-20, 100-138](../backend/app/services/queue_service.py#L13-L20)). Cubierto por BH-28, BH-29.
 - ✅ Doble-skip y skip+finish concurrentes podían promover dos canciones a `playing` o perder canciones. Fix con `_playback_lock` + UPDATE condicional en `skip_song`/`finish_song`/`error_song` ([playback_service.py:13-19](../backend/app/services/playback_service.py#L13-L19)). Cubierto por BH-09, BH-34.
 - ✅ **CRÍTICO** `_advance_queue` devolvía `None` por una línea `return` borrada accidentalmente al refactorizar para el lock — admin/Kiosk creían que la cola estaba vacía y activaban fallback aunque hubiera canciones de usuarios pendientes. Fix: restaurar el return en [playback_service.py:209](../backend/app/services/playback_service.py#L209). **Caso de regresión permanente: BH-31, BH-32, BH-33.**
+- ✅ Analítica de búsquedas nunca se guardaba — `/api/queue/search` logueaba con `venue_id=0`, pero `analytics_events.venue_id` era `NOT NULL REFERENCES venues(id)`, el INSERT fallaba siempre y quedaba oculto por un `except: pass`. Fix: migración 012 hace `venue_id` nullable, el endpoint público loguea `venue_id=None` en vez de `0` ([queue.py](../backend/app/routers/queue.py), [analytics_service.py](../backend/app/services/analytics_service.py)).
+- ✅ `db.lastrowid` sobre la conexión `aiosqlite` (no existe ahí, vive en el cursor) rompía `/api/admin/fallback/add` con 500 tras insertar. Fix: usar `cursor.lastrowid` ([admin.py](../backend/app/routers/admin.py)).
+- ✅ `delete_venue` olvidaba `fallback_songs`, `venue_daily_pins`, `analytics_events` y `blocked_videos` — borrar casi cualquier venue con datos reales violaba una FK y devolvía 500. Fix: borrar también esas 4 tablas antes de `DELETE FROM venues` ([superadmin.py](../backend/app/routers/superadmin.py)).
+- ✅ Búsqueda de YouTube armaba la URL por interpolación (`f"...search_query={query}"`) — un query con `&`, `#` o `+` corrompía la URL. Fix: pasar el query vía `params=` de httpx ([youtube_search.py](../backend/app/services/youtube_search.py)).
+- ✅ Rate limit re-verificado fuera del lock en `/confirm` — dos confirms simultáneos del mismo usuario con 1 slot podían pasar ambos. Fix: mover el re-chequeo dentro de `_position_lock` ([queue_service.py](../backend/app/services/queue_service.py)).
+- ✅ Auto-starts (confirm, start-playing, play-now, admin_add_song, playback/start, fallback-skip) hacían "check nothing playing" + `UPDATE status='playing'` sin lock — dos confirms simultáneos con cola vacía podían dejar 2 canciones `playing` a la vez (reproducido: 2/2 llamadas concurrentes ganaban antes del fix). Fix: `playback_service.try_start_song`/`play_specific_song`, con UPDATE condicional bajo `_playback_lock` ([playback_service.py](../backend/app/services/playback_service.py)).
+
+Los 6 anteriores vienen del checklist P0 de la revisión de backend/BD (rama `claude/backend-database-review-i1ebnh`, nunca mergeada — el detalle completo de cada uno está solo ahí). Verificados con [scripts/verify_p0_bugs.py](../scripts/verify_p0_bugs.py) (`python -m scripts.verify_p0_bugs`).
 
 ## Bugs abiertos
 
