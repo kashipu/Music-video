@@ -3,7 +3,7 @@
 > Backlog de ideas evaluadas sobre el código actual (2026-08-21).
 > Complementa `docs/PLAN_MEJORAS_ESCALA.md` (fixes + suscripciones + escalada).
 >
-> **Veredicto global: las 15 ideas son posibles.** Una ya está implementada (#5),
+> **Veredicto global: las 18 ideas son posibles.** Una ya está implementada (#5),
 > el chatbot (#9) se diseña con la API oficial de WhatsApp (Baileys descartado por
 > riesgo de baneo), y una necesita abogado además de código (#8). Ninguna
 > requiere cambiar de stack.
@@ -30,6 +30,8 @@ Fixes P0/P1 (PLAN_MEJORAS_ESCALA.md)
 #2 registro/pagos ──┴── #12 HubSpot (CRM: recibe leads de #9 y estados de #2)
 #14 medición/UTMs — transversal: instrumenta la landing, #2, #9, #12 y #13
                     (hacerla ANTES de invertir en adquisición)
+#16 higiene de cola (necesita la tarea de fondo P1.2)
+ └── #18 control de presencia (capas: PIN ya existe + #16 + #17 QR por mesa)
 ```
 
 ---
@@ -459,6 +461,15 @@ cliente.** Todo con micropagos Wompi (Nequi/tarjeta) y **reparto con el bar**
 - **Saludo/foto en pantalla** ($5.000-10.000): foto + mensaje en el kiosko
   entre canciones (cumpleaños, despedidas). Moderación IA + aprobación del
   admin obligatoria. Precio premium por lo prominente.
+- **Paquete "evento especial"** ($15.000-30.000): vienes por una despedida
+  de soltero, cumpleaños, aniversario → pagas y el grupo aparece en pantalla
+  durante la noche: nombre del festejado y foto en momentos programados
+  (ej. cada 30-45 min o entre canciones), con plantillas por tipo de evento.
+  Es el saludo individual convertido en producto de ocasión: se compra
+  **antes** de llegar (link compartible para que el grupo lo pague entre
+  todos) o en el bar. Tabla `special_events` (`venue_id`, tipo, nombres,
+  foto, fecha, franjas de aparición, estado de pago). Moderación IA +
+  aprobación del admin. El bar lo promociona porque le llena mesas de grupos.
 - **Turno de karaoke prioritario**: cuando exista el modo karaoke, reservar
   turno pagando. Mismo motor que la cola VIP.
 - **Infraestructura común**: tabla `microtransactions` (`user_id`,
@@ -470,13 +481,101 @@ cliente.** Todo con micropagos Wompi (Nequi/tarjeta) y **reparto con el bar**
 
 ---
 
+## #16 — Higiene de la cola: solo los del día y expulsión por inactividad
+
+**Veredicto: POSIBLE — esfuerzo S. La mitad ya existe; falta que corra sola.**
+
+**Estado actual:** la expiración por inactividad ya está implementada
+(`session_inactivity_minutes`, default 120) pero es **perezosa**: solo se
+evalúa cuando el usuario hace una request, y el barrido masivo
+(`expire_stale_sessions`) solo corre al arrancar el contenedor. Expulsar mesa
+(`kick_table`) también existe, pero es manual.
+
+**Diseño propuesto:**
+- **Inactividad a 1 hora, automática**: hacer `session_inactivity_minutes`
+  configurable por venue (60 para este caso) y ejecutar
+  `expire_stale_sessions` cada 5-10 min en la tarea de fondo (P1.2). Al
+  expirar una sesión: marcar sus canciones `pending` como `removed` (misma
+  lógica de `kick_table`), notificar por WebSocket (`session_kicked`) y
+  refrescar la vista del admin.
+- **Solo los del día**: cierre diario por venue a una hora configurable
+  (ej. 6 a.m.): expira todas las sesiones abiertas y limpia colas huérfanas.
+  El "día" del bar arranca limpio siempre, sin depender de reinicios.
+- Todo se apoya en columnas y funciones existentes (`last_activity_at`,
+  migración 009) — es orquestación, no modelo nuevo.
+
+---
+
+## #17 — QR asignado a cada mesa
+
+**Veredicto: POSIBLE — esfuerzo S-M.** Hoy `table_number` lo escribe el
+cliente (o se autogenera): cualquiera puede decir que es la mesa 5.
+
+**Diseño propuesto:**
+- Tabla `venue_tables` (`venue_id`, `table_number`, `qr_token` único,
+  `active`). El QR de la mesa codifica
+  `/{slug}/usuario?t=<qr_token>` — **la mesa la determina el QR, no el
+  usuario** (el campo de mesa desaparece del registro: un paso menos de
+  fricción, dato más confiable).
+- El token es firmado/aleatorio: no se puede adivinar el de otra mesa ni
+  inventar mesas. Si un QR se filtra o la mesa cambia, se regenera solo ese
+  token.
+- **Generador de QRs imprimibles** en el panel del admin: hoja PDF con los
+  QRs de todas las mesas (con el logo del bar — se conecta con la
+  personalización #3), cada uno con su UTM (#14: cada mesa se vuelve un
+  canal medible — "la mesa 7 es la que más pide").
+- Beneficios en cadena: `kick_table` y los cupones por mesa (#6) operan
+  sobre mesas reales; el centro de control (#1) muestra ocupación por mesa
+  confiable; y es el cimiento del control de presencia (#18).
+
+---
+
+## #18 — Impedir que alguien ponga música desde su casa
+
+**Veredicto: POSIBLE con capas — esfuerzo S-M. Honestidad primero: ninguna
+técnica sola lo garantiza al 100%, pero la combinación lo vuelve
+impráctico.** Y la primera capa **ya está construida**.
+
+**El problema:** el link `/{slug}/usuario` es estático; quien lo guarda puede
+volver a entrar desde donde sea, y el JWT dura 24 h.
+
+**Capas de defensa (en orden de costo/beneficio):**
+1. **PIN diario en pantalla — YA EXISTE** (`require_pin` +
+   `venue_daily_pins`, migración 006): el registro exige un PIN de 4 dígitos
+   que solo se ve en el TV del bar y cambia cada día. El link guardado no
+   sirve mañana sin estar frente a la pantalla. **Acción: activarlo por
+   defecto en el onboarding (#13) y explicárselo al bar.** Refinamiento:
+   regenerarlo también a mitad de jornada si el bar quiere.
+2. **Expulsión por inactividad (#16)**: la sesión de hoy muere en 1 h sin
+   actividad — el que se fue del bar pierde acceso pronto aunque conozca el
+   PIN de hoy.
+3. **QR por mesa (#17) + re-validación**: entrar exige un token de mesa
+   real; combinado con el PIN, "guardarse el link" exige además estar viendo
+   la pantalla hoy.
+4. **Token rotativo en el QR de pantalla (opcional, la capa fuerte)**: el
+   kiosko muestra un QR cuyo token rota cada 2-5 min (firmado con
+   `expires_at`). Escanear un QR viejo o guardado → inválido. Es la versión
+   automática del PIN, sin pedirle nada al usuario. Costo: generar QR en el
+   kiosko (ya renderiza QR — `show_qr` existe) + validar el token en el
+   registro.
+5. **Geolocalización — NO recomendada como control**: el GPS del navegador es
+   negable (fricción, pide permiso) y falsificable; solo serviría como señal
+   secundaria, nunca como barrera.
+
+**Recomendación**: capas 1+2 se activan casi gratis (config + #16); capa 3
+llega con #17; capa 4 solo si algún bar reporta abuso real. Documentar en el
+centro de ayuda (#13) qué hacer si un bar sospecha intrusos (regenerar PIN,
+expulsar mesa).
+
+---
+
 ## Priorización sugerida
 
 | Orden | Idea | Por qué |
 |---|---|---|
 | 1 | **#2** Registro + trials + Wompi, con **#13** onboarding y **#14** medición integrados desde el día 1 | El negocio; un trial sin onboarding no activa y un funnel sin medición no se puede optimizar |
-| 2 | **#5** (ajustes) + **#1** salud/alertas | Baratos, mejoran operación diaria ya |
-| 3 | **#3** promos + redes sociales + **#11 v1** link a carta + **#7** votos | Valor visible para bar y usuarios; redes y link-carta son días de trabajo |
+| 2 | **#5** (ajustes) + **#1** salud/alertas + **#16** higiene de cola + **#18** capas 1-2 (activar PIN + inactividad) | Baratos, mejoran la operación diaria ya; #16/#18 son config + la tarea de fondo P1.2 |
+| 3 | **#3** promos + redes sociales + **#11 v1** link a carta + **#7** votos + **#17** QR por mesa | Valor visible para bar y usuarios; redes, link-carta y QR por mesa son días de trabajo |
 | 4 | **#8** legal | Antes de crecer en usuarios y de campañas de marketing; el consent mode de #14 depende de esto |
 | 5 | **#9** chatbot WhatsApp (Cloud API) + **#12** HubSpot | Motor de adquisición para vender #2; HubSpot ordena el pipeline desde el primer lead |
 | 6 | **#15** micropagos del usuario (cola VIP primero) | Segunda línea de ingresos; reusa el checkout de #2 y convierte al bar en socio |
