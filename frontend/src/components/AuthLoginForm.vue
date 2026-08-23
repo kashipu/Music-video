@@ -11,6 +11,7 @@ defineProps({
   error: { type: String, default: '' },
   loading: Boolean,
   usernamePlaceholder: { type: String, default: 'admin' },
+  logoUrl: { type: String, default: null },
 })
 
 defineEmits(['submit'])
@@ -28,7 +29,18 @@ function handleGoogleLogin() {
 
 <template>
   <header class="login-header">
-    <img :src="currentMode === 'dark' ? logoNegative : logoPositive" alt="Repítela" class="login-icon" />
+    <img
+      v-if="logoUrl"
+      :src="logoUrl"
+      :alt="title"
+      class="login-icon venue-logo"
+    />
+    <img
+      v-else
+      :src="currentMode === 'dark' ? logoNegative : logoPositive"
+      alt="Repítela"
+      class="login-icon"
+    />
     <h1 v-if="title !== 'Repitela' && title !== 'Repítela'">{{ title }}</h1>
     <p>{{ subtitle }}</p>
   </header>
@@ -77,6 +89,13 @@ function handleGoogleLogin() {
 <style scoped>
 .login-header { margin-bottom: 32px; text-align: center; }
 .login-icon { width: 140px; height: auto; margin: 0 auto 16px; display: block; }
+.venue-logo {
+  max-width: 180px;
+  max-height: 80px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
 .login-header h1 { font-size: 24px; font-weight: 700; }
 .login-header p { color: var(--text-muted); font-size: 15px; margin-top: 4px; }
 .login-form { display: flex; flex-direction: column; gap: 16px; }
