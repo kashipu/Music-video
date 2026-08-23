@@ -1,9 +1,11 @@
 import time
 from collections import defaultdict
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from app.config import settings
 from app.database import get_db
 from app.models.schemas import AdminLoginRequest
 from app.services import admin_signup_service, auth_service
@@ -23,6 +25,22 @@ async def limit_auth_attempts(request: Request):
     _attempts[key] = attempts
 
 
+async def valid_turnstile(token: str | None) -> bool:
+    # ponytail: local development has no secret; production must configure one to accept signups.
+    if not settings.turnstile_secret_key:
+        return True
+    if not token:
+        return False
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            response = await client.post("https://challenges.cloudflare.com/turnstile/v0/siteverify", data={
+                "secret": settings.turnstile_secret_key, "response": token,
+            })
+        return response.is_success and response.json().get("success") is True
+    except (httpx.HTTPError, ValueError):
+        return False
+
+
 class SignupRequest(BaseModel):
     venue_name: str = Field(min_length=2, max_length=100)
     email: str = Field(min_length=3, max_length=254)
@@ -30,6 +48,7 @@ class SignupRequest(BaseModel):
     terms_version: str = Field(min_length=1, max_length=50)
     terms_accepted: bool
     privacy_accepted: bool
+    turnstile_token: str | None = None
 
 
 class TokenRequest(BaseModel):
@@ -50,6 +69,7 @@ class GoogleSignupRequest(BaseModel):
     terms_version: str = Field(min_length=1, max_length=50)
     terms_accepted: bool
     privacy_accepted: bool
+    turnstile_token: str | None = None
 
 
 @router.post("/login")
@@ -75,6 +95,8 @@ async def admin_login(req: AdminLoginRequest, _: None = Depends(limit_auth_attem
 async def signup(req: SignupRequest, _: None = Depends(limit_auth_attempts)):
     if not req.terms_accepted or not req.privacy_accepted:
         raise HTTPException(status_code=400, detail="Debes aceptar los terminos y el tratamiento de datos")
+    if not await valid_turnstile(req.turnstile_token):
+        raise HTTPException(status_code=400, detail="Verificacion anti-bot invalida")
     try:
         admin = await admin_signup_service.create_admin_with_trial(req.venue_name, req.email, req.password, req.terms_version)
     except ValueError as exc:
@@ -118,6 +140,8 @@ async def reset_password(req: ResetPasswordRequest, _: None = Depends(limit_auth
 async def google_signup(req: GoogleSignupRequest, _: None = Depends(limit_auth_attempts)):
     if not req.terms_accepted or not req.privacy_accepted:
         raise HTTPException(status_code=400, detail="Debes aceptar los terminos y el tratamiento de datos")
+    if not await valid_turnstile(req.turnstile_token):
+        raise HTTPException(status_code=400, detail="Verificacion anti-bot invalida")
     try:
         return await admin_signup_service.google_signup(req.token, req.venue_name, req.terms_version)
     except ValueError as exc:
@@ -127,3 +151,10 @@ async def google_signup(req: GoogleSignupRequest, _: None = Depends(limit_auth_a
         }
         status, detail = messages.get(str(exc), (401, "Token de Google invalido"))
         raise HTTPException(status_code=status, detail=detail)
+
+
+@router.get("/trial-info")
+async def trial_info():
+    db = await get_db()
+    rows = await db.execute_fetchall("SELECT trial_days FROM platform_settings WHERE id = 1")
+    return {"trial_days": rows[0][0] if rows else 15}
