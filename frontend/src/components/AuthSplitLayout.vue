@@ -32,7 +32,7 @@ const { currentMode, toggleMode } = useTheme()
 .auth-layout { min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; }
 .auth-form-panel { position: relative; display: flex; align-items: center; justify-content: center; padding: 32px; }
 .auth-form-content { width: 100%; max-width: 360px; }
-.auth-theme-toggle { position: absolute; top: 16px; right: 16px; }
+.auth-theme-toggle { position: absolute; top: max(16px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right)); }
 .auth-brand-panel { display: flex; align-items: center; justify-content: center; padding: 48px; background: var(--kiosk-bg); overflow: hidden; }
 .auth-logo { width: min(100%, 360px); }
 .auth-cover-image { width: 100%; height: 100%; object-fit: cover; }

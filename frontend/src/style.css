@@ -100,6 +100,11 @@ a { color: var(--primary); text-decoration: none; }
   display: inline-flex; align-items: center; justify-content: center;
   gap: 8px; padding: 12px 24px; border-radius: var(--radius-sm);
   font-weight: 600; font-size: 15px; transition: all 0.2s; width: 100%;
+  outline: none;
+}
+.btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
 .btn-primary { background: var(--primary); color: var(--text-on-primary); }
 .btn-primary:hover { background: var(--primary-dark); }
@@ -114,9 +119,14 @@ a { color: var(--primary); text-decoration: none; }
   width: 100%; padding: 12px 16px;
   background: var(--bg-elevated); border: 1px solid var(--border);
   border-radius: var(--radius-sm); color: var(--text);
-  font-size: 16px; outline: none; transition: border-color 0.2s;
+  font-size: 16px; outline: none; transition: border-color 0.2s, box-shadow 0.2s;
 }
 .input-field:focus { border-color: var(--primary); }
+.input-field:focus-visible {
+  border-color: var(--primary);
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
 @supports (-webkit-touch-callout: none) {
   .input-field { font-size: 16px; }
 }
@@ -162,5 +172,11 @@ a { color: var(--primary); text-decoration: none; }
   color: var(--text-muted); font-size: 16px;
   display: flex; align-items: center; justify-content: center;
   cursor: pointer; transition: all 0.15s;
+  outline: none;
 }
 .theme-toggle:hover { border-color: var(--primary); color: var(--primary); }
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-color: var(--primary);
+}

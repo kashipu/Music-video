@@ -12,7 +12,7 @@ const password = ref('')
 const error = ref('')
 const loading = ref(false)
 
-document.title = 'Repitela - Super Admin'
+document.title = 'Repítela - Super Admin'
 
 async function handleLogin() {
   error.value = ''
@@ -33,7 +33,7 @@ async function handleLogin() {
     <AuthLoginForm
       v-model:username="username"
       v-model:password="password"
-      title="Repitela"
+      title="Repítela"
       subtitle="Super Administrador"
       :error="error"
       :loading="loading"

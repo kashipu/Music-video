@@ -9,7 +9,7 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const venueSlug = route.params.venueSlug || null
-document.title = venueSlug ? `${venueSlug.replace(/-/g, ' ')} - Admin` : 'Repitela - Admin'
+document.title = venueSlug ? `${venueSlug.replace(/-/g, ' ')} - Admin` : 'Repítela - Admin'
 
 const username = ref('')
 const password = ref('')
@@ -36,8 +36,8 @@ async function handleLogin() {
     <AuthLoginForm
       v-model:username="username"
       v-model:password="password"
-      :title="venueSlug ? venueSlug.replace(/-/g, ' ') : 'Repitela'"
-      subtitle="Panel de administracion"
+      :title="venueSlug ? venueSlug.replace(/-/g, ' ') : 'Repítela'"
+      subtitle="Panel de administración"
       :error="error"
       :loading="loading"
       @submit="handleLogin"
