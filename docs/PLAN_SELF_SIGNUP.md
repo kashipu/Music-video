@@ -29,6 +29,7 @@ Nueva migración SQL (`backend/app/db/migrations/0XX_admin_selfsignup.sql`):
 - Nueva tabla `platform_settings` (fila única, id=1): `trial_days INTEGER NOT NULL DEFAULT 15`, `grace_period_days INTEGER NOT NULL DEFAULT 5`. Reemplaza la constante `GRACE_PERIOD_DAYS = 5` de `superadmin.py` — `compute_payment_status()` pasa a leer `grace_period_days` de esta fila en vez de la constante Python (fallback a 5 si la fila no existe todavía, por retrocompatibilidad).
 - Trial: al crear el venue en el signup, `paid_until = date.today() + timedelta(days=<trial_days de platform_settings>)`.
 - Código promocional: el campo se acepta y se guarda en el signup (columna `promo_code_used` en `venues` o `admins`), pero la lógica de descuentos/referidos queda **fuera de esta fase** — es un sistema aparte (`promo_codes`, `referrals`) que se planea después.
+- **Migración 013 ya está commiteada** (Fase A cerrada) — los campos de onboarding (ver Fase B2) van en una migración nueva y posterior (`0XX_admin_onboarding.sql`), no se reabre la 013.
 
 ## Fase B — Backend: módulo de autenticación de admins (separado del dashboard y de superadmin)
 
@@ -58,6 +59,31 @@ Nueva migración SQL (`backend/app/db/migrations/0XX_admin_selfsignup.sql`):
 - `POST /api/admin/reset-password` → consume token, actualiza `password_hash`.
 - `POST /api/admin/google-signup` → verifica el ID token de Google (`aud`=client id propio, `iss`=`accounts.google.com`), busca por `google_sub` o `email`; si no existe, crea venue+admin igual que el signup normal (trial incluido) con `email_verified = TRUE` automático.
 - Rate limiting en los endpoints de `admin_auth.py` (mismo mecanismo que ya exista para `/api/auth/register` de clientes de bar — confirmar y reusar, no inventar uno nuevo).
+
+## Fase B2 — Onboarding post-signup (representante + datos del bar)
+
+Signup (email/password o Google) solo crea la cuenta con trial — **no alcanza** para operar: falta saber quién es el representante del bar y datos básicos del local. Es un paso obligatorio después de crear cuenta, antes de llegar al dashboard — aplica igual si el signup fue por Google (Google no entrega teléfono/cargo/dirección/temática).
+
+**Por qué es un endpoint aparte de `admin_auth.py`:** el onboarding ocurre con el admin ya autenticado (tiene su JWT recién emitido por signup/google-signup) — es una acción autenticada, no un flujo de identidad. Va en `routers/admin.py` (dashboard), no en `admin_auth.py` (que es solo login/signup/reset, sin sesión todavía).
+
+### Modelo de datos (migración nueva, después de la 013)
+
+- `admins`: agregar `full_name TEXT NULL` (no existe hoy — hoy solo hay `username`/`password_hash`), `phone TEXT NULL`, `role TEXT NULL CHECK (role IN ('owner', 'manager'))` — dueño vs administrador, dato pedido explícitamente por el usuario.
+- `venues`: agregar `address TEXT NULL`, `address_lat REAL NULL`, `address_lng REAL NULL` (poblados solo si se usa el autocomplete de Google Maps — ver abajo), `venue_type TEXT NULL CHECK (venue_type IN ('discoteca', 'rock', 'musica_popular', 'otro'))`, `venue_type_other TEXT NULL` (solo cuando `venue_type = 'otro'`).
+- `admins.onboarding_completed_at TIMESTAMP NULL` — gate explícito: si es `NULL`, el frontend redirige a onboarding en vez de al dashboard (mismo patrón que `email_verified` ya usa para gatear el login).
+
+### Endpoint
+
+- `POST /api/admin/onboarding` (`admin.py`, autenticado con el JWT de admin) — recibe `full_name`, `phone`, `role`, `venue_address`, `venue_type` (+ `venue_type_other` si aplica), actualiza `admins`/`venues`, setea `onboarding_completed_at = now()`.
+
+### Dirección con Google Maps — investigado, costo no es un problema a esta escala
+
+Google Places Autocomplete (New) + Geocoding: Geocoding tiene 10,000 llamadas gratis/mes, Autocomplete cobra $17 por 1,000 sesiones completas después del free tier. Con el volumen de altas de bar que va a tener Repitela (decenas/mes, no miles), el costo real es de centavos al mes — no es un motivo para evitarlo. Se usa como mejora de UX (autocompletar + guardar lat/lng), con **texto libre como fallback** si no está configurada la API key todavía — no debe bloquear el onboarding.
+
+### Frontend
+
+- Nueva vista `views/AdminOnboarding.vue`, mismo lenguaje visual que el signup (`AuthSplitLayout`/card). Campos: nombre completo, teléfono, cargo (radio/select: Dueño / Administrador), nombre del bar (ya viene del signup, mostrar no editable o editable), dirección (input con Google Places Autocomplete si hay API key configurada, si no input de texto simple), temática (select: Discoteca / Rock / Música popular / Otro, con campo de texto si es "Otro").
+- Router guard: si `onboarding_completed_at` es `NULL` tras loguear, redirigir acá en vez de al dashboard del bar.
 
 ## Fase C — Frontend
 
