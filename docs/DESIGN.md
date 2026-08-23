@@ -24,70 +24,113 @@
 
 ## 2. Sistema de Diseño (Design System Tokens)
 
-### 2.1 Paleta de Color (Tailwind & CSS Variables)
-Inspirada en el ambiente de bar nocturno: obsidian, contrastes precisos, acentos de neón energéticos y legibilidad WCAG AAA.
+### 2.1 Paleta de Color Oficial (Brand Core & Tailwind Config)
+Inspirada en el ambiente nocturno de bares: Obsidian profundo, contrastes precisos, acentos de neón energéticos y legibilidad WCAG AAA.
 
-| Token | HSL / Hex | Uso |
-| :--- | :--- | :--- |
-| **`--background`** | `240 18% 4%` (`#07070B`) | Fondo general de la página (Obsidian profundo) |
-| **`--card`** | `240 16% 7%` (`#0E0E14`) | Tarjetas, contenedores y paneles |
-| **`--card-hover`** | `240 14% 11%` (`#161620`) | Estado hover de tarjetas |
-| **`--border`** | `240 12% 16%` (`#1F1F2C`) | Bordes sutiles y separadores |
-| **`--foreground`** | `0 0% 98%` (`#FAFAFA`) | Texto principal de alto contraste |
-| **`--muted-foreground`** | `240 6% 62%` (`#9999A8`) | Textos secundarios y descripciones |
-| **`--primary` (Electric Orange/Amber)** | `16 100% 60%` (`#FF5522`) | CTA Principal, botones de acción, highlights |
-| **`--primary-glow`** | `16 100% 60% / 0.25` | Resplandor suave de botones y badges |
-| **`--accent-cyan` (Neon Blue)** | `195 100% 50%` (`#00C8FF`) | Estado "En Vivo / Reproduciendo", badges de audio |
-| **`--accent-purple` (Deep Violet)** | `270 85% 65%` (`#A855F7`) | Gradientes complementarios y detalles visuales |
-| **`--success` (Emerald)** | `142 76% 45%` (`#16A34A`) | Verificaciones, checkmarks de pricing y garantías |
-
-#### Gradientes Oficiales
-```css
-/* Gradiente de Marca para Títulos */
-.text-gradient-brand {
-  background: linear-gradient(135deg, #FF6B35 0%, #FF2A6D 50%, #9D4EDD 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-/* Gradiente de Acento Sutil para Fondos */
-.bg-glow-radial {
-  background: radial-gradient(circle at 50% 20%, rgba(255, 85, 34, 0.12) 0%, rgba(157, 78, 221, 0.05) 50%, transparent 80%);
-}
-```
-
----
-
-### 2.2 Tipografía y Jerarquía
-- **Display / Headings:** `Plus Jakarta Sans` o `Outfit` (fuente sans-serif moderna, geométrica y con peso contundente en 700 y 800).
-- **Body & Data:** `Inter` o `Geist` (legibilidad absoluta en cuerpos de texto pequeños y números de estadísticas).
-
-| Nivel | Tamaño (Desktop / Mobile) | Peso | Tracking | Uso |
+| Token de Marca | Hex | HSL (Tailwind) | RGB / Alpha | Contexto y Uso |
 | :--- | :--- | :--- | :--- | :--- |
-| **H1 (Hero)** | `4.25rem (68px)` / `2.5rem (40px)` | 800 (Extrabold) | `-0.03em` | Título principal del Hero |
-| **H2 (Sección)** | `2.75rem (44px)` / `2.0rem (32px)` | 700 (Bold) | `-0.02em` | Encabezados de cada sección |
-| **H3 (Card Title)** | `1.35rem (22px)` / `1.2rem (19px)` | 600 (Semibold) | `-0.01em` | Títulos de características y pasos |
-| **Body Large** | `1.125rem (18px)` / `1.0rem (16px)` | 400 (Regular) | `normal` | Párrafos introductorios |
-| **Body Small** | `0.875rem (14px)` / `0.8125rem (13px)`| 400 (Regular) | `normal` | Textos de apoyo, badges y notas |
+| **`brand.orange` (Primario)** | `#FF5522` | `16 100% 60%` | `rgb(255, 85, 34)` | **Color primario de marca.** CTAs principales, botones de acción (`.btn-primary`), badges de estado activo, foco/ring de accesibilidad, resplandores primarios (`glow-primary`). |
+| **`brand.orange.dark` (Hover/Active)** | `#E04010` | `16 100% 47%` | `rgb(224, 64, 16)` | Estado hover y active de botones y elementos interactivos primarios. |
+| **`brand.orange.soft` (Tinte)** | `rgba(255,85,34,0.15)` | `16 100% 60% / 0.15` | `rgba(255, 85, 34, 0.15)` | Fondos sutiles de badges, estados de selección, halos de iluminación en inputs. |
+| **`brand.amber`** | `#FFB800` | `43 100% 50%` | `rgb(255, 184, 0)` | **Acento cálido / Atención.** Iconos de destacados (`sparkles`), indicador de "Sonando Ahora", tags de pricing ("COP/mes"). |
+| **`brand.cyan` (Acento Neón)** | `#00C8FF` | `195 100% 50%` | `rgb(0, 200, 255)` | **Acento fresco.** Indicadores de reproducción en vivo, badges tecnológicos, feedback secundario. |
+| **`brand.purple` (Secundario)** | `#A855F7` | `270 85% 65%` | `rgb(168, 85, 247)` | **Color secundario de marca.** Gradientes complementarios de títulos, ecualizadores de audio, fondos desenfocados. |
 
 ---
 
-### 2.3 Estilos de Superficie y Efectos
-1. **Glassmorphism Refinado:**
-   ```css
-   .repitela-card {
-     background: rgba(14, 14, 20, 0.7);
-     backdrop-filter: blur(16px);
-     -webkit-backdrop-filter: blur(16px);
-     border: 1px solid rgba(255, 255, 255, 0.08);
-     box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-     border-radius: 1.25rem;
-   }
-   ```
-2. **Ecualizador de Audio Animado (Micro-interacción de cabecera):**
-   Barritas de sonido verticales que oscilan con CSS animations para dar sensación de música sonando en vivo.
-3. **Bordes con Iluminación Reactiva:**
-   En hover, el borde pasa suavemente de `border-white/10` a `border-primary/40` con una transición de `300ms cubic-bezier(0.4, 0, 0.2, 1)`.
+### 2.2 Superficies y Fondos (Dark Mode & Light Mode)
+
+#### Dark Mode (Default)
+| Token | Hex | HSL / Definición | Uso |
+| :--- | :--- | :--- | :--- |
+| **`brand.dark` (`--bg`)** | `#07070B` | `240 18% 4%` | Fondo base de la aplicación (Obsidian profundo). |
+| **`brand.darker`** | `#040407` | `240 27% 2%` | Fondos de backdrops de diálogos y modales (`dialog::backdrop`). |
+| **`brand.card` (`--bg-card`)** | `#0E0E14` | `240 16% 7%` | Superficies de tarjetas, paneles laterales y contenedores modulares. |
+| **`--bg-elevated`** | `#161622` | `240 14% 11%` | Inputs de formulario, estados hover de cards, botones secundarios (`.btn-secondary`). |
+| **`--border`** | `#252533` | `240 12% 18%` | Bordes principales de componentes y separadores visuales. |
+| **`--border-soft`** | `rgba(255,255,255,0.08)` | — | Bordes sutiles en tarjetas con efecto glassmorphism. |
+| **`--text` (`--foreground`)** | `#F4F4F6` | `0 0% 98%` | Texto principal de alto contraste. |
+| **`--text-muted`** | `#9E9EA8` | `240 6% 65%` | Subtítulos, labels secundarios y placeholders. |
+| **`--kiosk-bg`** | `#000000` | `0 0% 0%` | Fondo negro puro e inmutable para la pantalla Kiosk de televisión. |
+
+#### Light Mode
+| Token | Hex | Uso |
+| :--- | :--- | :--- |
+| **`--bg`** | `#F5F5FA` | Fondo claro neutro para entornos iluminados. |
+| **`--bg-card`** | `#FFFFFF` | Tarjetas y contenedores con elevación blanca limpia. |
+| **`--bg-elevated`** | `#EBEBF2` | Campos de entrada y botones secundarios. |
+| **`--border`** | `#D4D4E0` | Bordes y líneas divisorias. |
+| **`--border-soft`** | `rgba(0,0,0,0.08)` | Bordes suaves. |
+| **`--text`** | `#0E0E14` | Tipografía principal oscura de alta legibilidad. |
+| **`--text-muted`** | `#525266` | Textos secundarios y metadatos. |
+| **`--primary-dark`** | `#E04010` | Hover del botón primario en modo claro. |
+| **`--primary-soft`** | `rgba(255,85,34,0.12)` | Fondos de badges y focos en modo claro. |
+
+---
+
+### 2.3 Estados Semánticos (Preservados)
+
+| Estado | Dark Mode | Light Mode | Tinte Suave (`-soft`) | Uso |
+| :--- | :--- | :--- | :--- | :--- |
+| **Peligro (`--danger`)** | `#F87171` | `#DC2626` | `rgba(248, 113, 113, 0.15)` | Mensajes de error de autenticación, cancelar canción, advertencias destructivas. |
+| **Alerta (`--warning`)** | `#FFB800` | `#D97706` | `rgba(255, 184, 0, 0.15)` | Estados de espera, límites de mesa alcanzados, avisos de moderación. |
+| **Éxito (`--success`)** | `#34D399` | `#059669` | `rgba(52, 211, 153, 0.15)` | Canción agregada con éxito, sesión confirmada, verificación de conexión. |
+
+---
+
+### 2.4 Radios de Borde, Sombras y Glow
+
+* **Radios de Borde:**
+  - `--radius-sm`: `8px` (`0.5rem`) — Botones compactos, inputs y badges.
+  - `--radius`: `12px` (`0.75rem`) — Botones principales, cards estándar de la aplicación.
+  - `--radius-lg`: `16px` (`1rem`) — Modales, cards grandes y contenedores de vistas.
+  - `rounded-2xl` / `rounded-3xl` (`20px` - `24px`): Contenedores hero y mockups en landing.
+
+* **Sombras y Glow:**
+  - `--shadow`: `0 1px 3px rgba(0, 0, 0, 0.4)`
+  - `--shadow-glow-primary`: `0 0 30px rgba(255, 85, 34, 0.25), 0 0 60px rgba(255, 85, 34, 0.1)`
+  - `--shadow-glow-sm`: `0 0 20px rgba(255, 85, 34, 0.18)`
+  - `--shadow-glass`: `0 8px 32px 0 rgba(0, 0, 0, 0.45)`
+
+* **Gradientes Oficiales:**
+  ```css
+  /* Gradiente de Marca para Títulos */
+  .text-gradient-brand {
+    background: linear-gradient(135deg, #FF6B35 0%, #FF2A6D 50%, #A855F7 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Gradiente Primario para Botones CTA */
+  .btn-primary-gradient {
+    background: linear-gradient(to right, #FF5522, #FF6B35);
+  }
+  ```
+
+---
+
+### 2.5 Mapeo Bidireccional de Tokens (`landing/` ↔ `frontend/`)
+
+| Concepto de Diseño | Token `landing/` (Tailwind / CSS Vars) | Token `frontend/src/style.css` | Valor Dark | Valor Light |
+| :--- | :--- | :--- | :--- | :--- |
+| **Primario** | `hsl(var(--primary))` / `brand.orange` | `--primary` | `#FF5522` | `#FF5522` |
+| **Primario Hover** | `hover:opacity-90` / `from-primary to-orange-500` | `--primary-dark` | `#E04010` | `#E04010` |
+| **Primario Soft** | `bg-primary/15` | `--primary-soft` | `rgba(255, 85, 34, 0.15)` | `rgba(255, 85, 34, 0.12)` |
+| **Texto en Primario** | `hsl(var(--primary-foreground))` | `--text-on-primary` | `#FFFFFF` | `#FFFFFF` |
+| **Secundario** | `hsl(var(--secondary))` / `brand.purple` | `--secondary` | `#A855F7` | `#9333EA` |
+| **Acento** | `hsl(var(--accent))` / `brand.cyan` | `--accent` | `#00C8FF` | `#0099CC` |
+| **Fondo Base** | `hsl(var(--background))` / `brand.dark` | `--bg` | `#07070B` | `#F5F5FA` |
+| **Fondo Tarjeta** | `hsl(var(--card))` / `brand.card` | `--bg-card` | `#0E0E14` | `#FFFFFF` |
+| **Fondo Elevado** | `bg-white/10` / `glass-card` | `--bg-elevated` | `#161622` | `#EBEBF2` |
+| **Texto Principal** | `hsl(var(--foreground))` | `--text` | `#F4F4F6` | `#0E0E14` |
+| **Texto Secundario** | `hsl(var(--muted-foreground))` | `--text-muted` | `#9E9EA8` | `#525266` |
+| **Borde** | `hsl(var(--border))` | `--border` | `#252533` | `#D4D4E0` |
+| **Borde Suave** | `border-white/15` | `--border-soft` | `rgba(255, 255, 255, 0.08)` | `rgba(0, 0, 0, 0.08)` |
+| **Anillo de Foco** | `hsl(var(--ring))` | `--ring` (usado en `:focus-visible`) | `#FF5522` | `#FF5522` |
+| **Peligro / Error** | `hsl(var(--destructive))` | `--danger` | `#F87171` | `#DC2626` |
+| **Advertencia** | `brand.amber` | `--warning` | `#FFB800` | `#D97706` |
+| **Éxito** | `emerald-500` / `text-emerald-400` | `--success` | `#34D399` | `#059669` |
+| **Kiosk Black** | `#000000` | `--kiosk-bg` | `#000000` | `#000000` |
 
 ---
 
