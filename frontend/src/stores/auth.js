@@ -92,6 +92,26 @@ export const useAuthStore = defineStore('auth', () => {
     return data
   }
 
+  async function superAdminLogin(username, password) {
+    const res = await fetch(`${API}/api/superadmin/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    })
+    if (!res.ok) {
+      let msg = 'Login failed'
+      try {
+        const err = await res.json()
+        msg = err.detail || msg
+      } catch { /* non-JSON response */ }
+      throw new Error(msg)
+    }
+    const data = await res.json()
+    safeSetItem('bq_super_token', data.token)
+    safeSetItem('bq_super_admin', JSON.stringify(data.admin))
+    return data
+  }
+
   function logout() {
     token.value = ''
     user.value = null
@@ -119,7 +139,7 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     token, adminToken, user, session, adminInfo,
     isAuthenticated, isAdmin,
-    register, adminLogin, logout, adminLogout,
+    register, adminLogin, superAdminLogin, logout, adminLogout,
     authHeaders, adminHeaders,
   }
 })
