@@ -75,6 +75,22 @@ Referencia: [`login-02`](https://www.shadcn-vue.com/blocks/login) de shadcn-vue 
 
 Los componentes existentes en `components/` (`SongCard.vue`, `NowPlaying.vue`, `QueueList.vue`, etc.) son las "moléculas" — se migran para componerse a partir de estos átomos donde aplique, no se reescriben desde cero.
 
+*(Nota: el layout final terminó siendo de una sola columna con degradado de marca, no split-screen con foto — decisión posterior del usuario tras revisar el resultado. El resto de las decisiones de esta sección sigue vigente.)*
+
+### Fase 3b — Login con marca del venue (tema no-default)
+
+`AuthSplitLayout`/`AuthLoginForm` de la Fase 3a son el **tema default** de la app (marca Repítela). Falta la variante: cuando `AdminLogin.vue` se abre con `venueSlug` en la URL, debe mostrar el logo y los colores de ESE bar en vez de los de Repítela — mismo mecanismo que ya usa `QRLanding.vue` (pantalla pública de clientes), no hay que inventar nada nuevo.
+
+**Ya existe y se reusa tal cual:**
+- `GET /api/auth/venue-info?venue_slug=...` (público, sin auth) — ya devuelve `venue_name`, `logo_url`, `theme`. Sin cambios de backend.
+- `useTheme().applyVenueTheme({ theme })` (`composables/useTheme.js`) — ya aplica accent/bg/text del venue en runtime vía CSS vars. Sin cambios.
+
+**Cambios (frontend, solo `AdminLogin.vue` — `SuperAdminLogin.vue` no tiene venueSlug, no aplica):**
+- Al montar, si hay `venueSlug`, hacer `fetch` a `venue-info` (mismo patrón que `QRLanding.vue`) y llamar `applyVenueTheme({ theme: data.theme })`.
+- `AuthLoginForm.vue` — nueva prop opcional `logoUrl`: si viene, mostrar `<img :src="logoUrl">` en vez del ícono fijo de Repítela en el header. Si no viene (o falla el fetch), cae al comportamiento default de la Fase 3a — ningún bar sin tema configurado debe romperse.
+- El nombre del bar como título ya funciona (`title !== 'Repitela'` ya muestra el nombre del venue) — no tocar esa parte.
+- El fondo degradado de `AuthSplitLayout` se mantiene igual (identidad de marca de Repitela) — lo que cambia por venue es el logo y los colores interactivos (botón, foco), no el fondo de página.
+
 ## Fase 4 — Reuso en las vistas grandes ("organismos", reemplaza Parte B de PLAN_FRONTEND_GUARDRAILS.md)
 
 Con los átomos de la Fase 3 listos, extraer de `AdminDashboard.vue`/`Kiosk.vue` reusando tanto los átomos nuevos como las moléculas ya existentes (`NowPlaying.vue`, `QueueList.vue`, `SongCard.vue`) y el store `stores/queue.js` que hoy ninguna de las dos vistas usa. Orden sugerido (cada uno una Task independiente vía `/orquestador`):
