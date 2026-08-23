@@ -39,6 +39,26 @@ const routes = [
     component: () => import('../views/AdminLogin.vue'),
   },
   {
+    path: '/admin/signup',
+    name: 'admin-signup',
+    component: () => import('../views/AdminSignup.vue'),
+  },
+  {
+    path: '/admin/verify-email',
+    name: 'admin-verify-email',
+    component: () => import('../views/VerifyEmail.vue'),
+  },
+  {
+    path: '/admin/forgot-password',
+    name: 'admin-forgot-password',
+    component: () => import('../views/ForgotPassword.vue'),
+  },
+  {
+    path: '/admin/reset-password',
+    name: 'admin-reset-password',
+    component: () => import('../views/ResetPassword.vue'),
+  },
+  {
     path: '/:venueSlug/admin/login',
     name: 'admin-login',
     component: () => import('../views/AdminLogin.vue'),
