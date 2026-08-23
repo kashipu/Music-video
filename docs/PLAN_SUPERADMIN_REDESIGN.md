@@ -16,6 +16,15 @@ Con el módulo de self-signup, va a haber más bares dándose de alta solos — 
 
 **Roles:** `super_admins` es una tabla plana (`id`, `username`, `password_hash`) sin columna de rol — hoy todo super admin tiene el mismo poder total. No hay concepto de vendedor/editor.
 
+## Rama y orden de ejecución
+
+Todo esto se ejecuta en una rama nueva **`new-superadmin`** (worktree separado, no en `frontend/design-system-shadcn`).
+
+**Orden pedido por el usuario: frontend primero, backend después.** Se arma primero el look completo del dashboard con datos mock/estáticos (para validar visualmente la información y el layout antes de comprometerse a un schema), y solo después se construye el backend real y se conecta. Concretamente:
+
+1. **Etapa 1 — Frontend con datos mock:** las 4 vistas (SA-0 dashboard, SA-3 Bares, SA-4 Usuarios y eventos, SA-5 Negocio) con JSON estático que simule la forma real de los datos — se aprueba el diseño visual acá, antes de tocar backend.
+2. **Etapa 2 — Backend real:** las fases de datos/roles (SA-1, SA-2, SA-3 backend, SA-4 backend, SA-5 backend) — se implementan y se conecta el frontend de la Etapa 1 reemplazando los mocks por los endpoints reales.
+
 ## Arquitectura de información
 
 `/superadmin` (root, hoy `SuperAdminPanel.vue` = lista de bares) pasa a ser un **dashboard general del negocio**: KPIs de un vistazo (bares activos/overdue/suspended, cuántos pagaron este mes, ingresos del mes, alertas si algo falla) apenas entrás. Las 3 áreas (Bares, Usuarios y eventos, Negocio) son secciones/tabs más profundas a las que se navega desde ahí — no reemplazan el dashboard, lo alimentan. `SuperAdminVenueDetail.vue` (el detalle de un bar puntual) sigue existiendo tal cual, sin cambios de fondo.
@@ -23,14 +32,14 @@ Con el módulo de self-signup, va a haber más bares dándose de alta solos — 
 ## Fases propuestas
 
 ### Fase SA-0 — Dashboard general en `/superadmin` (nuevo root)
-Reemplaza `SuperAdminPanel.vue` como landing (la lista de bares se mueve a una sub-vista/tab "Bares"). Tarjetas de KPI: bares activos/overdue/suspended, pagos recibidos este mes (cuenta + monto, depende de la Fase SA-3), ingresos totales del mes/histórico, alertas si las hay (Fase SA-5). Se construye **al final**, después de SA-1 a SA-5, porque consume datos de esas fases — no tiene sentido armar el shell antes de tener qué mostrar en él.
+Reemplaza `SuperAdminPanel.vue` como landing (la lista de bares se mueve a una sub-vista/tab "Bares"). Tarjetas de KPI: bares activos/overdue/suspended, pagos recibidos este mes (cuenta + monto, depende de la Fase SA-3), ingresos totales del mes/histórico, alertas si las hay (Fase SA-5).
 
 ### Fase SA-1 — Quick win: conectar `editConfig` (backend ya existe)
 Cerrar el bug ya detectado. `SuperAdminVenueDetail.vue` arma el formulario real (canciones por ventana, minutos de ventana, duración máxima) contra el PATCH que ya existe. Cero backend nuevo.
 
 ### Fase SA-2 — Roles (`super_admin` / `vendedor` / `editor`)
 - Migración: `super_admins` gana `role TEXT NOT NULL DEFAULT 'super_admin' CHECK (role IN ('super_admin','vendedor','editor'))`.
-- Propuesta inicial de permisos (**a confirmar con el usuario, ver preguntas abajo**):
+- Permisos confirmados por el usuario:
   - `super_admin`: todo, incluye gestionar otros admins/roles y ver el módulo de Negocio.
   - `vendedor`: ver estado de pago/renovación de bares, marcar pagos, ver métricas comerciales — sin ver costos de infraestructura ni crear/eliminar bares.
   - `editor`: gestionar config de bares (canciones, tiempo de espera, tema/branding, playlist de respaldo) — sin datos financieros.
@@ -44,15 +53,15 @@ Cerrar el bug ya detectado. `SuperAdminVenueDetail.vue` arma el formulario real 
 ### Fase SA-4 — Vista "Usuarios y eventos" (agregado cross-venue)
 Nuevo endpoint que agrega `analytics_events`/`play_history` a través de TODOS los venues, **reusando las queries de `analytics_service.get_analytics` como base** (no reinventar el cálculo) — canciones promedio por bar, top bares por actividad, usuarios totales.
 
-### Fase SA-5 — Vista "Negocio" (facturación, costos, alertas)
-Lo único genuinamente nuevo desde cero. Propuesta mínima, sin construir un ERP:
-- Facturación/balance: se deriva de la Fase SA-3 (suma de `payment_history`), no un módulo de contabilidad aparte.
-- Costos de operar: campo simple que el superadmin carga a mano (servidor, dominio, etc.) — sin integración automática con Dokploy/hosting salvo que se pida explícitamente.
-- Alertas de infraestructura: por definir alcance (ver preguntas abajo) — revisar primero si Dokploy ya expone algo reusable antes de construir monitoring propio.
+### Fase SA-5 — Vista "Negocio" (facturación + carga por bar, no costos en plata)
+Lo único genuinamente nuevo desde cero. **Investigado con las herramientas de Dokploy:** no hay API de costos en dólares — Dokploy no cobra, solo orquesta lo que ya corre en el VPS de Hostinger (KVM2). Además el server es **compartido con proyectos de otros clientes sin relación** (confirmado vía `docker-getContainers`: además de los 3 contenedores de Repitela corren otro bar, un WordPress y un bot de WhatsApp en la misma máquina), y Repitela corre en **un solo contenedor backend para todos los venues** — no hay aislamiento por bar a nivel de proceso/contenedor, así que CPU/RAM por bar no se puede medir directo.
 
-## Preguntas abiertas — necesito que las confirmes antes de implementar
+Lo que sí se puede construir, con lo que ya existe:
+- Facturación/balance: se deriva de la Fase SA-3 (suma de `payment_history`) — esto sí es plata real, no cambia.
+- **Carga por bar (proxy de actividad, no CPU/RAM real):** ranking de bares por volumen de eventos/canciones/usuarios concurrentes en `analytics_events`/`play_history`/`queue_songs` (misma fuente que la Fase SA-4) — un bar con mucha más actividad que el resto es candidato a estar pesando más en el server compartido, sin necesitar métricas de infraestructura nuevas.
+- Salud general del server (no por bar): Dokploy ya expone contenedores/estado (`docker-getContainers`, `settings-checkInfrastructureHealth`) y tiene su propio contenedor de monitoreo corriendo (`dokploy-monitoring`) — la vista de Negocio puede enlazar/mostrar eso en vez de reconstruir un sistema de métricas propio.
 
-1. Permisos exactos de vendedor vs editor (la propuesta de la Fase SA-2 es un punto de partida, no una decisión final).
-2. "Costos de operar" — ¿se cargan a mano, o hay que investigar integrar alguna API real de hosting/facturación?
-3. Alertas de infraestructura — ¿qué tan profundo? (¿uptime simple, o métricas de CPU/memoria/DB del server?)
-4. No entendí "un plan con upus" en tu mensaje — ¿a qué te referías? (¿user stories, otra cosa?)
+## Preguntas abiertas — todavía sin resolver
+
+1. Alertas de infraestructura — ¿alcanza con enlazar el estado que ya da Dokploy (activo/caído), o hace falta métricas de CPU/memoria más detalladas?
+2. No entendí "un plan con upus" en tu mensaje original — ¿a qué te referías?
