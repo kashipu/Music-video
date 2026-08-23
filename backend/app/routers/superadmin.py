@@ -6,15 +6,23 @@ from datetime import date, timedelta
 import asyncio
 import bcrypt
 from fastapi import APIRouter, HTTPException, Depends, Header, Query, UploadFile, File
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, StrictInt
 
 from app.services import auth_service
 from app.database import get_db
 
-GRACE_PERIOD_DAYS = 5
+async def get_platform_settings() -> dict:
+    db = await get_db()
+    rows = await db.execute_fetchall(
+        "SELECT trial_days, grace_period_days FROM platform_settings WHERE id = 1"
+    )
+    if rows:
+        return {"trial_days": rows[0][0], "grace_period_days": rows[0][1]}
+    return {"trial_days": 15, "grace_period_days": 5}
 
 
-def compute_payment_status(paid_until: str | None) -> str:
+async def compute_payment_status(paid_until: str | None) -> str:
+    grace_period_days = (await get_platform_settings())["grace_period_days"]
     if paid_until is None:
         return "active"
     try:
@@ -24,7 +32,7 @@ def compute_payment_status(paid_until: str | None) -> str:
     today = date.today()
     if paid_date >= today:
         return "active"
-    if paid_date >= today - timedelta(days=GRACE_PERIOD_DAYS):
+    if paid_date >= today - timedelta(days=grace_period_days):
         return "overdue"
     return "suspended"
 
@@ -51,6 +59,11 @@ class CreateVenueRequest(BaseModel):
 class MarkPaidRequest(BaseModel):
     months: int = 1
     notes: str | None = None
+
+
+class UpdatePlatformSettingsRequest(BaseModel):
+    trial_days: StrictInt | None = Field(default=None, gt=0)
+    grace_period_days: StrictInt | None = Field(default=None, gt=0)
 
 
 class UpdateVenueRequest(BaseModel):
@@ -86,6 +99,33 @@ async def super_admin_login(req: SuperLoginRequest):
     return {"token": token, "admin": admin}
 
 
+@router.get("/settings")
+async def get_settings(admin: dict = Depends(get_current_super_admin)):
+    return await get_platform_settings()
+
+
+@router.patch("/settings")
+async def update_settings(req: UpdatePlatformSettingsRequest,
+                          admin: dict = Depends(get_current_super_admin)):
+    if req.trial_days is None and req.grace_period_days is None:
+        raise HTTPException(status_code=422, detail="Indica al menos un valor")
+
+    current = await get_platform_settings()
+    settings = {
+        "trial_days": req.trial_days if req.trial_days is not None else current["trial_days"],
+        "grace_period_days": req.grace_period_days if req.grace_period_days is not None else current["grace_period_days"],
+    }
+    db = await get_db()
+    await db.execute(
+        "INSERT INTO platform_settings (id, trial_days, grace_period_days) VALUES (1, ?, ?) "
+        "ON CONFLICT(id) DO UPDATE SET trial_days = excluded.trial_days, "
+        "grace_period_days = excluded.grace_period_days",
+        (settings["trial_days"], settings["grace_period_days"]),
+    )
+    await db.commit()
+    return settings
+
+
 @router.get("/venues")
 async def list_venues(admin: dict = Depends(get_current_super_admin)):
     db = await get_db()
@@ -110,7 +150,7 @@ async def list_venues(admin: dict = Depends(get_current_super_admin)):
             "created_at": r[5], "logo_url": r[6], "qr_url": r[7],
             "admin_count": r[8], "queue_count": r[9], "active_sessions": r[10],
             "paid_until": r[11], "payment_notes": r[12],
-            "payment_status": compute_payment_status(r[11]),
+            "payment_status": await compute_payment_status(r[11]),
         })
     return {"venues": venues}
 
@@ -250,7 +290,7 @@ async def venue_stats(venue_id: int, admin: dict = Depends(get_current_super_adm
     )
 
     return {
-        "venue": {"id": venue_id, "name": v[0], "slug": v[1], "active": bool(v[2]), "created_at": v[3], "logo_url": v[4], "qr_url": v[5], "config": v[6], "paid_until": v[7], "payment_notes": v[8], "payment_status": compute_payment_status(v[7])},
+        "venue": {"id": venue_id, "name": v[0], "slug": v[1], "active": bool(v[2]), "created_at": v[3], "logo_url": v[4], "qr_url": v[5], "config": v[6], "paid_until": v[7], "payment_notes": v[8], "payment_status": await compute_payment_status(v[7])},
         "stats": {
             "total_songs_played": s[0], "total_users": s[1],
             "active_sessions": s[2], "songs_in_queue": s[3],
