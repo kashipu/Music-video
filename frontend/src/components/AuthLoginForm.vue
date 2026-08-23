@@ -25,7 +25,7 @@ const { currentMode } = useTheme()
 <template>
   <header class="login-header">
     <img :src="currentMode === 'dark' ? logoNegative : logoPositive" alt="Repitela" class="login-icon" />
-    <h1>{{ title }}</h1>
+    <h1 v-if="title !== 'Repitela'">{{ title }}</h1>
     <p>{{ subtitle }}</p>
   </header>
   <form class="login-form" @submit.prevent="$emit('submit')">
