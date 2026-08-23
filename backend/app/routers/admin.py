@@ -1,8 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends, Header, Query
 
-from app.models.schemas import (
-    AdminLoginRequest, AdminSongAddRequest, AdminReorderRequest,
-)
+from app.models.schemas import AdminSongAddRequest, AdminReorderRequest
 from app.services import auth_service, playback_service, analytics_service, youtube_service, queue_service
 from app.routers.websocket import manager
 from app.database import get_db
@@ -21,34 +19,6 @@ async def get_current_admin(authorization: str = Header(...)) -> dict:
     if not payload.get("is_admin"):
         raise HTTPException(status_code=403, detail="Acceso de administrador requerido")
     return payload
-
-
-@router.post("/login")
-async def admin_login(req: AdminLoginRequest):
-    admin = await auth_service.verify_admin(req.username, req.password)
-    if not admin:
-        raise HTTPException(status_code=401, detail="Usuario o contrasena incorrectos")
-
-    # Check venue is active
-    db = await get_db()
-    venue_check = await db.execute_fetchall(
-        "SELECT id, slug, active FROM venues WHERE id = ?", (admin["venue_id"],)
-    )
-    if venue_check and not venue_check[0][2]:
-        raise HTTPException(status_code=403, detail="Este bar esta inactivo. Contacta al administrador.")
-
-    # If venue_slug provided, verify admin belongs to that venue
-    if req.venue_slug:
-        venue_rows = await db.execute_fetchall(
-            "SELECT id, slug FROM venues WHERE slug = ?", (req.venue_slug,)
-        )
-        if not venue_rows:
-            raise HTTPException(status_code=404, detail="Bar no encontrado")
-        if admin["venue_id"] != venue_rows[0][0]:
-            raise HTTPException(status_code=403, detail="Este usuario no pertenece a este bar")
-
-    token = auth_service.create_admin_token(admin["id"], admin["username"], admin["venue_id"])
-    return {"token": token, "admin": admin}
 
 
 @router.get("/queue")

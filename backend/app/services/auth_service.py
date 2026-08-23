@@ -23,6 +23,10 @@ async def _commit_with_retry(db, retries: int = 3, delay: float = 0.3):
                 raise
 
 
+async def hash_password(password: str) -> str:
+    return (await asyncio.to_thread(bcrypt.hashpw, password.encode(), bcrypt.gensalt())).decode()
+
+
 async def register_user(phone: str, table_number: str | None, venue_slug: str,
                         data_consent: bool, display_name: str | None = None) -> dict:
     db = await get_db()

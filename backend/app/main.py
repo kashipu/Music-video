@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 
 from app.config import settings
 from app.database import init_db, close_db
-from app.routers import auth, queue, admin, playback, websocket, superadmin, test
+from app.routers import auth, queue, admin, admin_auth, playback, websocket, superadmin, test
 
 
 def get_logos_dir():
@@ -87,6 +87,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(queue.router)
 app.include_router(admin.router)
+app.include_router(admin_auth.router)
 app.include_router(playback.router)
 app.include_router(websocket.router)
 app.include_router(superadmin.router)
