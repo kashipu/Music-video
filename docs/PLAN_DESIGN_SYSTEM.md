@@ -53,6 +53,26 @@ Nueva carpeta `components/ui/` para "átomos" reusables entre vistas, con sistem
 - `Skeleton.vue` — loading state, reemplaza spinners ad hoc
 - `Avatar.vue` — para logos de bar/usuarios
 
+### Fase 3a — Kickoff: pantallas de login (primer caso real, arranca la Fase 3)
+
+Referencia: [`login-02`](https://www.shadcn-vue.com/blocks/login) de shadcn-vue (registry real bajado de GitHub: `apps/v4/public/r/styles/new-york-v4/login-02.json`) — layout split-screen (form a la izquierda, panel a la derecha, oculto en mobile). Adaptado sin Tailwind/Reka UI, sin OAuth/signup (no aplican al modelo de auth de Repitela: cuentas admin las provisiona el super admin, no hay self-signup).
+
+**Por qué ahora:** `AdminLogin.vue` (102L) y `SuperAdminLogin.vue` (85L) son casi idénticos (mismos campos usuario/password, mismo layout, misma lógica de error/loading) pero están totalmente duplicados — es el ejemplo más chico y de menor riesgo para probar el patrón atoms→moléculas→vistas del plan.
+
+**Decisiones de diseño (ya confirmadas con el usuario):**
+- Aplica a **ambas** pantallas (Admin y SuperAdmin) — mismo componente visual compartido, lógica de login/redirect distinta por vista.
+- Panel derecho: **placeholder genérico sin imagen real** (Repitela no tiene banco de fotos de bares) — gradiente con tokens existentes (`--primary-soft`) + marca centrada, cero peso de red, reemplazable por foto real más adelante.
+- Marca: reusar `frontend/src/assets/logo-color-positivo.svg` / `logo-color-negativo.svg` (ya existen en el repo, sin usar) — nada de librería de iconos nueva.
+- Reusar clases globales ya definidas en `style.css` (`.btn`/`.btn-primary`/`.input-field`) en vez de escribir CSS nuevo para los átomos.
+
+**Archivos:**
+- Nuevo `components/ui/Button.vue` — wrapper de `.btn`/`.btn-{variant}`, prop `variant` (default `primary`)
+- Nuevo `components/ui/Input.vue` — wrapper de `.input-field`, `v-model`
+- Nuevo `components/AuthSplitLayout.vue` — shell split-screen (marca + slot de form + panel derecho), incluye el theme-toggle (hoy duplicado en ambas vistas)
+- Nuevo `components/AuthLoginForm.vue` — formulario usuario/password compartido (title/subtitle/error/loading por props, `v-model:username`/`v-model:password`, emit `submit`), construido con los dos átomos
+- Modificar `views/AdminLogin.vue` y `views/SuperAdminLogin.vue` — pasan a componer `AuthSplitLayout` + `AuthLoginForm`, conservan su propia lógica de auth/redirect
+- Modificar `stores/auth.js` — agregar `superAdminLogin()` (mismo patrón que `adminLogin()` ya existente) para sacar el `fetch()` directo que hoy vive en `SuperAdminLogin.vue` (alineado con la regla de la Fase 1 de no hacer fetch directo en vistas)
+
 Los componentes existentes en `components/` (`SongCard.vue`, `NowPlaying.vue`, `QueueList.vue`, etc.) son las "moléculas" — se migran para componerse a partir de estos átomos donde aplique, no se reescriben desde cero.
 
 ## Fase 4 — Reuso en las vistas grandes ("organismos", reemplaza Parte B de PLAN_FRONTEND_GUARDRAILS.md)
