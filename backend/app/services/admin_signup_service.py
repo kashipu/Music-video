@@ -1,6 +1,5 @@
 import asyncio
 import hashlib
-import logging
 import re
 import secrets
 import unicodedata
@@ -11,9 +10,8 @@ from google.oauth2 import id_token
 
 from app.config import settings
 from app.database import get_db
-from app.services import auth_service
+from app.services import auth_service, email_service
 
-logger = logging.getLogger(__name__)
 TOKEN_HOURS = {"verify": 24, "reset": 1}
 
 
@@ -117,12 +115,21 @@ async def verify_email(token: str) -> None:
     db = await get_db()
     await db.execute("UPDATE admins SET email_verified = TRUE WHERE id = ?", (admin_id,))
     await db.commit()
+    rows = await db.execute_fetchall(
+        "SELECT a.email, v.name FROM admins a JOIN venues v ON v.id = a.venue_id WHERE a.id = ?", (admin_id,)
+    )
+    if rows:
+        await email_service.send_welcome_email(rows[0][0], rows[0][1])
 
 
 async def request_password_reset(email: str) -> str | None:
     db = await get_db()
-    rows = await db.execute_fetchall("SELECT id FROM admins WHERE email = ?", (email.strip().lower(),))
-    return await create_email_token(rows[0][0], "reset") if rows else None
+    rows = await db.execute_fetchall("SELECT id, email FROM admins WHERE email = ?", (email.strip().lower(),))
+    if not rows:
+        return None
+    token = await create_email_token(rows[0][0], "reset")
+    await email_service.send_reset_email(rows[0][1], _email_link("reset-password", token))
+    return token
 
 
 async def reset_password(token: str, password: str) -> None:
@@ -168,6 +175,9 @@ async def google_signup(token: str, venue_name: str | None, terms_version: str) 
     return {"token": auth_service.create_admin_token(admin["id"], admin["username"], admin["venue_id"]), "admin": admin}
 
 
-def log_email_link(purpose: str, email: str, token: str) -> None:
-    path = "verify-email" if purpose == "verify" else "reset-password"
-    logger.warning("TODO email %s for %s: /%s?token=%s", purpose, email, path, token)
+def _email_link(path: str, token: str) -> str:
+    return f"{settings.frontend_url.rstrip('/')}/admin/{path}?token={token}"
+
+
+async def send_verification_email(email: str, token: str) -> None:
+    await email_service.send_verification_email(email, _email_link("verify-email", token))

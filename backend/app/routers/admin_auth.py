@@ -106,7 +106,7 @@ async def signup(req: SignupRequest, _: None = Depends(limit_auth_attempts)):
             raise HTTPException(status_code=422, detail="Datos de registro invalidos")
         raise
     token = await admin_signup_service.create_email_token(admin["id"], "verify")
-    admin_signup_service.log_email_link("verify", req.email, token)
+    await admin_signup_service.send_verification_email(req.email, token)
     return {"message": "Cuenta creada. Revisa tu correo para verificarla.", "venue_slug": admin["venue_slug"]}
 
 
@@ -121,9 +121,7 @@ async def verify_email(req: TokenRequest, _: None = Depends(limit_auth_attempts)
 
 @router.post("/forgot-password")
 async def forgot_password(req: ForgotPasswordRequest, _: None = Depends(limit_auth_attempts)):
-    token = await admin_signup_service.request_password_reset(req.email)
-    if token:
-        admin_signup_service.log_email_link("reset", req.email, token)
+    await admin_signup_service.request_password_reset(req.email)
     return {"message": "Si el correo existe, te enviamos instrucciones"}
 
 
