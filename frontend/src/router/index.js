@@ -59,6 +59,15 @@ const routes = [
     component: () => import('../views/ResetPassword.vue'),
   },
   {
+    path: '/privacidad',
+    name: 'privacy-policy',
+    component: () => import('../views/PrivacyPolicy.vue'),
+  },
+  {
+    path: '/politica-privacidad',
+    redirect: '/privacidad',
+  },
+  {
     path: '/:venueSlug/admin/login',
     name: 'admin-login',
     component: () => import('../views/AdminLogin.vue'),
