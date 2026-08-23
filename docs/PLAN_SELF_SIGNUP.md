@@ -30,15 +30,34 @@ Nueva migración SQL (`backend/app/db/migrations/0XX_admin_selfsignup.sql`):
 - Trial: al crear el venue en el signup, `paid_until = date.today() + timedelta(days=<trial_days de platform_settings>)`.
 - Código promocional: el campo se acepta y se guarda en el signup (columna `promo_code_used` en `venues` o `admins`), pero la lógica de descuentos/referidos queda **fuera de esta fase** — es un sistema aparte (`promo_codes`, `referrals`) que se planea después.
 
-## Fase B — Backend: endpoints
+## Fase B — Backend: módulo de autenticación de admins (separado del dashboard y de superadmin)
 
-- `GET /api/superadmin/settings` / `PATCH /api/superadmin/settings` — leer/editar `trial_days` y `grace_period_days` de `platform_settings`. Este endpoint se implementa **primero** dentro de la fase, porque `compute_payment_status()` y el signup dependen de él.
-- `POST /api/admin/signup` — crea `venues` + `admins` en una transacción (slug auto-generado del nombre del bar), hashea password con `bcrypt` (ya en `requirements.txt`), setea `paid_until` trial (leyendo `trial_days` de `platform_settings`, no un número fijo) + `terms_accepted_at`/`terms_version`, genera token de verificación y dispara email (Fase D). No loguea automático hasta verificar email (Fase F).
-- `POST /api/admin/verify-email` — consume el token de `email_tokens`, marca `email_verified = TRUE`.
-- `POST /api/admin/forgot-password` — genera token de reset, dispara email. Respuesta genérica siempre ("si el correo existe, te enviamos instrucciones") — no revela si el email existe (Fase F).
-- `POST /api/admin/reset-password` — consume token, actualiza `password_hash`.
-- `POST /api/admin/google-signup` — recibe el ID token de Google, lo verifica con `google-auth` (`verify_oauth2_token`, chequeando `aud`=client id propio e `iss`=`accounts.google.com`), busca por `google_sub` o `email`; si no existe, crea venue+admin igual que el signup normal (trial incluido) con `email_verified = TRUE` automático.
-- Rate limiting en los 4 endpoints (mismo mecanismo que ya exista para `/api/auth/register` de clientes de bar — confirmar y reusar, no inventar uno nuevo).
+**Por qué un módulo nuevo:** `routers/admin.py` (893 líneas) ya mezcla el login de admin con toda la lógica autenticada del dashboard (queue/playback/analytics) — sumarle signup/verify/reset/Google encima repetiría el mismo problema de monolito que se está resolviendo en el frontend, ahora en el backend. `routers/superadmin.py` es gestión de plataforma (venues, config), no autenticación — solo debe ganar el endpoint de `settings`, nada de signup. Se separa en un módulo nuevo dedicado a auth de admin, mismo patrón que ya existe (`auth.py` = auth de clientes de bar).
+
+### Módulos y responsabilidad de cada archivo
+
+| Archivo | Responsabilidad | Acción |
+|---|---|---|
+| `routers/admin_auth.py` (nuevo) | Endpoints HTTP: `login`, `signup`, `verify-email`, `forgot-password`, `reset-password`, `google-signup`. Prefix `/api/admin` — mismas URLs de siempre, solo cambia en qué archivo Python viven. Router delgado: valida input, llama al service, arma la respuesta — nada de lógica de negocio acá. | Crear |
+| `routers/admin.py` | Pierde el endpoint `login` (se **extrae**, no se duplica — moverlo, no reimplementarlo). Queda solo con las acciones ya autenticadas del dashboard. | Modificar |
+| `routers/superadmin.py` | Solo gana `GET/PATCH /api/superadmin/settings` (trial_days/grace_period_days) — ya asignado a Codex por separado. Nada de signup entra acá. | Ya en curso |
+| `services/admin_signup_service.py` (nuevo) | Lógica de negocio del self-signup: crear `venues`+`admins`+trial en una transacción, generar/validar filas de `email_tokens`, vincular cuenta por `google_sub`/email. Llama a `auth_service.py` para tokens JWT y a `email_service.py` (Fase D) para disparar los emails. No reimplementa nada que ya exista en `auth_service.py`. | Crear |
+| `services/auth_service.py` | **Sin cambios de responsabilidad** — sigue siendo las primitivas de token/sesión/password ya existentes (`create_admin_token`, `decode_token`, `verify_admin`, patrón bcrypt). `admin_signup_service.py` las reusa. | Reusar tal cual |
+| `services/email_service.py` (Fase D) | Wrapper de Brevo. `admin_signup_service.py` lo llama para verify/welcome/reset. | Crear (Fase D) |
+| `main.py` | Registrar el router nuevo: agregar `admin_auth` al import de `app.routers` y `app.include_router(admin_auth.router)`. | Modificar (una línea) |
+
+**No sobre-modularizar:** la verificación del ID token de Google es 2-3 líneas con `google-auth` (`verify_oauth2_token`) — vive directo dentro de `admin_signup_service.py`, no se le crea un archivo propio para una sola función.
+
+### Endpoints
+
+- `GET/PATCH /api/superadmin/settings` → `superadmin.py` (ya asignado, sin cambios acá).
+- `POST /api/admin/login` → `admin_auth.py`, extraído de `admin.py` — verificar después de moverlo que el login del admin sigue funcionando igual (regresión, no cambia comportamiento).
+- `POST /api/admin/signup` → `admin_auth.py` llama a `admin_signup_service.create_admin_with_trial(...)`: crea venue+admin (slug auto-generado), hashea password con `bcrypt`, setea `paid_until` trial leyendo `trial_days` de `platform_settings` (no un número fijo) + `terms_accepted_at`/`terms_version`, genera token de verificación y dispara email (Fase D). No loguea automático hasta verificar email (Fase F).
+- `POST /api/admin/verify-email` → consume el token de `email_tokens`, marca `email_verified = TRUE`.
+- `POST /api/admin/forgot-password` → genera token de reset, dispara email. Respuesta genérica siempre ("si el correo existe, te enviamos instrucciones") — no revela si el email existe (Fase F).
+- `POST /api/admin/reset-password` → consume token, actualiza `password_hash`.
+- `POST /api/admin/google-signup` → verifica el ID token de Google (`aud`=client id propio, `iss`=`accounts.google.com`), busca por `google_sub` o `email`; si no existe, crea venue+admin igual que el signup normal (trial incluido) con `email_verified = TRUE` automático.
+- Rate limiting en los endpoints de `admin_auth.py` (mismo mecanismo que ya exista para `/api/auth/register` de clientes de bar — confirmar y reusar, no inventar uno nuevo).
 
 ## Fase C — Frontend
 
@@ -72,6 +91,7 @@ Nueva migración SQL (`backend/app/db/migrations/0XX_admin_selfsignup.sql`):
 
 ## Verificación (al implementar)
 
+- Login de admin existente sigue funcionando igual después de moverlo a `admin_auth.py` (regresión — misma URL, mismo comportamiento, ningún admin actual se ve afectado).
 - Signup completo end-to-end en dev: crear cuenta → recibir email real (Brevo) → verificar → loguear → ver el bar con `paid_until` = hoy+15 en el panel de superadmin.
 - Simular vencimiento del trial (setear `paid_until` en el pasado) y confirmar que `compute_payment_status` ya existente lo marca `overdue`/`suspended` sin cambios adicionales.
 - Google Sign-In probado con una cuenta real de Google en dev.
