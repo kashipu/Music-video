@@ -91,6 +91,15 @@ Google Places Autocomplete (New) + Geocoding: Geocoding tiene 10,000 llamadas gr
 - `views/VerifyEmail.vue` y `views/ResetPassword.vue` — pantallas cortas que consumen el token de la URL y llaman a los endpoints de la Fase B.
 - `SuperAdminPanel.vue`: nueva sección/tab "Configuración" con dos campos numéricos (`trial_days`, `grace_period_days`) contra `GET/PATCH /api/superadmin/settings` — así se cambian sin tocar código ni redesplegar.
 
+## Fase C2 — Anti-bot en signup (Cloudflare Turnstile)
+
+**Por qué:** el rate limit de `admin_auth.py` es por IP — un ataque de registro masivo con muchas IPs distintas lo esquiva. Y una vez conectado Brevo (Fase D), cada intento de signup dispara un email real (costo y riesgo de reputación del dominio de envío).
+
+- **Turnstile, no reCAPTCHA** — gratis e ilimitado de verdad (sin límite de requests, verificado a 2026), no ata la cuenta a Google encima del login que ya usa Google Sign-In.
+- Frontend: widget de Turnstile en `AdminSignup.vue` (y `GoogleSignupRequest` si aplica), token se manda junto con el resto del form.
+- Backend: `admin_auth.py` valida el token contra `https://challenges.cloudflare.com/turnstile/v0/siteverify` (via `httpx`, ya es dependencia) antes de llamar a `admin_signup_service`. Si falla, 400 antes de tocar la DB o disparar el email.
+- Nueva env var `TURNSTILE_SECRET_KEY` (backend) y `TURNSTILE_SITE_KEY` (frontend, público por diseño).
+
 ## Fase D — Email (Brevo)
 
 - Cuenta Brevo, plan free.
