@@ -4,7 +4,9 @@
 
 Referencia visual: pantalla de registro de Alegra (email + password, "gratis por 15 días", código promocional, "Regístrate con Google"). Hoy Repitela no tiene autoregistro — los admins de bar los crea el super admin manualmente (`SuperAdminPanel.vue` → `POST /api/superadmin/venues`).
 
-**Hallazgo clave: el trial NO es lógica nueva.** `venues.paid_until` + `compute_payment_status()` (`backend/app/routers/superadmin.py:14-27`) ya implementan "activo / overdue / suspended" con `GRACE_PERIOD_DAYS = 5`, y `auth_service.py` ya lee `paid_until` para auto-suspender venues vencidos. Un signup con trial de 15 días es solo: crear venue+admin y setear `paid_until = hoy + 15`. La tabla `users` (clientes del bar) ya tiene precedente de `data_consent BOOLEAN` — mismo patrón a replicar en `admins`.
+**Hallazgo clave: el trial NO es lógica nueva.** `venues.paid_until` + `compute_payment_status()` (`backend/app/routers/superadmin.py:14-27`) ya implementan "activo / overdue / suspended" con `GRACE_PERIOD_DAYS = 5` (hoy hardcodeado como constante Python), y `auth_service.py` ya lee `paid_until` para auto-suspender venues vencidos. Un signup con trial de 15 días es solo: crear venue+admin y setear `paid_until = hoy + N` días. La tabla `users` (clientes del bar) ya tiene precedente de `data_consent BOOLEAN` — mismo patrón a replicar en `admins`.
+
+**Ajuste pedido por el usuario:** ni la duración del trial (15 días) ni el período de gracia (`GRACE_PERIOD_DAYS`) quedan hardcodeados en código — se vuelven parametrizables desde el panel de super admin (ver Fase A/B/C).
 
 Decisiones ya tomadas en conversación previa (no se re-abren acá):
 - Sin Firebase/Supabase — se mantiene SQLite + JWT propio.
@@ -24,12 +26,14 @@ Nueva migración SQL (`backend/app/db/migrations/0XX_admin_selfsignup.sql`):
 
 - `admins`: agregar `email TEXT UNIQUE`, `email_verified BOOLEAN NOT NULL DEFAULT FALSE`, `google_sub TEXT UNIQUE NULL`, `terms_accepted_at TIMESTAMP NULL`, `terms_version TEXT NULL`, `privacy_accepted_at TIMESTAMP NULL`. Todo nullable/default para no romper admins ya creados por el super admin (login usuario/password sigue funcionando igual).
 - Nueva tabla `email_tokens`: `id, admin_id, token_hash, purpose ('verify'|'reset'), expires_at, used_at, created_at` — un solo uso, hash del token (no texto plano), expiración corta (verify: 24h, reset: 1h).
-- Trial: al crear el venue en el signup, `paid_until = date.today() + timedelta(days=15)` — reusa `compute_payment_status`/`GRACE_PERIOD_DAYS` ya existentes, sin tocar esa lógica.
+- Nueva tabla `platform_settings` (fila única, id=1): `trial_days INTEGER NOT NULL DEFAULT 15`, `grace_period_days INTEGER NOT NULL DEFAULT 5`. Reemplaza la constante `GRACE_PERIOD_DAYS = 5` de `superadmin.py` — `compute_payment_status()` pasa a leer `grace_period_days` de esta fila en vez de la constante Python (fallback a 5 si la fila no existe todavía, por retrocompatibilidad).
+- Trial: al crear el venue en el signup, `paid_until = date.today() + timedelta(days=<trial_days de platform_settings>)`.
 - Código promocional: el campo se acepta y se guarda en el signup (columna `promo_code_used` en `venues` o `admins`), pero la lógica de descuentos/referidos queda **fuera de esta fase** — es un sistema aparte (`promo_codes`, `referrals`) que se planea después.
 
 ## Fase B — Backend: endpoints
 
-- `POST /api/admin/signup` — crea `venues` + `admins` en una transacción (slug auto-generado del nombre del bar), hashea password con `bcrypt` (ya en `requirements.txt`), setea `paid_until` trial + `terms_accepted_at`/`terms_version`, genera token de verificación y dispara email (Fase D). No loguea automático hasta verificar email (Fase F).
+- `GET /api/superadmin/settings` / `PATCH /api/superadmin/settings` — leer/editar `trial_days` y `grace_period_days` de `platform_settings`. Este endpoint se implementa **primero** dentro de la fase, porque `compute_payment_status()` y el signup dependen de él.
+- `POST /api/admin/signup` — crea `venues` + `admins` en una transacción (slug auto-generado del nombre del bar), hashea password con `bcrypt` (ya en `requirements.txt`), setea `paid_until` trial (leyendo `trial_days` de `platform_settings`, no un número fijo) + `terms_accepted_at`/`terms_version`, genera token de verificación y dispara email (Fase D). No loguea automático hasta verificar email (Fase F).
 - `POST /api/admin/verify-email` — consume el token de `email_tokens`, marca `email_verified = TRUE`.
 - `POST /api/admin/forgot-password` — genera token de reset, dispara email. Respuesta genérica siempre ("si el correo existe, te enviamos instrucciones") — no revela si el email existe (Fase F).
 - `POST /api/admin/reset-password` — consume token, actualiza `password_hash`.
@@ -38,8 +42,9 @@ Nueva migración SQL (`backend/app/db/migrations/0XX_admin_selfsignup.sql`):
 
 ## Fase C — Frontend
 
-- Nueva vista `views/AdminSignup.vue`, compone `AuthSplitLayout` (Fase 3a) con nuevo `components/AuthSignupForm.vue`: email, password (con toggle mostrar/ocultar), texto "Repitela es gratis por 15 días", checkbox de términos + habeas data (link a la política, Fase E) obligatorio para habilitar el botón, "Crear cuenta", link colapsable "¿Tienes un código promocional?", separador, botón "Regístrate con Google". Todo con los átomos `Button`/`Input` ya existentes, sin CSS nuevo.
+- Nueva vista `views/AdminSignup.vue`, compone `AuthSplitLayout` (Fase 3a) con nuevo `components/AuthSignupForm.vue`: email, password (con toggle mostrar/ocultar), texto "Repitela es gratis por **{{ trial_days }} días**" (leído del endpoint de settings, no hardcodeado en el template), checkbox de términos + habeas data (link a la política, Fase E) obligatorio para habilitar el botón, "Crear cuenta", link colapsable "¿Tienes un código promocional?", separador, botón "Regístrate con Google". Todo con los átomos `Button`/`Input` ya existentes, sin CSS nuevo.
 - `views/VerifyEmail.vue` y `views/ResetPassword.vue` — pantallas cortas que consumen el token de la URL y llaman a los endpoints de la Fase B.
+- `SuperAdminPanel.vue`: nueva sección/tab "Configuración" con dos campos numéricos (`trial_days`, `grace_period_days`) contra `GET/PATCH /api/superadmin/settings` — así se cambian sin tocar código ni redesplegar.
 
 ## Fase D — Email (Brevo)
 
