@@ -45,12 +45,12 @@ Inspirada en el ambiente nocturno de bares: Obsidian profundo, contrastes precis
 | :--- | :--- | :--- | :--- |
 | **`brand.dark` (`--bg`)** | `#07070B` | `240 18% 4%` | Fondo base de la aplicación (Obsidian profundo). |
 | **`brand.darker`** | `#040407` | `240 27% 2%` | Fondos de backdrops de diálogos y modales (`dialog::backdrop`). |
-| **`brand.card` (`--bg-card`)** | `#0E0E14` | `240 16% 7%` | Superficies de tarjetas, paneles laterales y contenedores modulares. |
-| **`--bg-elevated`** | `#161622` | `240 14% 11%` | Inputs de formulario, estados hover de cards, botones secundarios (`.btn-secondary`). |
-| **`--border`** | `#252533` | `240 12% 18%` | Bordes principales de componentes y separadores visuales. |
-| **`--border-soft`** | `rgba(255,255,255,0.08)` | — | Bordes sutiles en tarjetas con efecto glassmorphism. |
+| **`brand.card` (`--bg-card`)** | `#161626` | `240 27% 12%` | Superficies de tarjetas, paneles laterales y contenedores modulares (elevado sobre fondo). |
+| **`--bg-elevated`** | `#26263C` | `240 23% 19%` | Inputs de formulario, estados hover de cards, botones secundarios (`.btn-secondary`). |
+| **`--border`** | `#3A3A56` | `240 19% 28%` | Bordes principales de componentes y separadores visuales. |
+| **`--border-soft`** | `rgba(255,255,255,0.12)` | — | Bordes sutiles en tarjetas con efecto glassmorphism. |
 | **`--text` (`--foreground`)** | `#F4F4F6` | `0 0% 98%` | Texto principal de alto contraste. |
-| **`--text-muted`** | `#9E9EA8` | `240 6% 65%` | Subtítulos, labels secundarios y placeholders. |
+| **`--text-muted`** | `#A6A6B8` | `240 11% 69%` | Subtítulos, labels secundarios y placeholders. |
 | **`--kiosk-bg`** | `#000000` | `0 0% 0%` | Fondo negro puro e inmutable para la pantalla Kiosk de televisión. |
 
 #### Light Mode
@@ -120,12 +120,12 @@ Inspirada en el ambiente nocturno de bares: Obsidian profundo, contrastes precis
 | **Secundario** | `hsl(var(--secondary))` / `brand.purple` | `--secondary` | `#A855F7` | `#9333EA` |
 | **Acento** | `hsl(var(--accent))` / `brand.cyan` | `--accent` | `#00C8FF` | `#0099CC` |
 | **Fondo Base** | `hsl(var(--background))` / `brand.dark` | `--bg` | `#07070B` | `#F5F5FA` |
-| **Fondo Tarjeta** | `hsl(var(--card))` / `brand.card` | `--bg-card` | `#0E0E14` | `#FFFFFF` |
-| **Fondo Elevado** | `bg-white/10` / `glass-card` | `--bg-elevated` | `#161622` | `#EBEBF2` |
+| **Fondo Tarjeta** | `hsl(var(--card))` / `brand.card` | `--bg-card` | `#161626` | `#FFFFFF` |
+| **Fondo Elevado** | `bg-white/10` / `glass-card` | `--bg-elevated` | `#26263C` | `#EBEBF2` |
 | **Texto Principal** | `hsl(var(--foreground))` | `--text` | `#F4F4F6` | `#0E0E14` |
-| **Texto Secundario** | `hsl(var(--muted-foreground))` | `--text-muted` | `#9E9EA8` | `#525266` |
-| **Borde** | `hsl(var(--border))` | `--border` | `#252533` | `#D4D4E0` |
-| **Borde Suave** | `border-white/15` | `--border-soft` | `rgba(255, 255, 255, 0.08)` | `rgba(0, 0, 0, 0.08)` |
+| **Texto Secundario** | `hsl(var(--muted-foreground))` | `--text-muted` | `#A6A6B8` | `#525266` |
+| **Borde** | `hsl(var(--border))` | `--border` | `#3A3A56` | `#D4D4E0` |
+| **Borde Suave** | `border-white/15` | `--border-soft` | `rgba(255, 255, 255, 0.12)` | `rgba(0, 0, 0, 0.08)` |
 | **Anillo de Foco** | `hsl(var(--ring))` | `--ring` (usado en `:focus-visible`) | `#FF5522` | `#FF5522` |
 | **Peligro / Error** | `hsl(var(--destructive))` | `--danger` | `#F87171` | `#DC2626` |
 | **Advertencia** | `brand.amber` | `--warning` | `#FFB800` | `#D97706` |
