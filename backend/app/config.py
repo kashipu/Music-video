@@ -9,6 +9,11 @@ class Settings(BaseSettings):
     database_path: str = "data/barqueue.db"
 
     youtube_api_key: str = ""
+    google_client_id: str = ""
+    turnstile_secret_key: str = ""
+    brevo_api_key: str = ""
+    email_from: str = "no-reply@repitela.com"
+    frontend_url: str = "http://localhost:5173"
 
     cors_origins: str = "http://localhost:5173"
 

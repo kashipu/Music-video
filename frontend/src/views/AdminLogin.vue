@@ -1,27 +1,60 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
 import { useTheme } from '../composables/useTheme.js'
+import { useGoogleAuth } from '../composables/useGoogleAuth.js'
+import AuthLoginForm from '../components/AuthLoginForm.vue'
+import AuthSplitLayout from '../components/AuthSplitLayout.vue'
+
+const { applyVenueTheme, clearVenueTheme } = useTheme()
+const { startGoogleAuth } = useGoogleAuth()
 
 const route = useRoute()
-const { currentMode, toggleMode } = useTheme()
 const router = useRouter()
 const auth = useAuthStore()
+
+const API = import.meta.env.VITE_API_URL || ''
 const venueSlug = route.params.venueSlug || null
-document.title = venueSlug ? `${venueSlug.replace(/-/g, ' ')} - Admin` : 'Repitela - Admin'
+document.title = venueSlug ? `${venueSlug.replace(/-/g, ' ')} - Admin` : 'Repítela - Admin'
 
 const username = ref('')
 const password = ref('')
 const error = ref('')
 const loading = ref(false)
+const venueName = ref('')
+const venueLogo = ref(null)
+
+onMounted(async () => {
+  if (venueSlug) {
+    try {
+      const res = await fetch(`${API}/api/auth/venue-info?venue_slug=${venueSlug}`)
+      if (res.ok) {
+        const data = await res.json()
+        venueName.value = data.venue_name || ''
+        if (data.logo_url) {
+          venueLogo.value = data.logo_url.startsWith('/') ? API + data.logo_url : data.logo_url
+        }
+        if (venueName.value) {
+          document.title = `${venueName.value} - Admin`
+        }
+        if (data.theme) {
+          applyVenueTheme({ theme: data.theme })
+        }
+      }
+    } catch {
+      /* Fallback to default */
+    }
+  } else {
+    clearVenueTheme()
+  }
+})
 
 async function handleLogin() {
   error.value = ''
   loading.value = true
   try {
     const data = await auth.adminLogin(username.value, password.value, venueSlug)
-    // Redirect to the admin's venue (works whether venueSlug was in URL or not)
     const slug = data.admin?.venue_slug || venueSlug
     router.push({ name: 'admin', params: { venueSlug: slug } })
   } catch (e) {
@@ -30,73 +63,93 @@ async function handleLogin() {
     loading.value = false
   }
 }
+
+async function handleGoogleLogin(credential) {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await fetch(`${API}/api/admin/google-signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: credential,
+        venue_name: null,
+        terms_version: '2026-08',
+        terms_accepted: true,
+        privacy_accepted: true,
+      }),
+    })
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}))
+      throw new Error(errData.detail || 'No se encontró una cuenta asociada a este correo')
+    }
+    const data = await res.json()
+    auth.adminToken = data.token
+    auth.adminInfo = data.admin
+    localStorage.setItem('bq_admin_token', data.token)
+    localStorage.setItem('bq_admin', JSON.stringify(data.admin))
+    const slug = data.admin?.venue_slug || venueSlug
+    router.push({ name: 'admin', params: { venueSlug: slug } })
+  } catch (err) {
+    error.value = err.message
+  } finally {
+    loading.value = false
+  }
+}
+
+async function startGoogleLogin() {
+  error.value = ''
+  try {
+    await startGoogleAuth(credential => handleGoogleLogin(credential))
+  } catch (err) {
+    error.value = err.message
+  }
+}
 </script>
 
 <template>
-  <div class="login-page">
-    <button class="theme-toggle" style="position:fixed;top:16px;right:16px;" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button>
-    <div class="container">
-      <div class="login-header">
-        <h1>{{ venueSlug ? venueSlug.replace(/-/g, ' ') : 'Repitela' }}</h1>
-        <p class="subtitle">Panel de administracion</p>
-      </div>
-
-      <form class="login-form" @submit.prevent="handleLogin">
-        <div class="form-group">
-          <label>Usuario</label>
-          <input v-model="username" type="text" class="input-field" placeholder="admin" autocomplete="username" />
-        </div>
-        <div class="form-group">
-          <label>Contrasena</label>
-          <input v-model="password" type="password" class="input-field" placeholder="********" autocomplete="current-password" />
-        </div>
-
-        <p v-if="error" class="error-msg">{{ error }}</p>
-
-        <button type="submit" class="btn btn-primary" :disabled="loading">
-          {{ loading ? 'Entrando...' : 'ENTRAR' }}
-        </button>
-      </form>
-    </div>
-  </div>
+  <AuthSplitLayout>
+    <AuthLoginForm
+      v-model:username="username"
+      v-model:password="password"
+      :title="venueName || (venueSlug ? venueSlug.replace(/-/g, ' ') : 'Repítela')"
+      subtitle="Panel de administración"
+      :logo-url="venueLogo"
+      :error="error"
+      :loading="loading"
+      :show-google="true"
+      @submit="handleLogin"
+      @google="startGoogleLogin"
+    >
+      <template #footer>
+        <p class="signup-prompt">
+          ¿No tienes cuenta?
+          <RouterLink :to="{ name: 'admin-signup' }" class="signup-link">Regístrate</RouterLink>
+        </p>
+      </template>
+    </AuthLoginForm>
+  </AuthSplitLayout>
 </template>
 
 <style scoped>
-.login-page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.login-header {
+/* =========================================
+   CSS GENERAL
+   ========================================= */
+.signup-prompt {
+  margin-top: 8px;
   text-align: center;
-  margin-bottom: 32px;
-}
-.login-header h1 {
-  font-size: 24px;
-}
-.subtitle {
-  color: var(--text-muted);
-  font-size: 15px;
-}
-.login-form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.form-group label {
   font-size: 13px;
-  font-weight: 600;
   color: var(--text-muted);
 }
-.error-msg {
-  color: var(--danger);
-  font-size: 14px;
-  text-align: center;
+
+.signup-link {
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: none;
+  margin-left: 4px;
+}
+
+.signup-link:hover {
+  text-decoration: underline;
 }
 </style>

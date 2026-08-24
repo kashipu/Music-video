@@ -15,10 +15,42 @@ const routes = [
     meta: { requiresSuperAdmin: true },
   },
   {
+    path: '/superadmin/crear-bar',
+    name: 'superadmin-create-venue',
+    component: () => import('../views/SuperAdminCreateVenue.vue'),
+    meta: { requiresSuperAdmin: true },
+  },
+  {
     path: '/superadmin/venue/:venueId',
-    name: 'superadmin-venue',
     component: () => import('../views/SuperAdminVenueDetail.vue'),
     meta: { requiresSuperAdmin: true },
+    children: [
+      {
+        path: '',
+        name: 'superadmin-venue',
+        component: () => import('../views/venue/SuperAdminVenueOverview.vue'),
+      },
+      {
+        path: 'configuracion',
+        name: 'superadmin-venue-config',
+        component: () => import('../views/venue/SuperAdminVenueConfig.vue'),
+      },
+      {
+        path: 'usuarios',
+        name: 'superadmin-venue-users',
+        component: () => import('../views/venue/SuperAdminVenueUsers.vue'),
+      },
+    ],
+  },
+  {
+    path: '/superadmin/admins',
+    name: 'superadmin-admins',
+    component: () => import('../views/SuperAdminUsers.vue'),
+    meta: { requiresSuperAdmin: true },
+  },
+  {
+    path: '/superadmin/users',
+    redirect: '/superadmin/admins',
   },
 
   // Venue routes (dynamic slug)
@@ -37,6 +69,35 @@ const routes = [
     path: '/admin',
     name: 'admin-login-global',
     component: () => import('../views/AdminLogin.vue'),
+  },
+  {
+    path: '/admin/signup',
+    name: 'admin-signup',
+    component: () => import('../views/AdminSignup.vue'),
+  },
+  {
+    path: '/admin/verify-email',
+    name: 'admin-verify-email',
+    component: () => import('../views/VerifyEmail.vue'),
+  },
+  {
+    path: '/admin/forgot-password',
+    name: 'admin-forgot-password',
+    component: () => import('../views/ForgotPassword.vue'),
+  },
+  {
+    path: '/admin/reset-password',
+    name: 'admin-reset-password',
+    component: () => import('../views/ResetPassword.vue'),
+  },
+  {
+    path: '/privacidad',
+    name: 'privacy-policy',
+    component: () => import('../views/PrivacyPolicy.vue'),
+  },
+  {
+    path: '/politica-privacidad',
+    redirect: '/privacidad',
   },
   {
     path: '/:venueSlug/admin/login',

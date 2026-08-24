@@ -1,0 +1,1 @@
+ALTER TABLE super_admins ADD COLUMN last_login_at TIMESTAMP DEFAULT NULL;

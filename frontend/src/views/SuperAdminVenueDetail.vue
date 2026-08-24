@@ -1,692 +1,221 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { onMounted, provide, readonly, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { formatDuration, thumbFallback } from '../utils/youtube.js'
 import { useTheme } from '../composables/useTheme.js'
 
 const { currentMode, toggleMode } = useTheme()
-
 const route = useRoute()
 const router = useRouter()
 const API = import.meta.env.VITE_API_URL || ''
 const venueId = route.params.venueId
-
-document.title = 'Repitela - Detalle Venue'
 const detail = ref(null)
-const editName = ref('')
-const editLogoUrl = ref('')
-const uploadingLogo = ref(false)
-const markingPaid = ref(false)
-const paymentNotes = ref('')
-const editQrUrl = ref('')
-const editConfig = ref({ max_duration_sec: 600, max_songs_per_window: 5, window_minutes: 30 })
-const THEME_PRESETS = [
-  {
-    id: 'purple-night',
-    name: 'Noche Morada',
-    accent: '#6C5CE7',
-    mode: 'dark',
-    colors: { bg: '#0F0F1A', text: '#EAEAEA' },
-  },
-  {
-    id: 'red-fire',
-    name: 'Fuego Rojo',
-    accent: '#E74C3C',
-    mode: 'dark',
-    colors: { bg: '#1A0F0F', text: '#EAEAEA' },
-  },
-  {
-    id: 'green-jungle',
-    name: 'Selva Verde',
-    accent: '#00B894',
-    mode: 'dark',
-    colors: { bg: '#0F1A15', text: '#EAEAEA' },
-  },
-  {
-    id: 'blue-ocean',
-    name: 'Oceano Azul',
-    accent: '#0984E3',
-    mode: 'dark',
-    colors: { bg: '#0F131A', text: '#EAEAEA' },
-  },
-  {
-    id: 'gold-elegance',
-    name: 'Elegancia Dorada',
-    accent: '#F39C12',
-    mode: 'dark',
-    colors: { bg: '#1A170F', text: '#EAEAEA' },
-  },
-  {
-    id: 'purple-light',
-    name: 'Morado Claro',
-    accent: '#6C5CE7',
-    mode: 'light',
-    colors: { bg: '#F4F4F8', text: '#1A1A2E' },
-  },
-  {
-    id: 'red-light',
-    name: 'Rojo Claro',
-    accent: '#E74C3C',
-    mode: 'light',
-    colors: { bg: '#FDF4F4', text: '#1A1A2E' },
-  },
-  {
-    id: 'green-light',
-    name: 'Verde Claro',
-    accent: '#00B894',
-    mode: 'light',
-    colors: { bg: '#F0FAF7', text: '#1A1A2E' },
-  },
-  {
-    id: 'blue-light',
-    name: 'Azul Claro',
-    accent: '#0984E3',
-    mode: 'light',
-    colors: { bg: '#F0F6FD', text: '#1A1A2E' },
-  },
-  {
-    id: 'gold-light',
-    name: 'Dorado Claro',
-    accent: '#F39C12',
-    mode: 'light',
-    colors: { bg: '#FDFAF0', text: '#1A1A2E' },
-  },
-]
 
-const selectedPreset = ref('purple-night')
-
-const newAdmin = ref({ username: '', password: '' })
-const showPass = ref(false)
-
-const users = ref([])
-const playlist = ref([])
-const playlistUrl = ref('')
-const addSongUrl = ref('')
-const playlistLoading = ref(false)
-const playlistMsg = ref('')
-
-const saving = ref(false)
-const saveMsg = ref('')
+document.title = 'Repítela - Detalle de Bar'
 
 function headers() {
   return { Authorization: `Bearer ${localStorage.getItem('bq_super_token')}` }
 }
 
-function fullUrl(path) {
-  return `${window.location.origin}${path}`
-}
-
-onMounted(async () => {
-  await Promise.all([fetchDetail(), fetchPlaylist(), fetchUsers()])
-})
-
 async function fetchDetail() {
   const res = await fetch(`${API}/api/superadmin/venues/${venueId}/stats`, { headers: headers() })
   if (!res.ok) { router.push({ name: 'superadmin' }); return }
   detail.value = await res.json()
-  editName.value = detail.value.venue.name
-  editLogoUrl.value = detail.value.venue.logo_url || ''
-  editQrUrl.value = detail.value.venue.qr_url || ''
-  // Load theme from config
-  try {
-    const cfg = JSON.parse(detail.value.venue.config || '{}')
-    selectedPreset.value = cfg.theme?.preset || 'purple-night'
-  } catch { /* */ }
 }
 
-async function saveVenue() {
-  saving.value = true
-  saveMsg.value = ''
-  try {
-    const body = {
-      name: editName.value,
-      logo_url: editLogoUrl.value || null,
-      qr_url: editQrUrl.value || null,
-      theme: (() => {
-        const p = THEME_PRESETS.find(t => t.id === selectedPreset.value) || THEME_PRESETS[0]
-        return { preset: p.id, accent: p.accent, mode: p.mode, bg: p.colors.bg, text: p.colors.text }
-      })(),
-    }
-    const res = await fetch(`${API}/api/superadmin/venues/${venueId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', ...headers() },
-      body: JSON.stringify(body),
-    })
-    if (res.ok) {
-      saveMsg.value = 'Guardado'
-      await fetchDetail()
-      setTimeout(() => { saveMsg.value = '' }, 2000)
-    }
-  } finally { saving.value = false }
-}
-
-async function markAsPaid() {
-  markingPaid.value = true
-  try {
-    const res = await fetch(`${API}/api/superadmin/venues/${venueId}/mark-paid`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...headers() },
-      body: JSON.stringify({ months: 1, notes: paymentNotes.value || null }),
-    })
-    if (res.ok) {
-      saveMsg.value = 'Pago registrado'
-      paymentNotes.value = ''
-      await fetchDetail()
-      setTimeout(() => { saveMsg.value = '' }, 3000)
-    }
-  } finally { markingPaid.value = false }
-}
-
-async function uploadLogo(event) {
-  const file = event.target.files?.[0]
-  if (!file) return
-  const allowed = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml']
-  if (!allowed.includes(file.type)) {
-    saveMsg.value = 'Solo PNG, JPG o SVG'
-    return
-  }
-  if (file.size > 2 * 1024 * 1024) {
-    saveMsg.value = 'Max 2MB'
-    return
-  }
-  uploadingLogo.value = true
-  try {
-    const formData = new FormData()
-    formData.append('file', file)
-    const res = await fetch(`${API}/api/superadmin/venues/${venueId}/logo`, {
-      method: 'POST',
-      headers: headers(),
-      body: formData,
-    })
-    if (res.ok) {
-      const data = await res.json()
-      editLogoUrl.value = data.logo_url
-      await fetchDetail()
-      saveMsg.value = 'Logo actualizado'
-      setTimeout(() => { saveMsg.value = '' }, 2000)
-    } else {
-      const err = await res.json().catch(() => ({}))
-      saveMsg.value = err.detail || 'Error al subir logo'
-    }
-  } finally { uploadingLogo.value = false }
-}
-
-// Users
-async function fetchUsers() {
-  const res = await fetch(`${API}/api/superadmin/venues/${venueId}/users`, { headers: headers() })
-  if (res.ok) { const data = await res.json(); users.value = data.users }
-}
-
-// Admins
-async function addAdmin() {
-  if (!newAdmin.value.username || !newAdmin.value.password) return
-  const res = await fetch(`${API}/api/superadmin/venues/${venueId}/admins`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...headers() },
-    body: JSON.stringify(newAdmin.value),
-  })
-  if (!res.ok) {
-    const err = await res.json()
-    alert(err.detail)
-    return
-  }
-  newAdmin.value = { username: '', password: '' }
-  await fetchDetail()
-}
-
-async function removeAdmin(adminId) {
-  await fetch(`${API}/api/superadmin/venues/${venueId}/admins/${adminId}`, {
-    method: 'DELETE', headers: headers(),
-  })
-  await fetchDetail()
-}
-
-// Playlist
-async function fetchPlaylist() {
-  const res = await fetch(`${API}/api/superadmin/venues/${venueId}/playlist`, { headers: headers() })
-  if (res.ok) { const data = await res.json(); playlist.value = data.songs }
-}
-
-async function importPlaylist() {
-  if (!playlistUrl.value.trim()) return
-  playlistLoading.value = true
-  playlistMsg.value = 'Importando playlist...'
-  try {
-    const res = await fetch(`${API}/api/superadmin/venues/${venueId}/playlist/import`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...headers() },
-      body: JSON.stringify({ playlist_url: playlistUrl.value }),
-    })
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.detail)
-    playlistMsg.value = data.message
-    playlistUrl.value = ''
-    await fetchPlaylist()
-  } catch (e) { playlistMsg.value = e.message }
-  finally { playlistLoading.value = false }
-}
-
-async function addFallbackSong() {
-  if (!addSongUrl.value.trim()) return
-  playlistLoading.value = true
-  try {
-    const res = await fetch(`${API}/api/superadmin/venues/${venueId}/playlist/add`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...headers() },
-      body: JSON.stringify({ youtube_url: addSongUrl.value }),
-    })
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.detail)
-    addSongUrl.value = ''
-    await fetchPlaylist()
-  } catch (e) { playlistMsg.value = e.message }
-  finally { playlistLoading.value = false }
-}
-
-async function removeFallbackSong(songId) {
-  await fetch(`${API}/api/superadmin/venues/${venueId}/playlist/${songId}`, { method: 'DELETE', headers: headers() })
-  await fetchPlaylist()
-}
-
-async function toggleFallbackSong(songId) {
-  await fetch(`${API}/api/superadmin/venues/${venueId}/playlist/${songId}/toggle`, { method: 'PATCH', headers: headers() })
-  await fetchPlaylist()
-}
-
-async function clearPlaylist() {
-  if (!confirm('Eliminar toda la playlist de este bar?')) return
-  await fetch(`${API}/api/superadmin/venues/${venueId}/playlist`, { method: 'DELETE', headers: headers() })
-  playlist.value = []
-}
-
-async function deleteVenue() {
-  if (!confirm('ELIMINAR PERMANENTEMENTE este bar y todos sus datos?')) return
-  await fetch(`${API}/api/superadmin/venues/${venueId}`, { method: 'DELETE', headers: headers() })
-  router.push({ name: 'superadmin' })
-}
+provide('venueDetail', { detail: readonly(detail), refresh: fetchDetail })
+onMounted(fetchDetail)
 </script>
 
 <template>
-  <div class="vd" v-if="detail">
-    <!-- Header -->
+  <div v-if="detail" class="vd">
     <header class="vd-header">
       <div class="vd-header-left">
-        <button class="back-btn" @click="router.push({ name: 'superadmin' })">&#8592; Bares</button>
-        <img v-if="detail.venue.logo_url" :src="detail.venue.logo_url.startsWith('/') ? API + detail.venue.logo_url : detail.venue.logo_url" class="header-logo" />
+        <button class="back-btn" aria-label="Volver a bares" @click="router.push({ name: 'superadmin' })">&#8592; Bares</button>
+        <img v-if="detail.venue.logo_url" :src="detail.venue.logo_url.startsWith('/') ? API + detail.venue.logo_url : detail.venue.logo_url" class="header-logo" alt="Logo" />
         <h1>{{ detail.venue.name }}</h1>
         <span class="status-badge" :class="detail.venue.active ? 'active' : 'inactive'">
           {{ detail.venue.active ? 'Activo' : 'Inactivo' }}
         </span>
       </div>
-      <button class="theme-toggle" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button>
+      <button
+        class="theme-toggle"
+        :title="currentMode === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
+        :aria-label="currentMode === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
+        @click="toggleMode"
+      >
+        {{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}
+      </button>
     </header>
 
-    <div class="vd-layout">
-      <!-- LEFT: Config -->
-      <div class="vd-col">
-
-        <!-- Stats -->
-        <div class="card">
-          <p class="section-title">ESTADISTICAS</p>
-          <div class="stat-grid">
-            <div class="sg"><strong>{{ detail.stats.total_songs_played }}</strong><span>Reproducidas</span></div>
-            <div class="sg"><strong>{{ detail.stats.total_users }}</strong><span>Usuarios</span></div>
-            <div class="sg"><strong>{{ detail.stats.active_sessions }}</strong><span>Sesiones</span></div>
-            <div class="sg"><strong>{{ detail.stats.songs_in_queue }}</strong><span>En cola</span></div>
-          </div>
-        </div>
-
-        <!-- Billing -->
-        <div class="card" :class="{
-          'billing-overdue': detail.venue.payment_status === 'overdue',
-          'billing-suspended': detail.venue.payment_status === 'suspended'
-        }">
-          <p class="section-title">FACTURACION</p>
-          <div class="billing-info">
-            <div class="billing-row">
-              <span class="billing-label">Estado</span>
-              <span class="billing-value" :class="'ps-' + detail.venue.payment_status">
-                {{ detail.venue.payment_status === 'active' ? 'Al dia' :
-                   detail.venue.payment_status === 'overdue' ? 'Vencido (periodo de gracia)' : 'Suspendido por falta de pago' }}
-              </span>
-            </div>
-            <div class="billing-row">
-              <span class="billing-label">Pagado hasta</span>
-              <span class="billing-value">{{ detail.venue.paid_until || 'Sin registro de pago' }}</span>
-            </div>
-            <div v-if="detail.venue.payment_notes" class="billing-row">
-              <span class="billing-label">Notas</span>
-              <span class="billing-value">{{ detail.venue.payment_notes }}</span>
-            </div>
-          </div>
-          <div class="billing-action">
-            <input v-model="paymentNotes" class="input-field" placeholder="Nota del pago (opcional)..." style="flex:1;" />
-            <button class="btn btn-primary" style="width:auto;white-space:nowrap;" :disabled="markingPaid" @click="markAsPaid">
-              {{ markingPaid ? 'Registrando...' : 'Marcar pagado (+1 mes)' }}
-            </button>
-          </div>
-        </div>
-
-        <!-- Venue Config -->
-        <div class="card">
-          <p class="section-title">CONFIGURACION DEL BAR</p>
-          <div class="form-stack">
-            <div class="form-group">
-              <label>Nombre</label>
-              <input v-model="editName" class="input-field" />
-            </div>
-            <div class="form-group">
-              <label>Logo del bar</label>
-              <div class="logo-upload">
-                <img v-if="editLogoUrl" :src="editLogoUrl.startsWith('/') ? API + editLogoUrl : editLogoUrl" class="logo-preview" />
-                <div class="logo-actions">
-                  <label class="btn btn-secondary logo-btn">
-                    {{ uploadingLogo ? 'Subiendo...' : 'Subir logo' }}
-                    <input type="file" accept=".png,.jpg,.jpeg,.svg" @change="uploadLogo" hidden :disabled="uploadingLogo" />
-                  </label>
-                  <p class="logo-hint">PNG, JPG o SVG. Max 2MB.</p>
-                </div>
-              </div>
-            </div>
-            <div class="form-group">
-              <label>URL del QR (dejar vacio para automatica)</label>
-              <input v-model="editQrUrl" class="input-field" :placeholder="fullUrl(`/${detail.venue.slug}/registro`)" />
-            </div>
-            <div class="form-group">
-              <label>Tema del bar</label>
-              <div class="preset-grid">
-                <div
-                  v-for="preset in THEME_PRESETS"
-                  :key="preset.id"
-                  class="preset-card"
-                  :class="{ selected: selectedPreset === preset.id }"
-                  @click="selectedPreset = preset.id"
-                >
-                  <div class="preset-swatches">
-                    <div class="ps" :style="{ background: preset.colors.bg }"></div>
-                    <div class="ps ps-accent" :style="{ background: preset.accent }"></div>
-                    <div class="ps" :style="{ background: preset.colors.text }"></div>
-                  </div>
-                  <span class="preset-name">{{ preset.name }}</span>
-                  <span class="preset-mode">{{ preset.mode === 'dark' ? '&#9790;' : '&#9728;' }}</span>
-                </div>
-              </div>
-            </div>
-            <div class="form-row">
-              <button class="btn btn-primary" style="width:auto;" :disabled="saving" @click="saveVenue">
-                {{ saving ? 'Guardando...' : 'Guardar cambios' }}
-              </button>
-              <span v-if="saveMsg" class="save-msg">{{ saveMsg }}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- URLs -->
-        <div class="card">
-          <p class="section-title">ENLACES</p>
-          <div class="url-list">
-            <div v-for="u in [
-              { label: 'Registro (QR)', path: `/${detail.venue.slug}/registro`, icon: '&#128221;' },
-              { label: 'Admin', path: `/${detail.venue.slug}/admin/login`, icon: '&#9881;' },
-              { label: 'Video', path: `/${detail.venue.slug}/video`, icon: '&#127909;' },
-              { label: 'Usuario', path: `/${detail.venue.slug}/usuario`, icon: '&#128241;' },
-            ]" :key="u.label" class="url-item">
-              <span class="url-icon" v-html="u.icon"></span>
-              <div class="url-info">
-                <span class="url-label">{{ u.label }}</span>
-                <a :href="u.path" target="_blank" class="url-value">{{ fullUrl(u.path) }}</a>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Danger Zone -->
-        <div class="card danger-card">
-          <p class="section-title">ZONA DE PELIGRO</p>
-          <button class="btn-delete" @click="deleteVenue">Eliminar bar permanentemente</button>
-        </div>
+    <nav class="vd-tabs" aria-label="Secciones del bar">
+      <div class="vd-tabs-inner">
+        <RouterLink :to="{ name: 'superadmin-venue', params: { venueId } }">Resumen</RouterLink>
+        <RouterLink :to="{ name: 'superadmin-venue-config', params: { venueId } }">Configuración</RouterLink>
+        <RouterLink :to="{ name: 'superadmin-venue-users', params: { venueId } }">Usuarios</RouterLink>
       </div>
+    </nav>
 
-      <!-- RIGHT: Admins + Users + Playlist -->
-      <div class="vd-col">
-
-        <!-- Admins -->
-        <div class="card">
-          <p class="section-title">ADMINISTRADORES</p>
-          <div v-for="a in detail.admins" :key="a.id" class="admin-item">
-            <span class="admin-name">{{ a.username }}</span>
-            <button class="v-btn v-btn-danger" @click="removeAdmin(a.id)">Quitar</button>
-          </div>
-          <div class="add-row" style="margin-top:12px;">
-            <input v-model="newAdmin.username" class="input-field" placeholder="Usuario" />
-            <div class="pass-wrap">
-              <input v-model="newAdmin.password" :type="showPass ? 'text' : 'password'" class="input-field" placeholder="Contrasena" />
-              <button type="button" class="eye-btn" @click="showPass = !showPass">{{ showPass ? '&#128065;' : '&#128064;' }}</button>
-            </div>
-            <button class="btn btn-primary" style="width:auto;white-space:nowrap;" @click="addAdmin">Agregar</button>
-          </div>
-        </div>
-
-        <!-- Users -->
-        <div class="card">
-          <p class="section-title">USUARIOS REGISTRADOS ({{ users.length }})</p>
-          <div class="users-list" v-if="users.length">
-            <div v-for="u in users" :key="u.id" class="user-item">
-              <div class="user-info">
-                <span class="user-name-detail">{{ u.display_name || 'Sin nombre' }}</span>
-                <span class="user-phone">{{ u.phone }}</span>
-              </div>
-              <span class="user-meta">{{ u.songs_count }} canciones &middot; Mesa {{ u.table_number }}</span>
-            </div>
-          </div>
-          <p v-else class="text-muted">Sin usuarios registrados</p>
-        </div>
-        <div class="card">
-          <div class="pl-header">
-            <p class="section-title">PLAYLIST DE RESPALDO ({{ playlist.length }})</p>
-            <button v-if="playlist.length" class="v-btn v-btn-danger" style="font-size:11px;padding:3px 10px;" @click="clearPlaylist">Limpiar todo</button>
-          </div>
-          <p class="hint">Estas canciones suenan cuando no hay pedidos de las mesas</p>
-
-          <!-- Import -->
-          <div class="pl-input-row">
-            <input v-model="playlistUrl" class="input-field" placeholder="URL de playlist de YouTube..." />
-            <button class="btn btn-primary" style="width:auto;white-space:nowrap;" :disabled="playlistLoading" @click="importPlaylist">
-              {{ playlistLoading ? 'Importando...' : 'Importar playlist' }}
-            </button>
-          </div>
-
-          <!-- Add single -->
-          <div class="pl-input-row">
-            <input v-model="addSongUrl" class="input-field" placeholder="URL de cancion individual..." />
-            <button class="btn btn-primary" style="width:auto;" :disabled="playlistLoading" @click="addFallbackSong">+</button>
-          </div>
-
-          <p v-if="playlistMsg" class="pl-msg">{{ playlistMsg }}</p>
-
-          <!-- Songs -->
-          <div class="pl-list">
-            <div v-for="song in playlist" :key="song.id" class="pl-item" :class="{ 'pl-disabled': !song.active }">
-              <img :src="song.thumbnail_url" class="pl-thumb" @error="thumbFallback" />
-              <div class="pl-info">
-                <p class="pl-title">{{ song.title }}</p>
-                <p class="pl-meta">#{{ song.position }} &middot; {{ formatDuration(song.duration_sec) }}</p>
-              </div>
-              <button class="v-btn" :class="song.active ? 'v-btn-warn' : 'v-btn-success'" style="font-size:11px;padding:3px 8px;" @click="toggleFallbackSong(song.id)">
-                {{ song.active ? 'Desactivar' : 'Activar' }}
-              </button>
-              <button class="v-btn v-btn-danger" style="font-size:11px;padding:3px 8px;" @click="removeFallbackSong(song.id)">Quitar</button>
-            </div>
-            <p v-if="!playlist.length" class="text-muted">Sin canciones. Importa una playlist o agrega canciones individuales.</p>
-          </div>
-        </div>
-      </div>
-    </div>
+    <main class="vd-main">
+      <RouterView />
+    </main>
   </div>
 </template>
 
 <style scoped>
-/* Header */
+/* =========================================
+   CSS GENERAL
+   ========================================= */
+.vd {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+}
+
 .vd-header {
-  padding: 12px 24px; background: var(--bg-card); border-bottom: 1px solid var(--border);
-  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 16px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
-.vd-header-left { display: flex; align-items: center; gap: 12px; }
+
+.vd-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
 .back-btn {
-  padding: 6px 12px; border-radius: 6px; background: var(--bg-elevated);
-  border: 1px solid var(--border); color: var(--text-muted); font-size: 13px;
-  font-weight: 600; cursor: pointer;
-}
-.back-btn:hover { border-color: var(--primary); color: var(--primary); }
-.header-logo { width: 36px; height: 36px; border-radius: 8px; object-fit: cover; }
-.vd-header h1 { font-size: 20px; text-transform: capitalize; }
-.status-badge { font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 10px; }
-.status-badge.active { background: var(--success-soft); color: var(--success); }
-.status-badge.inactive { background: var(--danger-soft); color: var(--danger); }
-
-/* Layout */
-.vd-layout {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: 20px; max-width: 1200px; margin: 0 auto; padding: 20px;
-}
-.vd-col { display: flex; flex-direction: column; gap: 16px; }
-
-/* Stats */
-.stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-.sg {
-  text-align: center; padding: 12px; background: var(--bg-elevated); border-radius: 8px;
-}
-.sg strong { font-size: 22px; display: block; }
-.sg span { font-size: 11px; color: var(--text-muted); }
-
-/* Form */
-.form-stack { display: flex; flex-direction: column; gap: 12px; }
-.form-group { display: flex; flex-direction: column; gap: 4px; }
-.form-group label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
-.billing-overdue { border-color: var(--warning) !important; }
-.billing-suspended { border-color: var(--danger) !important; }
-.billing-info { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
-.billing-row { display: flex; justify-content: space-between; align-items: center; }
-.billing-label { font-size: 12px; color: var(--text-muted); }
-.billing-value { font-size: 14px; font-weight: 600; }
-.ps-active { color: var(--success); }
-.ps-overdue { color: var(--warning); }
-.ps-suspended { color: var(--danger); }
-.billing-action { display: flex; gap: 8px; align-items: center; }
-.logo-upload { display: flex; align-items: center; gap: 16px; margin-top: 4px; }
-.logo-preview { width: 64px; height: 64px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
-.logo-actions { display: flex; flex-direction: column; gap: 4px; }
-.logo-btn { padding: 8px 16px; font-size: 13px; width: auto; cursor: pointer; }
-.logo-hint { font-size: 11px; color: var(--text-muted); }
-.form-row { display: flex; align-items: center; gap: 12px; }
-.save-msg { font-size: 13px; color: var(--success); font-weight: 600; }
-
-/* URLs */
-.url-list { display: flex; flex-direction: column; gap: 8px; }
-.url-item { display: flex; align-items: center; gap: 10px; padding: 8px; background: var(--bg-elevated); border-radius: 8px; }
-.url-icon { font-size: 18px; flex-shrink: 0; }
-.url-info { flex: 1; min-width: 0; }
-.url-label { font-size: 12px; font-weight: 600; color: var(--text-muted); display: block; }
-.url-value { font-size: 11px; color: var(--primary); font-family: monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
-
-/* Admins */
-.admin-item {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px;
-}
-.admin-name { font-weight: 600; }
-.add-row { display: flex; gap: 8px; align-items: center; }
-.add-row .input-field { flex: 1; }
-.pass-wrap { position: relative; flex: 1; }
-.pass-wrap .input-field { width: 100%; padding-right: 36px; }
-.eye-btn {
-  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
-  background: none; border: none; font-size: 16px; cursor: pointer; opacity: 0.6;
-}
-.eye-btn:hover { opacity: 1; }
-
-/* Buttons */
-.v-btn { padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text); cursor: pointer; }
-.v-btn-warn { border-color: var(--warning); color: var(--warning); }
-.v-btn-warn:hover { background: var(--warning); color: #000; }
-.v-btn-danger { border-color: var(--danger); color: var(--danger); }
-.v-btn-danger:hover { background: var(--danger); color: white; }
-.v-btn-success { border-color: var(--success); color: var(--success); }
-.v-btn-success:hover { background: var(--success); color: #000; }
-
-/* Danger */
-.danger-card { border-color: var(--danger-soft); }
-.btn-delete {
-  width: 100%; padding: 10px; border-radius: 8px;
-  background: var(--danger-soft); border: 1px solid var(--danger);
-  color: var(--danger); font-size: 13px; font-weight: 600; cursor: pointer;
-}
-.btn-delete:hover { background: var(--danger); color: white; }
-
-/* Playlist */
-.pl-header { display: flex; justify-content: space-between; align-items: center; }
-.hint { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; }
-.pl-input-row { display: flex; gap: 8px; margin-bottom: 8px; }
-.pl-input-row .input-field { flex: 1; }
-.pl-msg { font-size: 12px; color: var(--primary); margin-bottom: 8px; }
-.pl-list { max-height: 500px; overflow-y: auto; }
-.pl-item {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px; margin-bottom: 6px; background: var(--bg-elevated);
-  border-radius: 8px; transition: opacity 0.15s;
-}
-.pl-disabled { opacity: 0.4; }
-.pl-thumb { width: 48px; height: 36px; border-radius: 4px; object-fit: cover; flex-shrink: 0; }
-.pl-info { flex: 1; min-width: 0; }
-.pl-title { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pl-meta { font-size: 11px; color: var(--text-muted); }
-
-.users-list { max-height: 300px; overflow-y: auto; }
-.user-item {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 8px 0; border-bottom: 1px solid var(--border-soft);
-}
-.user-item:last-child { border-bottom: none; }
-.user-info { display: flex; flex-direction: column; }
-.user-name-detail { font-size: 13px; font-weight: 600; }
-.user-phone { font-size: 12px; color: var(--primary); font-family: monospace; }
-.user-meta { font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
-
-/* Theme presets */
-.preset-grid {
-  display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
-}
-.preset-card {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px; border-radius: 10px;
-  background: var(--bg-elevated); border: 2px solid transparent;
-  cursor: pointer; transition: all 0.15s;
-}
-.preset-card:hover { border-color: var(--border); }
-.preset-card.selected { border-color: var(--primary); background: var(--primary-soft); }
-.preset-swatches { display: flex; gap: 3px; flex-shrink: 0; }
-.ps {
-  width: 18px; height: 18px; border-radius: 50%;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm, 8px);
+  background: var(--bg-elevated);
   border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
-.ps-accent { width: 22px; height: 22px; }
-.preset-name { font-size: 12px; font-weight: 600; flex: 1; }
-.preset-mode { font-size: 14px; }
 
-.text-muted { color: var(--text-muted); font-size: 14px; }
+.back-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
 
-@media (max-width: 900px) {
-  .vd-layout { grid-template-columns: 1fr; padding: 12px; gap: 12px; }
-  .vd-header { padding: 10px 12px; }
-  .vd-header-left { flex-wrap: wrap; gap: 8px; }
-  .vd-header h1 { font-size: 16px; }
-  .stat-grid { grid-template-columns: repeat(2, 1fr); }
-  .add-row { flex-direction: column; }
-  .add-row .input-field { width: 100%; }
-  .pl-input-row { flex-direction: column; }
-  .pl-item { flex-wrap: wrap; gap: 6px; }
-  .url-item { flex-direction: column; align-items: flex-start; }
-  .url-value { font-size: 10px; }
-  .admin-item { flex-direction: column; align-items: flex-start; gap: 6px; }
+.header-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.vd-header h1 {
+  font-size: 18px;
+  font-weight: 700;
+  text-transform: capitalize;
+  margin: 0;
+}
+
+.status-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 9999px;
+}
+
+.status-badge.active {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.status-badge.inactive {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.vd-tabs {
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.vd-tabs-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  gap: 8px;
+  padding: 8px 16px;
+}
+
+.vd-tabs a {
+  padding: 8px 16px;
+  border-radius: var(--radius-sm, 8px);
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.vd-tabs a:hover:not(.router-link-exact-active) {
+  color: var(--text);
+  background: var(--bg-elevated);
+}
+
+.vd-tabs a.router-link-exact-active {
+  background: var(--primary-soft);
+  color: var(--primary);
+  border-color: var(--border-soft);
+  font-weight: 700;
+}
+
+.vd-main {
+  width: 100%;
+}
+
+/* =========================================
+   BREAKPOINT 850px
+   ========================================= */
+@media (min-width: 850px) {
+  .vd-header {
+    padding: 14px 24px;
+  }
+
+  .vd-header h1 {
+    font-size: 20px;
+  }
+
+  .vd-tabs-inner {
+    padding: 8px 24px;
+  }
+}
+
+/* =========================================
+   BREAKPOINT 360px
+   ========================================= */
+@media (max-width: 360px) {
+  .vd-header {
+    padding: 10px;
+  }
+
+  .vd-header h1 {
+    font-size: 16px;
+  }
+
+  .vd-tabs-inner {
+    padding: 6px 10px;
+    gap: 4px;
+  }
+
+  .vd-tabs a {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
 }
 </style>

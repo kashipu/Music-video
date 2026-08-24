@@ -1,275 +1,153 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTheme } from '../composables/useTheme.js'
+import UiButton from '../components/ui/Button.vue'
+import UiInput from '../components/ui/Input.vue'
 
 const router = useRouter()
 const { currentMode, toggleMode } = useTheme()
 const API = import.meta.env.VITE_API_URL || ''
-
-document.title = 'Repitela - Super Admin'
 const venues = ref([])
-const showCreate = ref(false)
-const loading = ref(false)
+const kpis = ref({})
+const selectedPeriod = ref('today')
+const filter = ref('all')
+const search = ref('')
 
-const newVenue = ref({ name: '', slug: '', admin_username: '', admin_password: '', logo_url: '', qr_url: '', max_duration_sec: 600, max_songs_per_window: 5, window_minutes: 30 })
-const createError = ref('')
-
-function headers() {
-  return { Authorization: `Bearer ${localStorage.getItem('bq_super_token')}` }
+function headers() { return { Authorization: `Bearer ${localStorage.getItem('bq_super_token')}` } }
+function daysSince(date) {
+  if (!date) return null
+  const value = new Date(date.replace(' ', 'T'))
+  const today = new Date()
+  return Math.max(0, Math.floor((new Date(today.getFullYear(), today.getMonth(), today.getDate()) - new Date(value.getFullYear(), value.getMonth(), value.getDate())) / 86400000))
 }
-
-function fullUrl(path) {
-  return `${window.location.origin}${path}`
+function relativeDate(date) {
+  const days = daysSince(date)
+  if (days === null) return 'Nunca'
+  if (days === 0) return 'Hoy'
+  if (days === 1) return 'Ayer'
+  return `hace ${days} días`
 }
+const currentKpis = computed(() => kpis.value[selectedPeriod.value] || {})
+
+function daysUntil(date) {
+  if (!date) return null
+  const value = new Date(`${date.slice(0, 10)}T00:00:00`)
+  const today = new Date()
+  return Math.round((value - new Date(today.getFullYear(), today.getMonth(), today.getDate())) / 86400000)
+}
+function isUpcoming(date) { const days = daysUntil(date); return days >= 1 && days <= 5 }
+
+// ponytail: client-side venue name search combined with status indicator filter
+// Ceiling: in-memory list filtering; if venue list grows to 1000+, switch to debounced backend search endpoint
+// ponytail: "Pagos hoy" aproxima la fecha de pago con vencimiento=hoy; usar payments cuando exista esa tabla
+const filteredVenues = computed(() => {
+  const query = search.value.trim().toLowerCase()
+  return venues.value.filter(v => {
+    let matchesIndicator = true
+    if (filter.value === 'active') matchesIndicator = v.active
+    else if (filter.value === 'trial') matchesIndicator = v.paid_until == null
+    else if (filter.value === 'overdue') matchesIndicator = v.payment_status === 'overdue'
+    else if (filter.value === 'upcoming') matchesIndicator = isUpcoming(v.paid_until)
+    else if (filter.value === 'paid-today') matchesIndicator = daysUntil(v.paid_until) === 0
+
+    if (!matchesIndicator) return false
+    if (!query) return true
+    return (v.name || '').toLowerCase().includes(query)
+  })
+})
 
 onMounted(fetchVenues)
-
 async function fetchVenues() {
   const res = await fetch(`${API}/api/superadmin/venues`, { headers: headers() })
-  if (!res.ok) { forceLogout(); return }
+  if (!res.ok) return forceLogout()
   const data = await res.json()
-  const order = { suspended: 0, overdue: 1, active: 2 }
-  venues.value = data.venues.sort((a, b) => (order[a.payment_status] ?? 2) - (order[b.payment_status] ?? 2))
+  venues.value = data.venues.sort((a, b) => (b.last_used_at || '').localeCompare(a.last_used_at || ''))
+  kpis.value = data.kpis ?? {}
 }
-
-async function createVenue() {
-  createError.value = ''
-  if (!newVenue.value.name || !newVenue.value.slug || !newVenue.value.admin_username || !newVenue.value.admin_password) {
-    createError.value = 'Todos los campos son requeridos'
-    return
-  }
-  loading.value = true
-  try {
-    const res = await fetch(`${API}/api/superadmin/venues`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...headers() },
-      body: JSON.stringify(newVenue.value),
-    })
-    if (!res.ok) {
-      const err = await res.json()
-      throw new Error(err.detail || 'Error creando bar')
-    }
-    showCreate.value = false
-    newVenue.value = { name: '', slug: '', admin_username: '', admin_password: '', logo_url: '', qr_url: '', max_duration_sec: 600, max_songs_per_window: 5, window_minutes: 30 }
-    await fetchVenues()
-  } catch (e) {
-    createError.value = e.message
-  } finally { loading.value = false }
-}
-
-async function toggleVenue(venue) {
-  await fetch(`${API}/api/superadmin/venues/${venue.id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...headers() },
-    body: JSON.stringify({ active: !venue.active }),
-  })
-  await fetchVenues()
-}
-
-async function deleteVenue(venueId) {
-  if (!confirm('Estas seguro? Esto eliminara el bar y todos sus datos permanentemente.')) return
-  await fetch(`${API}/api/superadmin/venues/${venueId}`, {
-    method: 'DELETE', headers: headers(),
-  })
-  await fetchVenues()
-}
-
-function autoSlug() {
-  newVenue.value.slug = newVenue.value.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
-}
-
-function forceLogout() {
-  localStorage.removeItem('bq_super_token')
-  localStorage.removeItem('bq_super_admin')
-  router.push({ name: 'superadmin-login' })
-}
+function forceLogout() { localStorage.removeItem('bq_super_token'); localStorage.removeItem('bq_super_admin'); router.push({ name: 'superadmin-login' }) }
 </script>
 
 <template>
   <div class="sa">
     <header class="sa-header">
-      <div>
-        <h1>Repitela</h1>
-        <span class="sa-badge">Super Admin</span>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <button class="theme-toggle" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button>
-        <button class="btn-logout" @click="forceLogout">Salir</button>
+      <div><h1>Repitela</h1><span class="sa-badge">Administración</span></div>
+      <div class="header-actions">
+        <RouterLink class="btn-admins" :to="{ name: 'superadmin-admins' }">Usuarios</RouterLink>
+        <button class="theme-toggle" aria-label="Cambiar tema" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button>
+        <UiButton variant="danger" class="btn-logout" @click="forceLogout">Salir</UiButton>
       </div>
     </header>
-
-    <div class="sa-content">
-      <!-- Stats -->
-      <div class="overview">
-        <div class="ov-card"><p class="ov-value">{{ venues.length }}</p><p class="ov-label">Bares</p></div>
-        <div class="ov-card"><p class="ov-value">{{ venues.filter(v => v.active).length }}</p><p class="ov-label">Activos</p></div>
-        <div class="ov-card"><p class="ov-value">{{ venues.reduce((s, v) => s + v.active_sessions, 0) }}</p><p class="ov-label">Sesiones</p></div>
-        <div class="ov-card"><p class="ov-value">{{ venues.reduce((s, v) => s + v.queue_count, 0) }}</p><p class="ov-label">En cola</p></div>
-        <div class="ov-card" :class="{ 'ov-alert': venues.some(v => v.payment_status !== 'active') }"><p class="ov-value">{{ venues.filter(v => v.payment_status === 'overdue' || v.payment_status === 'suspended').length }}</p><p class="ov-label">Pago pendiente</p></div>
-      </div>
-
-      <!-- Create -->
-      <button class="btn btn-primary" style="width:auto;" @click="showCreate = !showCreate">
-        {{ showCreate ? 'Cancelar' : '+ Nuevo Bar' }}
-      </button>
-
-      <div v-if="showCreate" class="card create-form">
-        <p class="section-title">CREAR NUEVO BAR</p>
-        <div class="form-grid">
-          <div class="form-group">
-            <label>Nombre del bar</label>
-            <input v-model="newVenue.name" class="input-field" placeholder="Bar La Esquina" @input="autoSlug" />
-          </div>
-          <div class="form-group">
-            <label>Slug (URL)</label>
-            <input v-model="newVenue.slug" class="input-field" placeholder="bar-la-esquina" />
-          </div>
-          <div class="form-group" style="grid-column: 1 / -1;">
-            <label>Logo URL (imagen del bar)</label>
-            <input v-model="newVenue.logo_url" class="input-field" placeholder="https://ejemplo.com/logo.png" />
-            <img v-if="newVenue.logo_url" :src="newVenue.logo_url" class="logo-preview" />
-          </div>
-          <div class="form-group" style="grid-column: 1 / -1;">
-            <label>URL del QR (opcional)</label>
-            <input v-model="newVenue.qr_url" class="input-field" placeholder="Dejar vacio para URL automatica" />
-          </div>
-          <div class="form-group">
-            <label>Usuario admin</label>
-            <input v-model="newVenue.admin_username" class="input-field" placeholder="admin_bar" />
-          </div>
-          <div class="form-group">
-            <label>Contrasena admin</label>
-            <input v-model="newVenue.admin_password" type="password" class="input-field" placeholder="********" />
-          </div>
-          <div class="form-group">
-            <label>Max duracion (seg)</label>
-            <input v-model.number="newVenue.max_duration_sec" type="number" class="input-field" />
-          </div>
-          <div class="form-group">
-            <label>Canciones por ventana</label>
-            <input v-model.number="newVenue.max_songs_per_window" type="number" class="input-field" />
-          </div>
-          <div class="form-group">
-            <label>Ventana (min)</label>
-            <input v-model.number="newVenue.window_minutes" type="number" class="input-field" />
-          </div>
+    <main class="sa-content">
+      <section class="indicators" aria-label="Indicadores de la plataforma">
+        <div class="period-tabs" role="tablist" aria-label="Periodo de indicadores">
+          <button role="tab" :aria-selected="selectedPeriod === 'today'" :class="{ selected: selectedPeriod === 'today' }" @click="selectedPeriod = 'today'">Hoy</button>
+          <button role="tab" :aria-selected="selectedPeriod === 'week'" :class="{ selected: selectedPeriod === 'week' }" @click="selectedPeriod = 'week'">Semana</button>
+          <button role="tab" :aria-selected="selectedPeriod === 'month'" :class="{ selected: selectedPeriod === 'month' }" @click="selectedPeriod = 'month'">Mes</button>
         </div>
-        <p v-if="createError" class="error-msg">{{ createError }}</p>
-        <button class="btn btn-primary" style="margin-top:12px;" :disabled="loading" @click="createVenue">
-          {{ loading ? 'Creando...' : 'Crear Bar' }}
-        </button>
+        <div class="indicator-list">
+          <article><strong>{{ currentKpis.admins_online ?? 0 }}</strong><span>Admins en línea</span></article>
+          <article><strong>{{ currentKpis.users_online ?? 0 }}</strong><span>Usuarios en línea</span></article>
+          <article><strong>{{ currentKpis.queued_songs ?? 0 }}</strong><span>Canciones en Cola</span></article>
+          <article><strong>{{ currentKpis.active_venues ?? 0 }}</strong><span>Bares activos</span></article>
+          <article><strong>{{ currentKpis.expiring ?? 0 }}</strong><span>Bares próximos a vencer</span></article>
+        </div>
+      </section>
+
+      <div class="search-box">
+        <UiInput
+          v-model="search"
+          type="search"
+          placeholder="Buscar bar por nombre..."
+          aria-label="Buscar bar por nombre"
+        />
       </div>
 
-      <!-- Venues List -->
-      <div class="card venue-card" v-for="venue in venues" :key="venue.id">
-        <div class="venue-row">
-          <img v-if="venue.logo_url" :src="venue.logo_url" class="venue-logo" />
-          <div class="venue-info" @click="router.push({ name: 'superadmin-venue', params: { venueId: venue.id } })" style="cursor:pointer;">
-            <div class="venue-name-row">
-              <span class="venue-name">{{ venue.name }}</span>
-              <span class="venue-status" :class="venue.active ? 'active' : 'inactive'">
-                {{ venue.active ? 'Activo' : 'Inactivo' }}
-              </span>
-              <span v-if="venue.payment_status === 'overdue'" class="venue-status payment-overdue">Pago vencido</span>
-              <span v-if="venue.payment_status === 'suspended'" class="venue-status payment-suspended">Suspendido</span>
+      <div class="filter-pills" aria-label="Filtrar bares por estado">
+        <button :class="{ selected: filter === 'active' }" :aria-pressed="filter === 'active'" @click="filter = filter === 'active' ? 'all' : 'active'">Activos</button>
+        <button :class="{ selected: filter === 'trial' }" :aria-pressed="filter === 'trial'" @click="filter = filter === 'trial' ? 'all' : 'trial'">En prueba</button>
+        <button :class="{ selected: filter === 'overdue' }" :aria-pressed="filter === 'overdue'" @click="filter = filter === 'overdue' ? 'all' : 'overdue'">En Mora</button>
+        <button :class="{ selected: filter === 'upcoming' }" :aria-pressed="filter === 'upcoming'" @click="filter = filter === 'upcoming' ? 'all' : 'upcoming'">Próximos a vencer</button>
+        <button :class="{ selected: filter === 'paid-today' }" :aria-pressed="filter === 'paid-today'" @click="filter = filter === 'paid-today' ? 'all' : 'paid-today'">Pagos hoy</button>
+      </div>
+
+      <div class="list-header"><h2>Listado</h2><RouterLink class="btn btn-primary create-button" :to="{ name: 'superadmin-create-venue' }">+ Crear bar</RouterLink></div>
+
+      <section class="venue-grid">
+        <article v-for="venue in filteredVenues" :key="venue.id" class="venue-card" :class="{ inactive: !venue.active }">
+          <div class="venue-card-header">
+            <RouterLink class="venue-name" :to="{ name: 'superadmin-venue', params: { venueId: venue.id } }">{{ venue.name }}</RouterLink>
+            <div class="card-badges">
+              <span v-if="venue.queue_count > 0 || venue.active_sessions > 0" class="activity-dot" role="img" aria-label="Actividad actual" title="Actividad actual"></span>
+              <span v-if="venue.payment_status === 'overdue'" class="payment-badge payment-overdue">Mora</span>
+              <span v-else-if="venue.paid_until == null" class="payment-badge payment-trial">Trial</span>
+              <span v-else-if="isUpcoming(venue.paid_until)" class="payment-badge payment-upcoming">Vencimiento</span>
+              <span v-else class="payment-badge payment-paid">Pago</span>
             </div>
-            <p class="venue-slug">/{{ venue.slug }}</p>
-            <p class="venue-meta">
-              {{ venue.admin_count }} admin(s) &middot;
-              {{ venue.active_sessions }} sesiones &middot;
-              {{ venue.queue_count }} en cola
-              <template v-if="venue.paid_until"> &middot; Pago hasta: {{ venue.paid_until }}</template>
-            </p>
           </div>
-          <div class="venue-actions">
-            <button class="v-btn v-btn-primary" @click="router.push({ name: 'superadmin-venue', params: { venueId: venue.id } })">Detalle</button>
-            <button class="v-btn" :class="venue.active ? 'v-btn-warn' : 'v-btn-success'" @click="toggleVenue(venue)">
-              {{ venue.active ? 'Desactivar' : 'Activar' }}
-            </button>
-            <button class="v-btn v-btn-danger" @click="deleteVenue(venue.id)">Eliminar</button>
-          </div>
-        </div>
-
-        <div class="venue-urls-section" v-if="venue.active">
-          <div class="url-row" v-for="u in [
-            { label: 'Registro', path: `/${venue.slug}/registro` },
-            { label: 'Admin', path: `/${venue.slug}/admin/login` },
-            { label: 'Video', path: `/${venue.slug}/video` },
-          ]" :key="u.label">
-            <span class="url-label">{{ u.label }}</span>
-            <span class="url-value">{{ fullUrl(u.path) }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
+          <p><span>Último log admin</span>{{ relativeDate(venue.last_admin_login) }}</p>
+          <p><span>Último log usuario</span>{{ relativeDate(venue.last_used_at) }}</p>
+          <p><span>Días restantes</span><strong :class="{ expired: daysUntil(venue.paid_until) < 0 }">{{ daysUntil(venue.paid_until) ?? '—' }}</strong></p>
+          <UiButton class="detail-button" @click="router.push({ name: 'superadmin-venue', params: { venueId: venue.id } })">Ver detalle</UiButton>
+        </article>
+        <p v-if="!filteredVenues.length" class="empty">No hay bares en este filtro.</p>
+      </section>
+    </main>
   </div>
 </template>
 
 <style scoped>
-.sa-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 24px; background: var(--bg-card); border-bottom: 1px solid var(--border); }
-.sa-header h1 { font-size: 18px; display: inline; }
-.sa-badge { background: var(--warning); color: #000; font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 12px; margin-left: 10px; }
-.btn-logout { padding: 6px 14px; border-radius: 6px; background: var(--danger); color: white; font-size: 13px; font-weight: 600; }
+/* =========================================
+   CSS GENERAL
+   ========================================= */
+.sa-header { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; padding:10px 12px; background:var(--bg-card); border-bottom:1px solid var(--border); }.sa-header h1 { display:inline; font-size:18px; }.sa-badge { margin-left:10px; padding:2px 10px; border:1px solid var(--warning); border-radius:999px; background:var(--warning-soft); color:var(--warning); font-size:11px; font-weight:700; }.header-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }.btn-logout { width:auto; padding:6px 14px; font-size:13px; }.btn-admins { padding:6px 14px; border-radius:var(--radius-sm); background:var(--bg-elevated); border:1px solid var(--border); color:var(--text); font-size:13px; font-weight:600; text-decoration:none; }
+.sa-content { max-width:1100px; margin:auto; padding:16px 12px; }.indicators { margin:-16px -12px 20px; padding:14px 12px; background:var(--bg-card); border-bottom:1px solid var(--border); }.indicators h2,.list-header h2 { margin:0; font-size:18px; }.period-tabs { display:flex; gap:4px; margin-bottom:12px; }.period-tabs button { padding:6px 12px; border:0; border-radius:var(--radius); background:transparent; color:var(--text-muted); font:inherit; font-size:13px; cursor:pointer; }.period-tabs button.selected,.period-tabs button:hover { background:var(--primary); color:var(--text-on-primary); }.indicator-list { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px; }.indicator-list article { display:flex; flex-direction:column; min-width:0; padding:12px; border:1px solid var(--border-soft); border-radius:var(--radius); background:var(--bg-card); color:var(--text-muted); }.indicator-list strong { color:var(--text); font-size:24px; line-height:1; }.indicator-list span { margin-top:6px; font-size:13px; overflow-wrap:anywhere; }
+.search-box { margin-bottom:12px; }.filter-pills { display:flex; gap:8px; margin-bottom:20px; overflow-x:auto; padding-bottom:2px; }.filter-pills button { flex:none; padding:7px 12px; border:1px solid var(--border-soft); border-radius:999px; background:var(--bg-card); color:var(--text-muted); font:inherit; font-size:13px; cursor:pointer; }.filter-pills button.selected,.filter-pills button:hover { border-color:var(--primary); background:var(--primary); color:var(--text-on-primary); }
+.list-header { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px; }.create-button,.detail-button { width:auto; white-space:nowrap; }.create-button { text-decoration:none; }
+.venue-grid { display:grid; grid-template-columns:1fr; gap:12px; }.venue-card { display:flex; flex-direction:column; gap:8px; padding:16px; border:1px solid var(--border-soft); border-radius:var(--radius); background:var(--bg-card); min-width:0; }.venue-card.inactive { opacity:.6; }.venue-card-header { display:flex; justify-content:space-between; align-items:center; gap:8px; }.venue-name { min-width:0; color:var(--text); font-size:17px; font-weight:700; overflow-wrap:anywhere; }.venue-name:hover { color:var(--primary); }.card-badges { display:flex; flex:none; align-items:center; gap:6px; }.activity-dot { width:8px; height:8px; border-radius:50%; background:var(--success); }.payment-badge { padding:2px 7px; border:1px solid currentColor; border-radius:999px; font-size:11px; font-weight:600; }.payment-overdue { color:var(--danger); }.payment-trial { color:var(--text-muted); }.payment-upcoming { color:var(--warning); }.payment-paid { color:var(--success); }.venue-card p { display:flex; justify-content:space-between; gap:12px; margin:0; font-size:14px; }.venue-card p span { color:var(--text-muted); }.venue-card p strong { font-weight:600; }.venue-card p .expired { color:var(--danger); }.detail-button { align-self:flex-start; margin-top:4px; }.empty { color:var(--text-muted); text-align:center; }
 
-.sa-content { max-width: 900px; margin: 0 auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
-
-.overview { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-.ov-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px; text-align: center; }
-.ov-value { font-size: 28px; font-weight: 700; }
-.ov-label { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-
-.create-form { padding: 20px; }
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.form-group { display: flex; flex-direction: column; gap: 4px; }
-.form-group label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
-.error-msg { color: var(--danger); font-size: 13px; margin-top: 8px; }
-.logo-preview { width: 80px; height: 80px; border-radius: 8px; object-fit: cover; margin-top: 6px; }
-
-.venue-card { transition: border-color 0.15s; }
-.venue-card:hover { border-color: var(--primary); }
-.venue-row { display: flex; align-items: flex-start; gap: 12px; }
-.venue-logo { width: 48px; height: 48px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
-.venue-info { flex: 1; }
-.venue-info:hover .venue-name { color: var(--primary); }
-.venue-name-row { display: flex; align-items: center; gap: 8px; }
-.venue-name { font-size: 16px; font-weight: 700; transition: color 0.15s; }
-.venue-status { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
-.venue-status.active { background: var(--success-soft); color: var(--success); }
-.venue-status.inactive { background: var(--danger-soft); color: var(--danger); }
-.venue-status.payment-overdue { background: var(--warning-soft); color: var(--warning); }
-.venue-status.payment-suspended { background: var(--danger-soft); color: var(--danger); }
-.ov-alert { border: 1px solid var(--warning); }
-.venue-slug { font-size: 13px; color: var(--primary); margin-top: 2px; }
-.venue-meta { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
-.venue-actions { display: flex; gap: 6px; flex-shrink: 0; flex-wrap: wrap; }
-.v-btn { padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text); }
-.v-btn:hover { border-color: var(--primary); }
-.v-btn-primary { border-color: var(--primary); color: var(--primary); }
-.v-btn-primary:hover { background: var(--primary); color: white; }
-.v-btn-warn { border-color: var(--warning); color: var(--warning); }
-.v-btn-warn:hover { background: var(--warning); color: #000; }
-.v-btn-danger { border-color: var(--danger); color: var(--danger); }
-.v-btn-danger:hover { background: var(--danger); color: white; }
-.v-btn-success { border-color: var(--success); color: var(--success); }
-.v-btn-success:hover { background: var(--success); color: #000; }
-
-.venue-urls-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
-.url-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 12px; }
-.url-label { font-weight: 600; color: var(--text-muted); min-width: 60px; }
-.url-value { flex: 1; color: var(--primary); font-family: monospace; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-@media (max-width: 600px) {
-  .sa-content { padding: 12px; }
-  .sa-header { padding: 10px 12px; }
-  .overview { grid-template-columns: repeat(2, 1fr); gap: 6px; }
-  .ov-card { padding: 10px; }
-  .ov-value { font-size: 22px; }
-  .form-grid { grid-template-columns: 1fr; }
-  .venue-row { flex-direction: column; }
-  .venue-actions { flex-direction: row; flex-wrap: wrap; width: 100%; }
-  .v-btn { flex: 1; text-align: center; }
-  .url-row { flex-direction: column; gap: 4px; }
-  .url-value { font-size: 10px; }
-}
+/* =========================================
+   BREAKPOINT 640px
+   ========================================= */
+@media (min-width:640px) { .sa-header { padding:12px 24px; }.sa-content { padding:24px; }.indicators { margin:-24px -24px 24px; padding:16px 24px; }.indicator-list { grid-template-columns:repeat(5, minmax(0, 1fr)); }.venue-grid { grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); } }
 </style>
