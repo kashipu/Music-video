@@ -48,9 +48,12 @@ async def get_billing(admin: dict = Depends(get_current_admin)):
         except (TypeError, ValueError):
             pass
 
+    # Solo pagos y pruebas: los ajustes/registros internos del superadmin no se
+    # muestran al dueño del bar (ve el resultado en sus fechas, no la corrección).
     events = await db.execute_fetchall(
         "SELECT id, kind, source, amount_cents, days, period_start, period_end, created_at, status "
         "FROM venue_billing_events WHERE venue_id = ? AND status NOT IN ('declined', 'pending') "
+        "AND kind IN ('payment', 'trial') "
         "ORDER BY created_at DESC, id DESC LIMIT 12",
         (venue_id,),
     )

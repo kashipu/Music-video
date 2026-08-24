@@ -76,6 +76,59 @@ async def record_event(
     return period_end.isoformat()
 
 
+async def adjust_expiry(
+    venue_id: int,
+    new_paid_until: str,
+    *,
+    created_by_id: int,
+    created_by_username: str,
+    notes: str,
+) -> str:
+    """Fija paid_until a una fecha exacta (corrección del superadmin).
+
+    period_start guarda el paid_until anterior: anular el ajuste lo revierte,
+    igual que cualquier otro movimiento.
+    """
+    target = date.fromisoformat(new_paid_until)  # ValueError si viene mal
+    db = await get_db()
+    await db.execute("BEGIN IMMEDIATE")
+    try:
+        rows = await db.execute_fetchall("SELECT paid_until FROM venues WHERE id = ?", (venue_id,))
+        if not rows:
+            raise ValueError("VENUE_NOT_FOUND")
+        previous = rows[0][0] or date.today().isoformat()
+        try:
+            days_delta = (target - date.fromisoformat(previous)).days
+        except (TypeError, ValueError):
+            days_delta = None
+
+        if target >= date.today():
+            await db.execute(
+                "UPDATE venues SET paid_until = ?, active = TRUE WHERE id = ?",
+                (target.isoformat(), venue_id),
+            )
+        else:
+            await db.execute(
+                "UPDATE venues SET paid_until = ? WHERE id = ?",
+                (target.isoformat(), venue_id),
+            )
+        await db.execute(
+            "INSERT INTO venue_billing_events "
+            "(venue_id, kind, source, created_by_id, created_by_username, days, "
+            "period_start, period_end, status, notes) "
+            "VALUES (?, 'adjustment', 'manual', ?, ?, ?, ?, ?, 'approved', ?)",
+            (
+                venue_id, created_by_id, created_by_username,
+                days_delta, previous, target.isoformat(), notes,
+            ),
+        )
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
+    return target.isoformat()
+
+
 async def void_event(venue_id: int, event_id: int) -> dict:
     db = await get_db()
     await db.execute("BEGIN IMMEDIATE")
@@ -91,6 +144,10 @@ async def void_event(venue_id: int, event_id: int) -> dict:
         event = _event_dict(rows[0])
         if event["status"] == "voided":
             raise ValueError("BILLING_EVENT_ALREADY_VOIDED")
+        # Los movimientos de Wompi son el registro contra el que se concilia:
+        # no se anulan ni editan a mano.
+        if event["source"] == "wompi":
+            raise ValueError("BILLING_EVENT_LOCKED")
 
         latest = await db.execute_fetchall(
             "SELECT id FROM venue_billing_events "
@@ -124,15 +181,85 @@ async def void_event(venue_id: int, event_id: int) -> dict:
     }
 
 
-async def update_event_notes(venue_id: int, event_id: int, notes: str | None) -> dict:
+async def update_event(
+    venue_id: int,
+    event_id: int,
+    *,
+    notes: str | None = None,
+    set_notes: bool = False,
+    amount_cents: int | None = None,
+    period_end: str | None = None,
+) -> dict:
+    """Edita un movimiento: nota siempre; monto solo en pagos manuales;
+    fecha (period_end) en pagos manuales y pruebas. Wompi es intocable.
+
+    Si el movimiento editado es el que define el vencimiento actual (el más
+    reciente no anulado), cambiar su fecha mueve venues.paid_until.
+    """
     db = await get_db()
-    result = await db.execute(
-        "UPDATE venue_billing_events SET notes = ? WHERE venue_id = ? AND id = ?",
-        (notes, venue_id, event_id),
-    )
-    if result.rowcount != 1:
-        raise ValueError("BILLING_EVENT_NOT_FOUND")
-    await db.commit()
+    await db.execute("BEGIN IMMEDIATE")
+    try:
+        rows = await db.execute_fetchall(
+            "SELECT id, kind, source, amount_cents, days, period_start, period_end, "
+            "created_by_username, notes, created_at, provider_ref, status "
+            "FROM venue_billing_events WHERE venue_id = ? AND id = ?",
+            (venue_id, event_id),
+        )
+        if not rows:
+            raise ValueError("BILLING_EVENT_NOT_FOUND")
+        event = _event_dict(rows[0])
+        if event["source"] == "wompi":
+            raise ValueError("BILLING_EVENT_LOCKED")
+
+        if amount_cents is not None and event["kind"] != "payment":
+            raise ValueError("BILLING_EVENT_FIELD_NOT_EDITABLE")
+        if period_end is not None:
+            if event["kind"] not in ("payment", "trial"):
+                raise ValueError("BILLING_EVENT_FIELD_NOT_EDITABLE")
+            if event["status"] == "voided":
+                raise ValueError("BILLING_EVENT_ALREADY_VOIDED")
+            new_end = date.fromisoformat(period_end)  # ValueError si viene mal
+            start = date.fromisoformat(event["period_start"])
+            if new_end <= start:
+                raise ValueError("BILLING_EVENT_BAD_PERIOD")
+
+        if set_notes:
+            await db.execute(
+                "UPDATE venue_billing_events SET notes = ? WHERE id = ?",
+                (notes, event_id),
+            )
+        if amount_cents is not None:
+            await db.execute(
+                "UPDATE venue_billing_events SET amount_cents = ? WHERE id = ?",
+                (amount_cents, event_id),
+            )
+        if period_end is not None:
+            await db.execute(
+                "UPDATE venue_billing_events SET period_end = ?, days = ? WHERE id = ?",
+                (new_end.isoformat(), (new_end - start).days, event_id),
+            )
+            latest = await db.execute_fetchall(
+                "SELECT id FROM venue_billing_events "
+                "WHERE venue_id = ? AND status != 'voided' "
+                "ORDER BY created_at DESC, id DESC LIMIT 1",
+                (venue_id,),
+            )
+            if latest and latest[0][0] == event_id:
+                if new_end >= date.today():
+                    await db.execute(
+                        "UPDATE venues SET paid_until = ?, active = TRUE WHERE id = ?",
+                        (new_end.isoformat(), venue_id),
+                    )
+                else:
+                    await db.execute(
+                        "UPDATE venues SET paid_until = ? WHERE id = ?",
+                        (new_end.isoformat(), venue_id),
+                    )
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
+
     event = await db.execute_fetchall(
         "SELECT id, kind, source, amount_cents, days, period_start, period_end, "
         "created_by_username, notes, created_at, provider_ref, status "

@@ -84,16 +84,24 @@ class CreateVenueRequest(BaseModel):
 
 class MarkPaidRequest(BaseModel):
     months: int = 1
+    days: StrictInt | None = Field(default=None, gt=0, le=3650)
     notes: str | None = None
     amount_cents: int | None = None
 
 
 class ExtendTrialRequest(BaseModel):
-    days: int
+    days: StrictInt = Field(gt=0, le=3650)
+
+
+class AdjustExpiryRequest(BaseModel):
+    paid_until: str = Field(min_length=10, max_length=10)
+    notes: str = Field(min_length=3, max_length=500)
 
 
 class UpdateBillingEventRequest(BaseModel):
-    notes: str | None
+    notes: str | None = None
+    amount_cents: StrictInt | None = Field(default=None, gt=0)
+    period_end: str | None = Field(default=None, min_length=10, max_length=10)
 
 
 class UpdatePlatformSettingsRequest(BaseModel):
@@ -420,6 +428,11 @@ async def venue_stats(venue_id: int, admin: dict = Depends(get_current_super_adm
         "ORDER BY created_at DESC, id DESC LIMIT 12",
         (venue_id,),
     )
+    totals_rows = await db.execute_fetchall(
+        "SELECT source, SUM(amount_cents), COUNT(*) FROM venue_billing_events "
+        "WHERE venue_id = ? AND kind = 'payment' AND status = 'approved' GROUP BY source",
+        (venue_id,),
+    )
     current_billing = next((event for event in billing_rows if event[11] != "voided"), None)
     period_start = current_billing[5] if current_billing else None
     period_end = current_billing[6] if current_billing else v[7]
@@ -443,6 +456,10 @@ async def venue_stats(venue_id: int, admin: dict = Depends(get_current_super_adm
             "period_start": period_start,
             "period_end": period_end,
             "days_remaining": days_remaining,
+            "totals": [
+                {"source": t[0], "amount_cents": t[1] or 0, "count": t[2]}
+                for t in totals_rows
+            ],
             "history": [
                 {
                     "id": event[0], "kind": event[1], "source": event[2],
@@ -719,7 +736,7 @@ async def mark_venue_paid(venue_id: int, req: MarkPaidRequest,
         new_paid_until = await billing_service.record_event(
             venue_id,
             "payment",
-            days=30 * req.months,
+            days=req.days if req.days is not None else 30 * req.months,
             amount_cents=amount_cents,
             source="manual",
             created_by_id=admin["super_admin_id"],
@@ -744,9 +761,6 @@ async def extend_venue_trial(
     req: ExtendTrialRequest,
     admin: dict = Depends(require_role("super_admin")),
 ):
-    if req.days not in {7, 15, 30}:
-        raise HTTPException(status_code=400, detail="Los días deben ser 7, 15 o 30")
-
     try:
         new_paid_until = await billing_service.record_event(
             venue_id,
@@ -763,6 +777,28 @@ async def extend_venue_trial(
     return {"paid_until": new_paid_until}
 
 
+@router.post("/venues/{venue_id}/adjust-expiry")
+async def adjust_venue_expiry(
+    venue_id: int,
+    req: AdjustExpiryRequest,
+    admin: dict = Depends(require_role("super_admin")),
+):
+    """Fija el vencimiento a una fecha exacta (corrección con nota obligatoria)."""
+    try:
+        new_paid_until = await billing_service.adjust_expiry(
+            venue_id,
+            req.paid_until,
+            created_by_id=admin["super_admin_id"],
+            created_by_username=admin["username"],
+            notes=req.notes.strip(),
+        )
+    except ValueError as exc:
+        if str(exc) == "VENUE_NOT_FOUND":
+            raise HTTPException(status_code=404, detail="Bar no encontrado") from exc
+        raise HTTPException(status_code=422, detail="Fecha invalida (usa AAAA-MM-DD)") from exc
+    return {"paid_until": new_paid_until}
+
+
 @router.post("/venues/{venue_id}/billing/events/{event_id}/void")
 async def void_billing_event(
     venue_id: int,
@@ -776,6 +812,8 @@ async def void_billing_event(
             raise HTTPException(status_code=404, detail="Movimiento no encontrado") from exc
         if str(exc) == "BILLING_EVENT_ALREADY_VOIDED":
             raise HTTPException(status_code=400, detail="Este movimiento ya esta anulado") from exc
+        if str(exc) == "BILLING_EVENT_LOCKED":
+            raise HTTPException(status_code=403, detail="Los movimientos de Wompi no se pueden modificar") from exc
         raise
 
 
@@ -787,11 +825,26 @@ async def update_billing_event(
     admin: dict = Depends(require_role("super_admin")),
 ):
     try:
-        event = await billing_service.update_event_notes(venue_id, event_id, req.notes)
+        event = await billing_service.update_event(
+            venue_id,
+            event_id,
+            notes=req.notes,
+            set_notes="notes" in req.model_fields_set,
+            amount_cents=req.amount_cents,
+            period_end=req.period_end,
+        )
     except ValueError as exc:
         if str(exc) == "BILLING_EVENT_NOT_FOUND":
             raise HTTPException(status_code=404, detail="Movimiento no encontrado") from exc
-        raise
+        if str(exc) == "BILLING_EVENT_LOCKED":
+            raise HTTPException(status_code=403, detail="Los movimientos de Wompi no se pueden modificar") from exc
+        if str(exc) == "BILLING_EVENT_FIELD_NOT_EDITABLE":
+            raise HTTPException(status_code=400, detail="Ese campo no se puede editar en este tipo de movimiento") from exc
+        if str(exc) == "BILLING_EVENT_ALREADY_VOIDED":
+            raise HTTPException(status_code=400, detail="Este movimiento ya esta anulado") from exc
+        if str(exc) == "BILLING_EVENT_BAD_PERIOD":
+            raise HTTPException(status_code=422, detail="La fecha debe ser posterior al inicio del período") from exc
+        raise HTTPException(status_code=422, detail="Fecha invalida (usa AAAA-MM-DD)") from exc
     return {"event": event}
 
 
