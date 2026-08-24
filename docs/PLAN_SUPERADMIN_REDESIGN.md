@@ -1,86 +1,87 @@
-# Plan: SuperAdmin — lista de bares por uso real (alcance acotado)
+# Plan: SuperAdmin — mobile-first, sin tablas, con gestión de administradores
 
-## Contexto y por qué se reescribió
+## Contexto y por qué se reescribió (tercera versión)
 
-Este plan tuvo dos versiones anteriores: una primera que agregaba un dashboard con 6 tarjetas de KPI, roles, facturación y un ledger de pagos; una revisión con Claude Opus encontró huecos serios ahí (rol sin enforcement real, KPI de ingresos imposible sin backfill, SuperAdminPanel.vue quedando huérfano). Después el usuario pidió algo mucho más chico: **solo lo que ya está implementado**, sin jerga en inglés, sin que se sienta como "un dashboard con muchas métricas". Una segunda consulta con Opus (grounded en el código real) propuso el diseño de esta versión — es la vigente, no hay que reconciliar con las anteriores.
+Versión 1: dashboard con 6 KPIs, roles, facturación, ledger de pagos — Opus encontró huecos serios, se descartó.
+Versión 2: lista de bares en tabla de 5 columnas por último uso real, sin roles ni facturación — se implementó (Fase 1+2, backend `last_used_at`/`last_admin_login` + tabla en `SuperAdminPanel.vue`). El usuario la vio en un preview y pidió un giro: **nada de tablas, la pantalla se opera desde el celular**, y quiere de vuelta la gestión de roles (vendedor/editor) que la v2 había dejado fuera.
 
-**Lo que el usuario pidió, en sus palabras:** saber qué bares están activos, cuáles se están usando de verdad, cuál fue su última conexión, y la analítica de cada bar (usuarios promedio por día, mejor día).
+**Lo que el usuario pidió, textual:** "EN SUPERADMIN NO USAMOS TABLAS TODO OPTIMIZADO PARA OPERAR DESDE MOBILE". Tres piezas, nada más ("ESTO ES TODO LO QUE NECESITO de esta pantalla"):
+1. Barra de indicadores (bares activos / en prueba / en mora / pagados — sin repetir la palabra "bares" en cada uno).
+2. Listado de **cards** (no filas de tabla): link al bar, último uso del bar, última conexión del admin, si hay usuarios activos en la cola ahora mismo, botón "Ver detalle".
+3. Un creador de administradores del super admin — CRUD completo para crear vendedores y editores.
 
-## Descubrimiento — qué ya existe
+## Qué se conserva de la v2 (no se tira)
 
-- `venues.active` (booleano) — flag manual del superadmin, **no** mide uso real.
-- `play_history` tiene `venue_id` + `played_at` (indexado por venue+fecha) — cada canción reproducida en un bar queda ahí. `MAX(played_at)` por venue es la señal de "último uso" — cero tabla nueva.
-- `user_sessions` (`venue_id`, `started_at`, `ended_at`) — sesiones de clientes vía QR, señal de actividad complementaria.
-- `analytics_service.get_analytics(venue_id, period)` en `backend/app/services/analytics_service.py` ya calcula por bar: canciones totales, usuarios únicos, cola promedio, top canciones, horas pico, con período day/week/month/all — es la "analítica del bar" que pidió el usuario, ya existe y la usa hoy `AdminDashboard.vue` (el dashboard del admin de cada bar). Falta agrupar por día para sacar "personas por día" y "mejor día" — variación barata de la misma query.
-- `SuperAdminVenueDetail.vue` tiene el bug ya detectado de `editConfig` sin conectar (backend ya soporta el PATCH) — se mantiene como quick win independiente.
+- `last_used_at` (`MAX(play_history.played_at)` por venue) y `last_admin_login` (`MAX(admins.last_login_at)` por venue, migración `015_admin_last_login.sql` + update en `admin_auth.py:admin_login`) — ya en `superadmin.py:list_venues`, commiteado. Son exactamente los dos datos que pide la card ("último uso del bar" y "última conexión del admin").
+- `queue_count` (canciones pending/playing) y `active_sessions` (`user_sessions` sin `ended_at`) — ya vienen en la misma respuesta de `list_venues`. "Si hay usuarios activos en la cola" es `active_sessions > 0` (o `queue_count > 0`), dato que ya existe, cero backend nuevo para esto.
+- `compute_payment_status()` (`active`/`overdue`/`suspended`, dinámico desde `platform_settings`) y `venues.paid_until` — insumo directo para la barra de indicadores.
+- **Se descarta** el trabajo de tabla de `SuperAdminPanel.vue` (5 columnas, sparkline, menú `⋯` con Teleport) — commiteado como v2 pero queda reemplazado por completo. No se revierte el commit (es historia útil), se reescribe el archivo.
+- El detalle (`SuperAdminVenueDetail.vue`) con `editConfig` conectado (SA-1) sigue vigente sin cambios — el botón "Ver detalle" de la card sigue llevando ahí.
 
-## Decisión de diseño (de la consulta con Opus)
+## Terminología — se mantiene la tabla de reemplazos del plan anterior
 
-**No hay tab "Dashboard" con tarjetas de KPI.** La lista de Bares (root de `/superadmin`, hoy `SuperAdminPanel.vue`) **es** el resumen. Arriba de la tabla, una sola frase con números clicables como filtro:
+(Overdue→Pago vencido, Trial→Sin pago registrado, Suspended→Suspendido, KPIs/Dashboard→Resumen, etc. — ver commit `ea4b09f` si hace falta el detalle completo, no se repite aquí.)
 
-> 31 bares · 18 en uso esta semana · 3 sin uso hace más de 15 días · 2 apagados
+## Diseño — mobile-first, dos secciones
 
-**Tres/cuatro estados de uso, derivados de `MAX(play_history.played_at)`** (no del flag `active`):
+### 1. Barra de indicadores (arriba, sticky en mobile)
 
-| Señal | Regla | Texto |
-|---|---|---|
-| 🟢 En uso | último uso ≤ 7 días | `Hoy` / `Ayer` / `hace 3 días` |
-| 🟡 Sin movimiento | 8–30 días | `hace 12 días` |
-| ⚪ Nunca se usó | sin `play_history` | `Nunca` |
-| ⚫ Apagado | `active = false` | fila atenuada, sin punto |
+Cuatro números, sin la palabra "bares" repetida en cada uno (ya está en el título de la sección):
 
-Un bar `active = true` con último uso "hace 18 días" se lee solo con esto — sin agregar una fila de métricas por bar.
+> **Bares** · 24 activos · 3 en prueba · 2 en mora · 19 pagados
 
-**Tabla de la lista — 5 columnas, nada más:**
+- **Activos** = `venues.active = true`.
+- **En prueba** = `paid_until IS NULL` (nunca se le registró un pago) — hoy `compute_payment_status(None)` lo trata igual que "active", hay que distinguirlo aquí explícitamente como categoría propia, no fusionarlo.
+- **En mora** = `payment_status == 'overdue'`.
+- **Pagados** = `paid_until` en el futuro y no en prueba (`payment_status == 'active'` y `paid_until` no nulo).
+- Los 4 números salen de los venues que ya trae `GET /api/superadmin/venues` — cálculo 100% client-side (`computed`), igual que la v2 hacía con sus contadores de filtro. Cero endpoint nuevo.
+- Tocar un número filtra el listado de cards de abajo (mismo patrón de filtro clicable que ya existía en la v2, adaptado a estas 4 categorías).
 
-| Bar | Último uso | Últimos 14 días (opcional, sparkline chico) | Estado | Acciones |
-|---|---|---|---|---|
+### 2. Listado de cards (reemplaza la tabla)
 
-Orden por defecto: último uso descendente (los bares muertos caen al fondo solos). **No van en la lista:** canciones totales, usuarios únicos, cola promedio, horas pico, cantidad de admins, días para vencer, las 3 URLs por bar. Crear/activar/desactivar/eliminar/URLs van en un menú `⋯` por fila (hoy ocupan media pantalla en `SuperAdminPanel.vue`) — se preservan, no se pierden, solo se compactan.
+Una card por bar, apiladas en columna única en mobile, grid de 2-3 columnas en desktop (`grid-template-columns: repeat(auto-fill, minmax(280px, 1fr))` o similar — mobile-first: una sola columna es el diseño base, el grid es el "upgrade" en pantallas anchas, no al revés).
 
-**El detalle (`SuperAdminVenueDetail.vue`) es donde vive la analítica**, reusando `get_analytics` tal cual (mismo selector de período): personas por día (promedio), mejor día (fecha + número), canciones reproducidas en el período, un gráfico de barras de personas por día — los dos números salen del mismo array que alimenta el gráfico, se calcula una vez.
+Cada card, en este orden:
+- Nombre del bar (el nombre completo ES el link — toca la card entera o el nombre, navega a "Ver detalle"; no hace falta un link de texto separado).
+- Último uso: mismo texto relativo que ya existía (`Hoy`/`Ayer`/`hace N días`/`Nunca`), fuente `last_used_at`.
+- Última conexión del admin: mismo formato relativo, fuente `last_admin_login` (ya expuesto, ver arriba).
+- Indicador simple de actividad ahora mismo: punto/badge "🟢 Con gente en cola" si `active_sessions > 0` (o `queue_count > 0`), si no, no se muestra nada (evitar un "🔴 sin nadie" ansioso — la ausencia de badge ya comunica que no hay actividad).
+- Botón "Ver detalle" → `SuperAdminVenueDetail.vue` (sin cambios).
+- Acciones secundarias (activar/desactivar, eliminar, URLs, crear bar): **no van en la card** — se preservan pero se mueven dentro de "Ver detalle" (el detalle ya es una vista completa, tiene espacio de sobra; la card se queda liviana y sin menú `⋯` que clipear). Esto también resuelve de raíz el bug de scroll que había reportado el usuario en la tabla — al no haber tabla ni menú posicionado dentro de un contenedor con `overflow`, el problema desaparece en vez de parchearse.
+- "+ Crear bar" se queda como acción fija arriba del listado (no es parte de una card individual).
 
-## Terminología — reemplazos obligatorios
+## 3. Gestión de administradores del super admin (CRUD, vendedor/editor)
 
-| No usar | Usar |
-|---|---|
-| Overdue | Pago vencido |
-| Trial / sin pagar | Sin pago registrado |
-| Suspended | Suspendido |
-| Ledger de pagos | Historial de pagos |
-| KPIs / Dashboard | Resumen |
-| Unique users | Personas distintas |
-| Peak hours | Horas de mayor movimiento |
-| Avg queue length | Cola promedio |
-| Top songs | Canciones más pedidas |
-| "Última conexión" | "Último uso" (más honesto: mide uso, no conexión) |
-| Fallback | No debe aparecer en superadmin — es un detalle interno de `Kiosk.vue` |
+Esto reintroduce, acotado, lo que la v1 había propuesto como "Fase SA-2" y la v2 sacó del alcance por no haber gente operando el rol todavía — el usuario ahora sí lo pide explícito, así que se implementa, pero solo lo que pidió: **crear administradores del super admin con rol**, no un sistema de permisos granular todavía.
 
-## Qué queda explícitamente fuera de este plan (versiones anteriores, descartadas)
+**Alcance de esta fase (CRUD, no enforcement):**
+- Migración: `super_admins` gana `role TEXT NOT NULL DEFAULT 'super_admin' CHECK (role IN ('super_admin','vendedor','editor'))`.
+- Endpoints nuevos en `superadmin.py` (protegidos por `get_current_super_admin`, igual que el resto del router hoy — sin diferenciar por rol todavía, ver nota abajo):
+  - `GET /api/superadmin/admins` — lista (id, username, role, created_at, sin password_hash).
+  - `POST /api/superadmin/admins` — crea (username, password, role).
+  - `PATCH /api/superadmin/admins/{id}` — cambia rol o resetea password.
+  - `DELETE /api/superadmin/admins/{id}` — elimina (no permitir auto-eliminarse, validar que quede al menos un `super_admin`).
+- Frontend: una pantalla o sección nueva (`SuperAdminUsers.vue` o una card/acordeón dentro del mismo `/superadmin` — a definir en la Task de implementación, mobile-first igual que el resto) con lista + formulario crear + selector de rol + eliminar.
 
-- **Roles (super_admin/vendedor/editor):** 1-2 personas operando hoy — infraestructura para un problema que no existe todavía.
-- **`payment_history`, montos, ingresos, ledger:** requeriría backfill imposible de datos que no están registrados en ningún lado. `paid_until` + "Pago vencido" ya alcanza para saber a quién cobrarle.
-- **Tab "Negocio" y tab "Usuarios y eventos" (agregado cross-venue):** nadie lo pidió así; ordenar la lista por "último uso" ya da el ranking de actividad.
-- **Carga de infraestructura por bar / `os.getloadavg()`:** eso se mira en Dokploy, no en Repitela.
-- **El wireframe multi-tab (`docs/wireframe-superadmin.html`) queda obsoleto** — era el diseño de la versión anterior. Se reemplaza por este plan, no se reusa su layout.
+**Nota explícita para la Task (no bloquea esta fase, pero que quede escrito):** guardar `role` sin que ningún endpoint lo lea todavía es un dato decorativo — hoy `get_current_super_admin` es default-allow para cualquier fila de `super_admins` sin importar el rol. El usuario pidió literalmente "el creador... todo el CRUD para esto crear vendedores y editores", no pidió enforcement de permisos por rol — se implementa tal cual se pidió (guardar y gestionar el rol), y el enforcement granular (qué puede tocar un `vendedor` vs un `editor`) queda como fase futura separada, a pedir explícitamente cuando haya alguien real operando con esos roles.
 
 ## Fases
 
-### Fase 1 — Backend: última conexión + analítica por día
-- `list_venues` (`superadmin.py`) gana una columna calculada `last_used_at` = `MAX(play_history.played_at)` por venue (subquery o LEFT JOIN agrupado, sin tabla nueva).
-- `analytics_service.py` gana una función (o parámetro) que agrupa `play_history` por día dentro del período — de ahí salen "personas por día" (promedio) y "mejor día" (fecha + máximo). Reusa la lógica existente de `get_analytics`, no la reescribe.
+### Fase 1 — Backend: ya cerrada
+`last_used_at`, `last_admin_login`, `queue_count`, `active_sessions` ya están en `list_venues` (commits `984b56e` y `1299168`). Nada nuevo que hacer acá.
 
-### Fase 2 — Frontend: lista de Bares rediseñada
-- `SuperAdminPanel.vue`: la frase-resumen arriba (con los números como filtros), tabla de 5 columnas con los 4 estados de uso, menú `⋯` por fila con las acciones existentes (crear/detalle/activar/desactivar/eliminar/URLs) — nada de esto se pierde, se compacta.
-- Aplicar la tabla de terminología de arriba en toda la vista (y revisar si el wireframe/plan anterior dejó algún término en inglés dando vueltas).
+### Fase 2 — Frontend: `SuperAdminPanel.vue` rehecho como barra de indicadores + cards
+Reemplaza por completo la tabla de la v2 (se descarta ese diseño, no se reutiliza su CSS). Mobile-first: la card de una columna es el layout base, el grid multi-columna es progressive enhancement con `@media (min-width: ...)`. Acciones secundarias (activar/desactivar/eliminar/URLs) se mudan a `SuperAdminVenueDetail.vue`.
 
-### Fase 3 — Frontend: detalle del bar con analítica
-- `SuperAdminVenueDetail.vue`: sección de analítica con selector de período (reusa el de `AdminDashboard.vue` si existe un patrón ya hecho), personas/día promedio, mejor día, canciones reproducidas, gráfico de barras.
-- Aprovechar la misma Task/PR para cerrar el bug ya detectado de `editConfig` sin conectar (backend ya soporta el PATCH) — es del mismo archivo, mismo alcance de revisión.
+### Fase 3 — Backend + Frontend: CRUD de administradores del super admin
+Migración de `role`, los 4 endpoints, la pantalla/sección de gestión (crear vendedor/editor, listar, eliminar). Ver alcance exacto arriba.
+
+### Fase 4 (ya existía, sigue igual) — `SuperAdminVenueDetail.vue`
+Analítica del bar (personas/día, mejor día — `get_daily_analytics` ya existe en `analytics_service.py`) + ahora también recibe las acciones que salieron de la card (activar/desactivar/eliminar/URLs).
 
 ## Verificación
 
-- `last_used_at` calculado correctamente contra la copia Docker de la DB (bares con `play_history` reciente vs. bares sin ninguna fila).
-- Lista de Bares: verificar visualmente los 4 estados de uso (en uso / sin movimiento / nunca / apagado) con datos reales o sembrados a propósito.
-- Detalle: personas/día y mejor día coinciden con lo que ya muestra `AdminDashboard.vue` para ese mismo bar/período (mismo cálculo, no debería divergir).
-- `editConfig` guarda de verdad contra el PATCH existente.
+- Barra de indicadores: los 4 números suman correctamente contra los venues reales de la DB de prueba (Docker), y tocar cada uno filtra el listado.
+- Cards: se ven en una columna en un viewport de ancho móvil (ej. 375px) sin scroll horizontal, y en grid en desktop. Último uso / última conexión admin / actividad en cola coinciden con los datos reales de cada bar.
+- CRUD de administradores: crear un vendedor y un editor, verificar que aparecen en el listado con su rol correcto, eliminar uno, confirmar que no se puede eliminar el último `super_admin` restante.
+- `SuperAdminVenueDetail.vue` sigue teniendo activar/desactivar/eliminar/URLs funcionando (movidos desde la card, no perdidos).
