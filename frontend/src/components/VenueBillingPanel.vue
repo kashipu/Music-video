@@ -96,7 +96,7 @@ const periodSubtitle = computed(() => {
   if (days > 1) return 'días restantes'
   if (days === 1) return 'día restante'
   if (days === 0) return 'Vence hoy'
-  return Math.abs(days) === 1 ? 'día de mora' : 'días de mora'
+  return Math.abs(days) === 1 ? 'día vencido' : 'días vencido'
 })
 
 async function markAsPaid() {
