@@ -62,7 +62,7 @@ const statusBadgeInfo = computed(() => {
   const s = billing.value?.payment_status
   if (s === 'active') return { variant: 'success', label: 'Al día' }
   if (s === 'overdue') return { variant: 'warning', label: 'Vencido (período de gracia)' }
-  if (s === 'suspended') return { variant: 'danger', label: 'Suspendido por falta de pago' }
+  if (s === 'suspended') return { variant: 'danger', label: 'Suspendido (período vencido)' }
   return { variant: 'neutral', label: s || 'Desconocido' }
 })
 
