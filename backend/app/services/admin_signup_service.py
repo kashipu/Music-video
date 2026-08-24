@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import json
 import re
 import secrets
 import unicodedata
@@ -10,7 +11,7 @@ from google.oauth2 import id_token
 
 from app.config import settings
 from app.database import get_db
-from app.services import auth_service, email_service
+from app.services import auth_service, billing_service, email_service
 
 TOKEN_HOURS = {"verify": 24, "reset": 1}
 
@@ -38,7 +39,9 @@ async def _platform_trial_days() -> int:
 
 
 async def create_admin_with_trial(venue_name: str, email: str, password: str,
-                                  terms_version: str, google_sub: str | None = None,
+                                  terms_version: str, phone: str, address: str, city: str,
+                                  country: str,
+                                  google_sub: str | None = None,
                                   email_verified: bool = False) -> dict:
     db = await get_db()
     venue_name = venue_name.strip()
@@ -50,24 +53,33 @@ async def create_admin_with_trial(venue_name: str, email: str, password: str,
         raise ValueError("EMAIL_EXISTS")
 
     slug = await _unique_slug(venue_name)
-    paid_until = (datetime.now(timezone.utc).date() + timedelta(days=await _platform_trial_days())).isoformat()
+    trial_days = await _platform_trial_days()
     password_hash = await auth_service.hash_password(password)
+    config = json.dumps({"max_duration_sec": 600, "max_songs_per_window": 3, "window_minutes": 20})
     try:
         await db.execute("BEGIN")
         venue = await db.execute(
-            "INSERT INTO venues (name, slug, fallback_mode, active, paid_until) VALUES (?, ?, 'playlist', TRUE, ?)",
-            (venue_name, slug, paid_until),
+            "INSERT INTO venues (name, slug, fallback_mode, config, active) "
+            "VALUES (?, ?, 'playlist', ?, TRUE)",
+            (venue_name, slug, config),
         )
         admin = await db.execute(
-            "INSERT INTO admins (venue_id, username, password_hash, email, email_verified, google_sub, "
-            "terms_accepted_at, terms_version, privacy_accepted_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)",
-            (venue.lastrowid, email, password_hash, email, email_verified, google_sub, terms_version),
+            "INSERT INTO admins (venue_id, username, password_hash, email, phone, address, city, country, "
+            "email_verified, google_sub, terms_accepted_at, terms_version, privacy_accepted_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, CURRENT_TIMESTAMP)",
+            (venue.lastrowid, email, password_hash, email, phone, address, city, country,
+             email_verified, google_sub, terms_version),
         )
         await db.commit()
     except Exception:
         await db.rollback()
         raise
+    paid_until = await billing_service.record_event(
+        venue.lastrowid,
+        "trial",
+        trial_days,
+        source="self-signup",
+    )
     return {"id": admin.lastrowid, "username": email, "venue_id": venue.lastrowid,
             "venue_name": venue_name, "venue_slug": slug, "paid_until": paid_until}
 
@@ -152,7 +164,9 @@ async def verify_google_token(token: str) -> dict:
     return info
 
 
-async def google_signup(token: str, venue_name: str | None, terms_version: str) -> dict:
+async def google_signup(token: str, venue_name: str | None, terms_version: str,
+                        phone: str | None = None, address: str | None = None, city: str | None = None,
+                        country: str | None = None) -> dict:
     info = await verify_google_token(token)
     db = await get_db()
     rows = await db.execute_fetchall(
@@ -171,7 +185,10 @@ async def google_signup(token: str, venue_name: str | None, terms_version: str) 
         }}
     if not venue_name:
         raise ValueError("VENUE_NAME_REQUIRED")
-    admin = await create_admin_with_trial(venue_name, info["email"], secrets.token_urlsafe(32), terms_version, info["sub"], True)
+    admin = await create_admin_with_trial(
+        venue_name, info["email"], secrets.token_urlsafe(32), terms_version,
+        phone, address, city, country, info["sub"], True,
+    )
     return {"token": auth_service.create_admin_token(admin["id"], admin["username"], admin["venue_id"]), "admin": admin}
 
 

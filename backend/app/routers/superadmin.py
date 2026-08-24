@@ -8,17 +8,21 @@ import bcrypt
 from fastapi import APIRouter, HTTPException, Depends, Header, Query, UploadFile, File
 from pydantic import BaseModel, Field, StrictInt
 
-from app.services import analytics_service, auth_service
+from app.services import analytics_service, auth_service, billing_service
 from app.database import get_db
 
 async def get_platform_settings() -> dict:
     db = await get_db()
     rows = await db.execute_fetchall(
-        "SELECT trial_days, grace_period_days FROM platform_settings WHERE id = 1"
+        "SELECT trial_days, grace_period_days, monthly_price_cents FROM platform_settings WHERE id = 1"
     )
     if rows:
-        return {"trial_days": rows[0][0], "grace_period_days": rows[0][1]}
-    return {"trial_days": 15, "grace_period_days": 5}
+        return {
+            "trial_days": rows[0][0],
+            "grace_period_days": rows[0][1],
+            "monthly_price_cents": rows[0][2],
+        }
+    return {"trial_days": 15, "grace_period_days": 5, "monthly_price_cents": 0}
 
 
 async def compute_payment_status(paid_until: str | None) -> str:
@@ -50,6 +54,8 @@ class SuperLoginRequest(BaseModel):
 class CreateSuperAdminRequest(BaseModel):
     username: str
     password: str
+    phone: str
+    email: str
     role: str = "vendedor"
 
 
@@ -63,21 +69,36 @@ class CreateVenueRequest(BaseModel):
     slug: str
     admin_username: str
     admin_password: str
+    admin_email: str
+    admin_phone: str
+    admin_address: str
+    admin_city: str
     logo_url: str | None = None
     qr_url: str | None = None
     max_duration_sec: int = 600
-    max_songs_per_window: int = 5
-    window_minutes: int = 30
+    max_songs_per_window: int = 3
+    window_minutes: int = 20
+    trial_days: int = 15
 
 
 class MarkPaidRequest(BaseModel):
     months: int = 1
     notes: str | None = None
+    amount_cents: int | None = None
+
+
+class ExtendTrialRequest(BaseModel):
+    days: int
+
+
+class UpdateBillingEventRequest(BaseModel):
+    notes: str | None
 
 
 class UpdatePlatformSettingsRequest(BaseModel):
     trial_days: StrictInt | None = Field(default=None, gt=0)
     grace_period_days: StrictInt | None = Field(default=None, gt=0)
+    monthly_price_cents: StrictInt | None = Field(default=None, ge=0)
 
 
 class UpdateVenueRequest(BaseModel):
@@ -104,11 +125,22 @@ async def get_current_super_admin(authorization: str = Header(...)) -> dict:
     return payload
 
 
+def require_role(*roles: str):
+    async def dependency(admin: dict = Depends(get_current_super_admin)) -> dict:
+        if (admin.get("role") or "super_admin") not in roles:
+            raise HTTPException(status_code=403, detail="No tenes permiso para esta accion")
+        return admin
+    return dependency
+
+
 @router.post("/login")
 async def super_admin_login(req: SuperLoginRequest):
     admin = await auth_service.verify_super_admin(req.username, req.password)
     if not admin:
         raise HTTPException(status_code=401, detail="Usuario o contrasena incorrectos")
+    db = await get_db()
+    await db.execute("UPDATE super_admins SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?", (admin["id"],))
+    await db.commit()
     token = auth_service.create_super_admin_token(admin["id"], admin["username"], role=admin.get("role", "super_admin"))
     return {"token": token, "admin": admin}
 
@@ -121,20 +153,27 @@ async def get_settings(admin: dict = Depends(get_current_super_admin)):
 @router.patch("/settings")
 async def update_settings(req: UpdatePlatformSettingsRequest,
                           admin: dict = Depends(get_current_super_admin)):
-    if req.trial_days is None and req.grace_period_days is None:
+    if req.trial_days is None and req.grace_period_days is None and req.monthly_price_cents is None:
         raise HTTPException(status_code=422, detail="Indica al menos un valor")
 
     current = await get_platform_settings()
     settings = {
         "trial_days": req.trial_days if req.trial_days is not None else current["trial_days"],
         "grace_period_days": req.grace_period_days if req.grace_period_days is not None else current["grace_period_days"],
+        "monthly_price_cents": (
+            req.monthly_price_cents
+            if req.monthly_price_cents is not None
+            else current["monthly_price_cents"]
+        ),
     }
     db = await get_db()
     await db.execute(
-        "INSERT INTO platform_settings (id, trial_days, grace_period_days) VALUES (1, ?, ?) "
+        "INSERT INTO platform_settings (id, trial_days, grace_period_days, monthly_price_cents) "
+        "VALUES (1, ?, ?, ?) "
         "ON CONFLICT(id) DO UPDATE SET trial_days = excluded.trial_days, "
-        "grace_period_days = excluded.grace_period_days",
-        (settings["trial_days"], settings["grace_period_days"]),
+        "grace_period_days = excluded.grace_period_days, "
+        "monthly_price_cents = excluded.monthly_price_cents",
+        (settings["trial_days"], settings["grace_period_days"], settings["monthly_price_cents"]),
     )
     await db.commit()
     return settings
@@ -143,6 +182,26 @@ async def update_settings(req: UpdatePlatformSettingsRequest,
 @router.get("/venues")
 async def list_venues(admin: dict = Depends(get_current_super_admin)):
     db = await get_db()
+    kpi_rows = await db.execute_fetchall(
+        "WITH periods(period, window_start, window_days) AS ("
+        "VALUES ('today', datetime('now', 'start of day'), 0), "
+        "('week', datetime('now', '-7 days'), 7), "
+        "('month', datetime('now', '-30 days'), 30)) "
+        "SELECT period, "
+        "(SELECT COUNT(*) FROM super_admins WHERE last_login_at BETWEEN window_start AND CURRENT_TIMESTAMP), "
+        "(SELECT COUNT(DISTINCT user_id) FROM user_sessions WHERE started_at BETWEEN window_start AND CURRENT_TIMESTAMP), "
+        "(SELECT COUNT(*) FROM queue_songs WHERE added_at BETWEEN window_start AND CURRENT_TIMESTAMP), "
+        "(SELECT COUNT(DISTINCT venue_id) FROM play_history WHERE played_at BETWEEN window_start AND CURRENT_TIMESTAMP), "
+        "(SELECT COUNT(*) FROM venues WHERE date(paid_until) BETWEEN date('now') AND date('now', '+' || window_days || ' days')) "
+        "FROM periods"
+    )
+    kpis = {
+        r[0]: {
+            "admins_online": r[1], "users_online": r[2], "queued_songs": r[3],
+            "active_venues": r[4], "expiring": r[5],
+        }
+        for r in kpi_rows
+    }
     rows = await db.execute_fetchall(
         "SELECT v.id, v.name, v.slug, v.active, v.config, v.created_at, v.logo_url, v.qr_url, "
         "(SELECT COUNT(*) FROM admins a WHERE a.venue_id = v.id) as admin_count, "
@@ -170,11 +229,11 @@ async def list_venues(admin: dict = Depends(get_current_super_admin)):
             "last_admin_login": r[14],
             "payment_status": await compute_payment_status(r[11]),
         })
-    return {"venues": venues}
+    return {"venues": venues, "kpis": kpis}
 
 
 @router.post("/venues")
-async def create_venue(req: CreateVenueRequest, admin: dict = Depends(get_current_super_admin)):
+async def create_venue(req: CreateVenueRequest, admin: dict = Depends(require_role("vendedor", "super_admin"))):
     db = await get_db()
 
     # Check slug unique
@@ -194,16 +253,27 @@ async def create_venue(req: CreateVenueRequest, admin: dict = Depends(get_curren
     })
 
     cursor = await db.execute(
-        "INSERT INTO venues (name, slug, fallback_mode, config, active, logo_url, qr_url) VALUES (?, ?, 'playlist', ?, TRUE, ?, ?)",
+        "INSERT INTO venues (name, slug, fallback_mode, config, active, logo_url, qr_url) "
+        "VALUES (?, ?, 'playlist', ?, TRUE, ?, ?)",
         (req.name, req.slug, config, req.logo_url, req.qr_url),
     )
     venue_id = cursor.lastrowid
+    await billing_service.record_event(
+        venue_id,
+        "trial",
+        req.trial_days,
+        source="manual",
+        created_by_id=admin["super_admin_id"],
+        created_by_username=admin["username"],
+    )
 
     # Create admin for this venue
     password_hash = (await asyncio.to_thread(bcrypt.hashpw, req.admin_password.encode(), bcrypt.gensalt())).decode()
     await db.execute(
-        "INSERT INTO admins (venue_id, username, password_hash) VALUES (?, ?, ?)",
-        (venue_id, req.admin_username, password_hash),
+        "INSERT INTO admins (venue_id, username, password_hash, email, phone, address, city) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (venue_id, req.admin_username, password_hash, req.admin_email,
+         req.admin_phone, req.admin_address, req.admin_city),
     )
 
     await db.commit()
@@ -224,7 +294,7 @@ async def create_venue(req: CreateVenueRequest, admin: dict = Depends(get_curren
 
 @router.patch("/venues/{venue_id}")
 async def update_venue(venue_id: int, req: UpdateVenueRequest,
-                       admin: dict = Depends(get_current_super_admin)):
+                       admin: dict = Depends(require_role("editor", "super_admin"))):
     db = await get_db()
 
     rows = await db.execute_fetchall("SELECT config FROM venues WHERE id = ?", (venue_id,))
@@ -261,7 +331,7 @@ async def update_venue(venue_id: int, req: UpdateVenueRequest,
 
 
 @router.delete("/venues/{venue_id}")
-async def delete_venue(venue_id: int, admin: dict = Depends(get_current_super_admin)):
+async def delete_venue(venue_id: int, admin: dict = Depends(require_role("super_admin"))):
     db = await get_db()
 
     # Delete all related data. All of these have a NOT-NULL (or nullable, for
@@ -307,13 +377,48 @@ async def venue_stats(venue_id: int, admin: dict = Depends(get_current_super_adm
         "SELECT id, username, created_at FROM admins WHERE venue_id = ?", (venue_id,)
     )
 
+    billing_rows = await db.execute_fetchall(
+        "SELECT id, kind, source, amount_cents, days, period_start, period_end, "
+        "created_by_username, notes, created_at, provider_ref, status "
+        "FROM venue_billing_events WHERE venue_id = ? "
+        "ORDER BY created_at DESC, id DESC LIMIT 12",
+        (venue_id,),
+    )
+    current_billing = next((event for event in billing_rows if event[11] != "voided"), None)
+    period_start = current_billing[5] if current_billing else None
+    period_end = current_billing[6] if current_billing else v[7]
+    days_remaining = None
+    if period_end:
+        try:
+            days_remaining = (date.fromisoformat(period_end) - date.today()).days
+        except (TypeError, ValueError):
+            pass
+    payment_status = await compute_payment_status(v[7])
+
     return {
-        "venue": {"id": venue_id, "name": v[0], "slug": v[1], "active": bool(v[2]), "created_at": v[3], "logo_url": v[4], "qr_url": v[5], "config": v[6], "paid_until": v[7], "payment_notes": v[8], "payment_status": await compute_payment_status(v[7])},
+        "venue": {"id": venue_id, "name": v[0], "slug": v[1], "active": bool(v[2]), "created_at": v[3], "logo_url": v[4], "qr_url": v[5], "config": v[6], "paid_until": v[7], "payment_notes": v[8], "payment_status": payment_status},
         "stats": {
             "total_songs_played": s[0], "total_users": s[1],
             "active_sessions": s[2], "songs_in_queue": s[3],
         },
         "admins": [{"id": a[0], "username": a[1], "created_at": a[2]} for a in admins],
+        "billing": {
+            "status": payment_status,
+            "period_start": period_start,
+            "period_end": period_end,
+            "days_remaining": days_remaining,
+            "history": [
+                {
+                    "id": event[0], "kind": event[1], "source": event[2],
+                    "amount_cents": event[3], "days": event[4],
+                    "period_start": event[5], "period_end": event[6],
+                    "created_by_username": event[7], "notes": event[8],
+                    "created_at": event[9], "provider_ref": event[10],
+                    "status": event[11],
+                }
+                for event in billing_rows
+            ],
+        },
     }
 
 
@@ -326,23 +431,59 @@ async def venue_analytics(venue_id: int, period: str = Query("week", pattern="^(
 @router.get("/venues/{venue_id}/users")
 async def get_venue_users(venue_id: int, admin: dict = Depends(get_current_super_admin)):
     db = await get_db()
-    rows = await db.execute_fetchall(
-        "SELECT u.id, u.phone, u.display_name, u.created_at, "
-        "us.table_number, "
-        "(SELECT COUNT(*) FROM queue_songs qs WHERE qs.user_id = u.id AND qs.venue_id = ?) as songs_count "
-        "FROM users u "
-        "JOIN user_sessions us ON us.user_id = u.id AND us.venue_id = ? "
-        "WHERE u.phone != 'admin' "
-        "GROUP BY u.id "
-        "ORDER BY u.created_at DESC",
-        (venue_id, venue_id),
-    )
+    # ponytail: data_consent hoy siempre da true porque es requisito obligatorio en el registro
+    # de usuarios (auth.py), no representa un opt-in real de marketing/contacto.
+    # Si se requiere opt-in voluntario, requiere feature y migración aparte.
+    query = """
+        WITH user_stats AS (
+            SELECT
+                user_id,
+                MIN(started_at) as first_seen_at_venue,
+                MAX(started_at) as last_connection,
+                COUNT(DISTINCT date(started_at)) as distinct_days
+            FROM user_sessions
+            WHERE venue_id = ?
+            GROUP BY user_id
+        ),
+        latest_session AS (
+            SELECT
+                user_id,
+                table_number,
+                ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY started_at DESC, id DESC) as rn
+            FROM user_sessions
+            WHERE venue_id = ?
+        )
+        SELECT
+            u.id,
+            u.phone,
+            u.display_name,
+            u.created_at,
+            u.data_consent,
+            ust.first_seen_at_venue,
+            ust.last_connection,
+            ls.table_number,
+            ust.distinct_days > 1 as is_recurring,
+            (SELECT COUNT(*) FROM queue_songs qs WHERE qs.user_id = u.id AND qs.venue_id = ?) as songs_count
+        FROM users u
+        JOIN user_stats ust ON ust.user_id = u.id
+        JOIN latest_session ls ON ls.user_id = u.id AND ls.rn = 1
+        WHERE u.phone != 'admin'
+        ORDER BY ust.last_connection DESC
+    """
+    rows = await db.execute_fetchall(query, (venue_id, venue_id, venue_id))
     return {
         "users": [
             {
-                "id": r[0], "phone": r[1],
-                "display_name": r[2], "created_at": r[3],
-                "table_number": r[4], "songs_count": r[5],
+                "id": r[0],
+                "phone": r[1],
+                "display_name": r[2],
+                "created_at": r[3],
+                "data_consent": bool(r[4]),
+                "first_seen_at_venue": r[5],
+                "last_connection": r[6],
+                "table_number": r[7],
+                "is_recurring": bool(r[8]),
+                "songs_count": r[9],
             }
             for r in rows
         ]
@@ -524,58 +665,97 @@ async def upload_venue_logo(
 
 @router.post("/venues/{venue_id}/mark-paid")
 async def mark_venue_paid(venue_id: int, req: MarkPaidRequest,
-                          admin: dict = Depends(get_current_super_admin)):
+                          admin: dict = Depends(require_role("super_admin"))):
     """Mark a venue as paid, extending paid_until by N months."""
-    db = await get_db()
-    rows = await db.execute_fetchall(
-        "SELECT paid_until, active FROM venues WHERE id = ?", (venue_id,)
-    )
-    if not rows:
-        raise HTTPException(status_code=404, detail="Bar no encontrado")
-
-    current_paid_until = rows[0][0]
-    today = date.today()
-
-    # Extend from current paid_until if still in the future, otherwise from today
-    base = today
-    if current_paid_until:
-        try:
-            paid_date = date.fromisoformat(current_paid_until)
-            if paid_date > today:
-                base = paid_date
-        except (ValueError, TypeError):
-            pass
-
-    new_paid_until = base + timedelta(days=30 * req.months)
-
-    update_parts = ["paid_until = ?", "active = TRUE"]
-    params = [new_paid_until.isoformat()]
-
-    if req.notes is not None:
-        update_parts.append("payment_notes = ?")
-        params.append(req.notes)
-
-    params.append(venue_id)
-    await db.execute(
-        f"UPDATE venues SET {', '.join(update_parts)} WHERE id = ?",
-        tuple(params),
-    )
-    await db.commit()
+    settings = await get_platform_settings()
+    amount_cents = req.amount_cents if req.amount_cents is not None else settings["monthly_price_cents"]
+    try:
+        new_paid_until = await billing_service.record_event(
+            venue_id,
+            "payment",
+            days=30 * req.months,
+            amount_cents=amount_cents,
+            source="manual",
+            created_by_id=admin["super_admin_id"],
+            created_by_username=admin["username"],
+            notes=req.notes,
+        )
+    except ValueError as exc:
+        if str(exc) == "VENUE_NOT_FOUND":
+            raise HTTPException(status_code=404, detail="Bar no encontrado") from exc
+        raise
 
     return {
-        "message": f"Pago registrado. Pagado hasta {new_paid_until.isoformat()}",
-        "paid_until": new_paid_until.isoformat(),
+        "message": f"Pago registrado. Pagado hasta {new_paid_until}",
+        "paid_until": new_paid_until,
         "payment_status": "active",
     }
+
+
+@router.post("/venues/{venue_id}/extend-trial")
+async def extend_venue_trial(
+    venue_id: int,
+    req: ExtendTrialRequest,
+    admin: dict = Depends(require_role("super_admin")),
+):
+    if req.days not in {7, 15, 30}:
+        raise HTTPException(status_code=400, detail="Los días deben ser 7, 15 o 30")
+
+    try:
+        new_paid_until = await billing_service.record_event(
+            venue_id,
+            "trial",
+            days=req.days,
+            source="manual",
+            created_by_id=admin["super_admin_id"],
+            created_by_username=admin["username"],
+        )
+    except ValueError as exc:
+        if str(exc) == "VENUE_NOT_FOUND":
+            raise HTTPException(status_code=404, detail="Bar no encontrado") from exc
+        raise
+    return {"paid_until": new_paid_until}
+
+
+@router.post("/venues/{venue_id}/billing/events/{event_id}/void")
+async def void_billing_event(
+    venue_id: int,
+    event_id: int,
+    admin: dict = Depends(require_role("super_admin")),
+):
+    try:
+        return await billing_service.void_event(venue_id, event_id)
+    except ValueError as exc:
+        if str(exc) == "BILLING_EVENT_NOT_FOUND":
+            raise HTTPException(status_code=404, detail="Movimiento no encontrado") from exc
+        if str(exc) == "BILLING_EVENT_ALREADY_VOIDED":
+            raise HTTPException(status_code=400, detail="Este movimiento ya esta anulado") from exc
+        raise
+
+
+@router.patch("/venues/{venue_id}/billing/events/{event_id}")
+async def update_billing_event(
+    venue_id: int,
+    event_id: int,
+    req: UpdateBillingEventRequest,
+    admin: dict = Depends(require_role("super_admin")),
+):
+    try:
+        event = await billing_service.update_event_notes(venue_id, event_id, req.notes)
+    except ValueError as exc:
+        if str(exc) == "BILLING_EVENT_NOT_FOUND":
+            raise HTTPException(status_code=404, detail="Movimiento no encontrado") from exc
+        raise
+    return {"event": event}
 
 
 # ===== SUPER ADMIN USERS (CRUD) =====
 
 @router.get("/admins")
-async def list_super_admins(admin: dict = Depends(get_current_super_admin)):
+async def list_super_admins(admin: dict = Depends(require_role("super_admin"))):
     db = await get_db()
     rows = await db.execute_fetchall(
-        "SELECT id, username, role, created_at FROM super_admins ORDER BY id ASC"
+        "SELECT id, username, role, created_at, phone, email FROM super_admins ORDER BY id ASC"
     )
     return {
         "admins": [
@@ -584,6 +764,8 @@ async def list_super_admins(admin: dict = Depends(get_current_super_admin)):
                 "username": r[1],
                 "role": r[2] or "super_admin",
                 "created_at": r[3],
+                "phone": r[4],
+                "email": r[5],
             }
             for r in rows
         ]
@@ -591,12 +773,18 @@ async def list_super_admins(admin: dict = Depends(get_current_super_admin)):
 
 
 @router.post("/admins")
-async def create_super_admin(req: CreateSuperAdminRequest, admin: dict = Depends(get_current_super_admin)):
+async def create_super_admin(req: CreateSuperAdminRequest, admin: dict = Depends(require_role("super_admin"))):
     username = req.username.strip()
+    phone = req.phone.strip()
+    email = req.email.strip()
     if not username:
         raise HTTPException(status_code=400, detail="El nombre de usuario es requerido")
     if not req.password:
         raise HTTPException(status_code=400, detail="La contraseña es requerida")
+    if not phone:
+        raise HTTPException(status_code=400, detail="El teléfono es requerido")
+    if not email:
+        raise HTTPException(status_code=400, detail="El correo electrónico es requerido")
     if req.role not in VALID_SUPER_ADMIN_ROLES:
         raise HTTPException(
             status_code=400,
@@ -610,8 +798,8 @@ async def create_super_admin(req: CreateSuperAdminRequest, admin: dict = Depends
 
     password_hash = (await asyncio.to_thread(bcrypt.hashpw, req.password.encode(), bcrypt.gensalt())).decode()
     cursor = await db.execute(
-        "INSERT INTO super_admins (username, password_hash, role) VALUES (?, ?, ?)",
-        (username, password_hash, req.role),
+        "INSERT INTO super_admins (username, password_hash, role, phone, email) VALUES (?, ?, ?, ?, ?)",
+        (username, password_hash, req.role, phone, email),
     )
     await db.commit()
     admin_id = cursor.lastrowid
@@ -625,6 +813,8 @@ async def create_super_admin(req: CreateSuperAdminRequest, admin: dict = Depends
             "id": admin_id,
             "username": username,
             "role": req.role,
+            "phone": phone,
+            "email": email,
             "created_at": created_at,
         },
     }
@@ -634,7 +824,7 @@ async def create_super_admin(req: CreateSuperAdminRequest, admin: dict = Depends
 async def update_super_admin(
     admin_id: int,
     req: UpdateSuperAdminRequest,
-    admin: dict = Depends(get_current_super_admin),
+    admin: dict = Depends(require_role("super_admin")),
 ):
     if req.role is None and req.password is None:
         raise HTTPException(status_code=422, detail="Indica al menos un campo a actualizar")
@@ -671,7 +861,7 @@ async def update_super_admin(
 @router.delete("/admins/{admin_id}")
 async def delete_super_admin(
     admin_id: int,
-    admin: dict = Depends(get_current_super_admin),
+    admin: dict = Depends(require_role("super_admin")),
 ):
     db = await get_db()
     rows = await db.execute_fetchall("SELECT id, username, role FROM super_admins WHERE id = ?", (admin_id,))

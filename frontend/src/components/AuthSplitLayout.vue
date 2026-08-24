@@ -1,6 +1,10 @@
 <script setup>
 import { useTheme } from '../composables/useTheme.js'
 
+defineProps({
+  wide: { type: Boolean, default: false },
+})
+
 const { currentMode, toggleMode } = useTheme()
 </script>
 
@@ -13,7 +17,7 @@ const { currentMode, toggleMode } = useTheme()
     >
       {{ currentMode === 'dark' ? '☀' : '☾' }}
     </button>
-    <div class="auth-card card">
+    <div class="auth-card card" :class="{ 'auth-card--wide': wide }">
       <slot />
     </div>
   </main>
@@ -33,19 +37,11 @@ const { currentMode, toggleMode } = useTheme()
   position: relative;
   background-color: var(--bg);
   background-image:
-    radial-gradient(ellipse 80% 50% at 50% 85%, rgba(255, 167, 51, 0.45) 0%, rgba(255, 85, 34, 0.32) 28%, rgba(184, 52, 26, 0.18) 55%, transparent 75%),
-    radial-gradient(circle at 50% 95%, rgba(255, 85, 34, 0.2) 0%, transparent 60%);
+    radial-gradient(ellipse 80% 50% at 50% 85%, var(--warning-soft) 0%, var(--primary-soft) 55%, transparent 75%),
+    radial-gradient(circle at 50% 95%, var(--primary-soft) 0%, transparent 60%);
   background-repeat: no-repeat;
   background-attachment: fixed;
   transition: background-color 0.3s ease;
-}
-
-:global([data-theme="light"]) .auth-layout {
-  background-color: #F8F8FC;
-  background-image:
-    radial-gradient(ellipse 120% 80% at 50% 0%, rgba(253, 246, 216, 0.95) 0%, rgba(253, 246, 216, 0.45) 35%, transparent 70%),
-    radial-gradient(ellipse 120% 90% at 90% 100%, rgba(251, 201, 163, 0.6) 0%, rgba(251, 201, 163, 0.22) 45%, transparent 75%),
-    radial-gradient(ellipse 100% 70% at 15% 95%, rgba(254, 235, 210, 0.35) 0%, transparent 65%);
 }
 
 .auth-theme-toggle {
@@ -61,15 +57,15 @@ const { currentMode, toggleMode } = useTheme()
   padding: 36px 32px;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg, 16px);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--border-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 32px var(--shadow), 0 0 0 1px var(--border-soft);
   position: relative;
   z-index: 1;
   transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-:global([data-theme="light"]) .auth-card {
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
+.auth-card.auth-card--wide {
+  max-width: 760px;
 }
 
 /* =========================================
@@ -81,7 +77,7 @@ const { currentMode, toggleMode } = useTheme()
   }
   .auth-card {
     padding: 28px 20px;
-    border-radius: var(--radius, 12px);
+    border-radius: var(--radius);
   }
 }
 </style>

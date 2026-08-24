@@ -15,10 +15,32 @@ const routes = [
     meta: { requiresSuperAdmin: true },
   },
   {
+    path: '/superadmin/crear-bar',
+    name: 'superadmin-create-venue',
+    component: () => import('../views/SuperAdminCreateVenue.vue'),
+    meta: { requiresSuperAdmin: true },
+  },
+  {
     path: '/superadmin/venue/:venueId',
-    name: 'superadmin-venue',
     component: () => import('../views/SuperAdminVenueDetail.vue'),
     meta: { requiresSuperAdmin: true },
+    children: [
+      {
+        path: '',
+        name: 'superadmin-venue',
+        component: () => import('../views/venue/SuperAdminVenueOverview.vue'),
+      },
+      {
+        path: 'configuracion',
+        name: 'superadmin-venue-config',
+        component: () => import('../views/venue/SuperAdminVenueConfig.vue'),
+      },
+      {
+        path: 'usuarios',
+        name: 'superadmin-venue-users',
+        component: () => import('../views/venue/SuperAdminVenueUsers.vue'),
+      },
+    ],
   },
   {
     path: '/superadmin/admins',

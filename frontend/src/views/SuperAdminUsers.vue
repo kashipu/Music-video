@@ -1,22 +1,29 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useConfirmModal } from '../composables/useConfirmModal.js'
 import { useTheme } from '../composables/useTheme.js'
+import UiButton from '../components/ui/Button.vue'
+import UiInput from '../components/ui/Input.vue'
 
 const { currentMode, toggleMode } = useTheme()
+const { confirm } = useConfirmModal()
 const router = useRouter()
 const API = import.meta.env.VITE_API_URL || ''
 
-document.title = 'Repítela - Administradores'
+document.title = 'Repítela - Usuarios'
 
 const admins = ref([])
 const loading = ref(true)
 const creating = ref(false)
 const deletingId = ref(null)
+const updatingRoleId = ref(null)
 
 const newAdmin = ref({
   username: '',
   password: '',
+  phone: '',
+  email: '',
   role: 'vendedor',
 })
 
@@ -49,7 +56,7 @@ function roleLabel(role) {
     case 'vendedor':
       return 'Vendedor'
     case 'editor':
-      return 'Editor'
+      return 'Administrador'
     default:
       return role || 'Admin'
   }
@@ -114,8 +121,8 @@ async function fetchAdmins() {
 async function createAdmin() {
   createError.value = ''
   createSuccess.value = ''
-  if (!newAdmin.value.username.trim() || !newAdmin.value.password) {
-    createError.value = 'Completa el usuario y contraseña'
+  if (!newAdmin.value.username.trim() || !newAdmin.value.password || !newAdmin.value.phone.trim() || !newAdmin.value.email.trim()) {
+    createError.value = 'Completa usuario, contraseña, teléfono y correo electrónico'
     return
   }
 
@@ -127,6 +134,8 @@ async function createAdmin() {
       body: JSON.stringify({
         username: newAdmin.value.username.trim(),
         password: newAdmin.value.password,
+        phone: newAdmin.value.phone.trim(),
+        email: newAdmin.value.email.trim(),
         role: newAdmin.value.role,
       }),
     })
@@ -139,6 +148,8 @@ async function createAdmin() {
     createSuccess.value = `Administrador "${newAdmin.value.username}" creado`
     newAdmin.value.username = ''
     newAdmin.value.password = ''
+    newAdmin.value.phone = ''
+    newAdmin.value.email = ''
     newAdmin.value.role = 'vendedor'
     showPassword.value = false
 
@@ -162,7 +173,13 @@ async function confirmDelete(adm) {
     actionError.value = 'No se puede eliminar el último Super Admin restante'
     return
   }
-  if (!confirm(`¿Eliminar al administrador "${adm.username}"?`)) return
+  const ok = await confirm({
+    title: 'Eliminar administrador',
+    message: `¿Eliminar al administrador "${adm.username}"? Esta acción no se puede deshacer.`,
+    danger: true,
+    confirmText: 'Eliminar',
+  })
+  if (!ok) return
 
   deletingId.value = adm.id
   actionError.value = ''
@@ -188,6 +205,39 @@ async function confirmDelete(adm) {
   }
 }
 
+async function changeRole(adm, newRole) {
+  if (!newRole || newRole === adm.role) return
+  if (adm.role === 'super_admin' && newRole !== 'super_admin' && isOnlySuperAdmin(adm)) {
+    actionError.value = 'No se puede cambiar el rol del último Super Admin restante'
+    return
+  }
+
+  updatingRoleId.value = adm.id
+  actionError.value = ''
+  actionSuccess.value = ''
+  try {
+    const res = await fetch(`${API}/api/superadmin/admins/${adm.id}`, {
+      method: 'PATCH',
+      headers: headers(),
+      body: JSON.stringify({ role: newRole }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      throw new Error(data.detail || 'Error al cambiar rol')
+    }
+    adm.role = newRole
+    actionSuccess.value = `Rol de "${adm.username}" actualizado a ${roleLabel(newRole)}`
+    setTimeout(() => {
+      actionSuccess.value = ''
+    }, 3500)
+  } catch (e) {
+    actionError.value = e.message || 'Error al cambiar rol'
+    await fetchAdmins()
+  } finally {
+    updatingRoleId.value = null
+  }
+}
+
 function goBack() {
   if (window.history.length > 1) {
     router.back()
@@ -206,13 +256,14 @@ onMounted(() => {
     <!-- Header -->
     <header class="sau-header">
       <div class="sau-header-left">
-        <button class="back-btn" @click="goBack">&#8592; Volver</button>
-        <h1>Administradores</h1>
+        <UiButton variant="secondary" class="back-btn" aria-label="Volver" @click="goBack">&#8592; Volver</UiButton>
+        <h1>Usuarios</h1>
       </div>
       <button
         class="theme-toggle"
         @click="toggleMode"
         :title="currentMode === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
+        :aria-label="currentMode === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
       >
         {{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}
       </button>
@@ -221,11 +272,11 @@ onMounted(() => {
     <main class="sau-content">
       <!-- Formulario para crear -->
       <section class="card form-card">
-        <h2 class="card-title">Nuevo Administrador</h2>
+        <h2 class="card-title">Nuevo Usuario</h2>
         <form @submit.prevent="createAdmin" class="admin-form">
           <div class="form-group">
             <label class="form-label" for="username">Usuario</label>
-            <input
+            <UiInput
               id="username"
               v-model="newAdmin.username"
               type="text"
@@ -237,9 +288,19 @@ onMounted(() => {
           </div>
 
           <div class="form-group">
+            <label class="form-label" for="phone">Teléfono</label>
+            <UiInput id="phone" v-model="newAdmin.phone" type="tel" placeholder="Ej: +57 300 123 4567" required />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="email">Correo electrónico</label>
+            <UiInput id="email" v-model="newAdmin.email" type="email" placeholder="usuario@ejemplo.com" required />
+          </div>
+
+          <div class="form-group">
             <label class="form-label" for="password">Contraseña</label>
             <div class="password-wrap">
-              <input
+              <UiInput
                 id="password"
                 v-model="newAdmin.password"
                 :type="showPassword ? 'text' : 'password'"
@@ -262,7 +323,7 @@ onMounted(() => {
             <label class="form-label" for="role">Rol</label>
             <select id="role" v-model="newAdmin.role" class="select-field">
               <option value="vendedor">Vendedor</option>
-              <option value="editor">Editor</option>
+              <option value="editor">Administrador</option>
               <option value="super_admin">Super Admin</option>
             </select>
           </div>
@@ -270,21 +331,21 @@ onMounted(() => {
           <div v-if="createError" class="msg-error">{{ createError }}</div>
           <div v-if="createSuccess" class="msg-success">{{ createSuccess }}</div>
 
-          <button type="submit" class="btn btn-primary" :disabled="creating">
-            {{ creating ? 'Creando...' : 'Crear Administrador' }}
-          </button>
+          <UiButton type="submit" :disabled="creating">
+            {{ creating ? 'Creando...' : 'Crear Usuario' }}
+          </UiButton>
         </form>
       </section>
 
       <!-- Lista de administradores -->
       <section class="card list-card">
         <div class="list-header">
-          <h2 class="card-title">Administradores Registrados</h2>
+          <h2 class="card-title">Usuarios Registrados</h2>
           <span class="count-badge">{{ admins.length }}</span>
         </div>
 
-        <div v-if="loading" class="loading-state">Cargando administradores...</div>
-        <div v-else-if="admins.length === 0" class="empty-state">No hay administradores registrados</div>
+        <div v-if="loading" class="loading-state">Cargando usuarios...</div>
+        <div v-else-if="admins.length === 0" class="empty-state">No hay usuarios registrados</div>
 
         <div v-else class="admin-cards">
           <article v-for="adm in admins" :key="adm.id" class="admin-card">
@@ -296,6 +357,8 @@ onMounted(() => {
                 </span>
               </div>
               <div class="admin-meta">
+                <span>Tel: {{ adm.phone || '—' }}</span>
+                <span>Correo: {{ adm.email || '—' }}</span>
                 <span v-if="adm.created_at" class="created-at">
                   Creado: {{ formatDate(adm.created_at) }}
                 </span>
@@ -304,14 +367,27 @@ onMounted(() => {
             </div>
 
             <div class="admin-actions">
-              <button
+              <select
+                class="role-select"
+                :value="adm.role"
+                :disabled="updatingRoleId === adm.id || (adm.role === 'super_admin' && isOnlySuperAdmin(adm))"
+                :aria-label="`Cambiar rol de ${adm.username}`"
+                @change="changeRole(adm, $event.target.value)"
+              >
+                <option value="vendedor">Vendedor</option>
+                <option value="editor">Administrador</option>
+                <option value="super_admin">Super Admin</option>
+              </select>
+              <UiButton
+                variant="danger"
                 class="btn-delete"
                 :disabled="deletingId === adm.id || isCurrentAdmin(adm) || isOnlySuperAdmin(adm)"
                 :title="getDeleteDisabledReason(adm)"
+                :aria-label="`Eliminar administrador ${adm.username}`"
                 @click="confirmDelete(adm)"
               >
                 {{ deletingId === adm.id ? '...' : 'Eliminar' }}
-              </button>
+              </UiButton>
             </div>
           </article>
         </div>
@@ -360,11 +436,12 @@ onMounted(() => {
 }
 
 .back-btn {
+  width: auto;
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   color: var(--text);
   padding: 6px 12px;
-  border-radius: var(--radius-sm, 8px);
+  border-radius: var(--radius-sm);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -401,7 +478,7 @@ onMounted(() => {
 .card {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: var(--radius, 12px);
+  border-radius: var(--radius);
   padding: 16px;
 }
 
@@ -436,7 +513,7 @@ onMounted(() => {
   border: 1px solid var(--border);
   color: var(--text);
   padding: 10px 12px;
-  border-radius: var(--radius-sm, 8px);
+  border-radius: var(--radius-sm);
   font-size: 14px;
   width: 100%;
   outline: none;
@@ -474,7 +551,7 @@ onMounted(() => {
 
 .btn {
   padding: 10px 16px;
-  border-radius: var(--radius-sm, 8px);
+  border-radius: var(--radius-sm);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -486,7 +563,7 @@ onMounted(() => {
 
 .btn-primary {
   background: var(--primary);
-  color: var(--text-on-primary, #ffffff);
+  color: var(--text-on-primary);
   border: none;
   margin-top: 4px;
 }
@@ -511,7 +588,7 @@ onMounted(() => {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
   padding: 2px 8px;
-  border-radius: 12px;
+  border-radius: 999px;
   font-size: 12px;
   font-weight: 700;
   color: var(--text-muted);
@@ -538,7 +615,7 @@ onMounted(() => {
   padding: 12px;
   background: var(--bg-elevated);
   border: 1px solid var(--border-soft);
-  border-radius: var(--radius-sm, 8px);
+  border-radius: var(--radius-sm);
 }
 
 .admin-main-info {
@@ -566,7 +643,7 @@ onMounted(() => {
   font-weight: 700;
   text-transform: uppercase;
   padding: 3px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   letter-spacing: 0.5px;
   white-space: nowrap;
 }
@@ -592,9 +669,11 @@ onMounted(() => {
 .admin-meta {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   font-size: 12px;
   color: var(--text-muted);
+  overflow-wrap: anywhere;
 }
 
 .current-badge {
@@ -603,22 +682,47 @@ onMounted(() => {
   font-size: 10px;
   font-weight: 700;
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--success);
 }
 
 .admin-actions {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 8px;
 }
 
+.role-select {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s, opacity 0.15s;
+}
+
+.role-select:focus-visible,
+.role-select:focus {
+  border-color: var(--primary);
+}
+
+.role-select:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .btn-delete {
+  width: auto;
   background: var(--danger-soft);
   border: 1px solid var(--danger);
   color: var(--danger);
   padding: 6px 12px;
-  border-radius: var(--radius-sm, 8px);
+  border-radius: var(--radius-sm);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
@@ -627,7 +731,7 @@ onMounted(() => {
 
 .btn-delete:hover:not(:disabled) {
   background: var(--danger);
-  color: #ffffff;
+  color: var(--text-on-primary);
 }
 
 .btn-delete:disabled {
@@ -643,7 +747,7 @@ onMounted(() => {
   color: var(--danger);
   background: var(--danger-soft);
   padding: 8px 12px;
-  border-radius: var(--radius-sm, 8px);
+  border-radius: var(--radius-sm);
   border: 1px solid var(--danger);
 }
 
@@ -652,7 +756,7 @@ onMounted(() => {
   color: var(--success);
   background: var(--success-soft);
   padding: 8px 12px;
-  border-radius: var(--radius-sm, 8px);
+  border-radius: var(--radius-sm);
   border: 1px solid var(--success);
 }
 
@@ -711,6 +815,11 @@ onMounted(() => {
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
+  }
+
+  .admin-actions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
   }
 }
 </style>

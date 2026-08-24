@@ -3,10 +3,12 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
 import { useTheme } from '../composables/useTheme.js'
+import { useGoogleAuth } from '../composables/useGoogleAuth.js'
 import AuthLoginForm from '../components/AuthLoginForm.vue'
 import AuthSplitLayout from '../components/AuthSplitLayout.vue'
 
 const { applyVenueTheme, clearVenueTheme } = useTheme()
+const { startGoogleAuth } = useGoogleAuth()
 
 const route = useRoute()
 const router = useRouter()
@@ -61,6 +63,48 @@ async function handleLogin() {
     loading.value = false
   }
 }
+
+async function handleGoogleLogin(credential) {
+  loading.value = true
+  error.value = ''
+  try {
+    const res = await fetch(`${API}/api/admin/google-signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: credential,
+        venue_name: null,
+        terms_version: '2026-08',
+        terms_accepted: true,
+        privacy_accepted: true,
+      }),
+    })
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}))
+      throw new Error(errData.detail || 'No se encontró una cuenta asociada a este correo')
+    }
+    const data = await res.json()
+    auth.adminToken = data.token
+    auth.adminInfo = data.admin
+    localStorage.setItem('bq_admin_token', data.token)
+    localStorage.setItem('bq_admin', JSON.stringify(data.admin))
+    const slug = data.admin?.venue_slug || venueSlug
+    router.push({ name: 'admin', params: { venueSlug: slug } })
+  } catch (err) {
+    error.value = err.message
+  } finally {
+    loading.value = false
+  }
+}
+
+async function startGoogleLogin() {
+  error.value = ''
+  try {
+    await startGoogleAuth(credential => handleGoogleLogin(credential))
+  } catch (err) {
+    error.value = err.message
+  }
+}
 </script>
 
 <template>
@@ -73,7 +117,39 @@ async function handleLogin() {
       :logo-url="venueLogo"
       :error="error"
       :loading="loading"
+      :show-google="true"
       @submit="handleLogin"
-    />
+      @google="startGoogleLogin"
+    >
+      <template #footer>
+        <p class="signup-prompt">
+          ¿No tienes cuenta?
+          <RouterLink :to="{ name: 'admin-signup' }" class="signup-link">Regístrate</RouterLink>
+        </p>
+      </template>
+    </AuthLoginForm>
   </AuthSplitLayout>
 </template>
+
+<style scoped>
+/* =========================================
+   CSS GENERAL
+   ========================================= */
+.signup-prompt {
+  margin-top: 8px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.signup-link {
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: none;
+  margin-left: 4px;
+}
+
+.signup-link:hover {
+  text-decoration: underline;
+}
+</style>

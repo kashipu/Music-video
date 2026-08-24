@@ -1,0 +1,3 @@
+ALTER TABLE admins ADD COLUMN phone TEXT;
+ALTER TABLE admins ADD COLUMN address TEXT;
+ALTER TABLE admins ADD COLUMN city TEXT;

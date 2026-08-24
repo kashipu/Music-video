@@ -41,10 +41,14 @@ async def valid_turnstile(token: str | None) -> bool:
         return False
 
 
-class SignupRequest(BaseModel):
+class AdminSignupRequest(BaseModel):
     venue_name: str = Field(min_length=2, max_length=100)
     email: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=8, max_length=128)
+    phone: str
+    address: str
+    city: str
+    country: str
     terms_version: str = Field(min_length=1, max_length=50)
     terms_accepted: bool
     privacy_accepted: bool
@@ -66,6 +70,10 @@ class ResetPasswordRequest(TokenRequest):
 class GoogleSignupRequest(BaseModel):
     token: str = Field(min_length=1)
     venue_name: str | None = Field(default=None, min_length=2, max_length=100)
+    phone: str | None = None
+    address: str | None = None
+    city: str | None = None
+    country: str | None = None
     terms_version: str = Field(min_length=1, max_length=50)
     terms_accepted: bool
     privacy_accepted: bool
@@ -93,13 +101,16 @@ async def admin_login(req: AdminLoginRequest, _: None = Depends(limit_auth_attem
 
 
 @router.post("/signup", status_code=201)
-async def signup(req: SignupRequest, _: None = Depends(limit_auth_attempts)):
+async def signup(req: AdminSignupRequest, _: None = Depends(limit_auth_attempts)):
     if not req.terms_accepted or not req.privacy_accepted:
         raise HTTPException(status_code=400, detail="Debes aceptar los terminos y el tratamiento de datos")
     if not await valid_turnstile(req.turnstile_token):
         raise HTTPException(status_code=400, detail="Verificacion anti-bot invalida")
     try:
-        admin = await admin_signup_service.create_admin_with_trial(req.venue_name, req.email, req.password, req.terms_version)
+        admin = await admin_signup_service.create_admin_with_trial(
+            req.venue_name, req.email, req.password, req.terms_version,
+            req.phone, req.address, req.city, req.country,
+        )
     except ValueError as exc:
         if str(exc) == "EMAIL_EXISTS":
             raise HTTPException(status_code=409, detail="Ya existe una cuenta con este correo")
@@ -142,7 +153,10 @@ async def google_signup(req: GoogleSignupRequest, _: None = Depends(limit_auth_a
     if not await valid_turnstile(req.turnstile_token):
         raise HTTPException(status_code=400, detail="Verificacion anti-bot invalida")
     try:
-        return await admin_signup_service.google_signup(req.token, req.venue_name, req.terms_version)
+        return await admin_signup_service.google_signup(
+            req.token, req.venue_name, req.terms_version,
+            req.phone, req.address, req.city, req.country,
+        )
     except ValueError as exc:
         messages = {
             "GOOGLE_NOT_CONFIGURED": (503, "Google Sign-In no esta configurado"),
