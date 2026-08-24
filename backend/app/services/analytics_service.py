@@ -3,6 +3,15 @@ import json
 from app.database import get_db
 
 
+def get_period_filter(period: str) -> str:
+    return {
+        "day": "-1 day",
+        "week": "-7 days",
+        "month": "-30 days",
+        "all": "-100 years",
+    }.get(period, "-7 days")
+
+
 async def log_event(venue_id: int | None, event_type: str, event_data: dict = None,
                     user_id: int = None, session_id: str = None):
     """Log an analytics event."""
@@ -18,12 +27,7 @@ async def log_event(venue_id: int | None, event_type: str, event_data: dict = No
 async def get_analytics(venue_id: int, period: str = "week") -> dict:
     db = await get_db()
 
-    period_filter = {
-        "day": "-1 day",
-        "week": "-7 days",
-        "month": "-30 days",
-        "all": "-100 years",
-    }.get(period, "-7 days")
+    period_filter = get_period_filter(period)
 
     # Summary
     summary_rows = await db.execute_fetchall(
@@ -233,6 +237,21 @@ async def get_analytics(venue_id: int, period: str = "week") -> dict:
         "search_stats": search_stats,
         "funnel": funnel,
         "session_duration": session_duration,
+    }
+
+
+async def get_daily_analytics(venue_id: int, period: str = "week") -> dict:
+    """Daily play-history data for the venue detail analytics."""
+    db = await get_db()
+    rows = await db.execute_fetchall(
+        "SELECT date(played_at) as day, COUNT(DISTINCT user_id) as people, COUNT(*) as songs "
+        "FROM play_history WHERE venue_id = ? AND played_at > datetime('now', ?) "
+        "GROUP BY day ORDER BY day",
+        (venue_id, get_period_filter(period)),
+    )
+    return {
+        "period": period,
+        "days": [{"date": r[0], "people": r[1], "songs": r[2]} for r in rows],
     }
 
 
