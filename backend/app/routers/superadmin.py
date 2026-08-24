@@ -39,9 +39,23 @@ async def compute_payment_status(paid_until: str | None) -> str:
 router = APIRouter(prefix="/api/superadmin", tags=["superadmin"])
 
 
+VALID_SUPER_ADMIN_ROLES = {"super_admin", "vendedor", "editor"}
+
+
 class SuperLoginRequest(BaseModel):
     username: str
     password: str
+
+
+class CreateSuperAdminRequest(BaseModel):
+    username: str
+    password: str
+    role: str = "vendedor"
+
+
+class UpdateSuperAdminRequest(BaseModel):
+    role: str | None = None
+    password: str | None = None
 
 
 class CreateVenueRequest(BaseModel):
@@ -547,3 +561,130 @@ async def mark_venue_paid(venue_id: int, req: MarkPaidRequest,
         "paid_until": new_paid_until.isoformat(),
         "payment_status": "active",
     }
+
+
+# ===== SUPER ADMIN USERS (CRUD) =====
+
+@router.get("/admins")
+async def list_super_admins(admin: dict = Depends(get_current_super_admin)):
+    db = await get_db()
+    rows = await db.execute_fetchall(
+        "SELECT id, username, role, created_at FROM super_admins ORDER BY id ASC"
+    )
+    return {
+        "admins": [
+            {
+                "id": r[0],
+                "username": r[1],
+                "role": r[2] or "super_admin",
+                "created_at": r[3],
+            }
+            for r in rows
+        ]
+    }
+
+
+@router.post("/admins")
+async def create_super_admin(req: CreateSuperAdminRequest, admin: dict = Depends(get_current_super_admin)):
+    username = req.username.strip()
+    if not username:
+        raise HTTPException(status_code=400, detail="El nombre de usuario es requerido")
+    if not req.password:
+        raise HTTPException(status_code=400, detail="La contraseña es requerida")
+    if req.role not in VALID_SUPER_ADMIN_ROLES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Rol inválido '{req.role}'. Debe ser 'super_admin', 'vendedor' o 'editor'",
+        )
+
+    db = await get_db()
+    existing = await db.execute_fetchall("SELECT id FROM super_admins WHERE username = ?", (username,))
+    if existing:
+        raise HTTPException(status_code=409, detail=f"El usuario '{username}' ya existe")
+
+    password_hash = (await asyncio.to_thread(bcrypt.hashpw, req.password.encode(), bcrypt.gensalt())).decode()
+    cursor = await db.execute(
+        "INSERT INTO super_admins (username, password_hash, role) VALUES (?, ?, ?)",
+        (username, password_hash, req.role),
+    )
+    await db.commit()
+    admin_id = cursor.lastrowid
+
+    row = await db.execute_fetchall("SELECT created_at FROM super_admins WHERE id = ?", (admin_id,))
+    created_at = row[0][0] if row else None
+
+    return {
+        "message": "Administrador creado exitosamente",
+        "admin": {
+            "id": admin_id,
+            "username": username,
+            "role": req.role,
+            "created_at": created_at,
+        },
+    }
+
+
+@router.patch("/admins/{admin_id}")
+async def update_super_admin(
+    admin_id: int,
+    req: UpdateSuperAdminRequest,
+    admin: dict = Depends(get_current_super_admin),
+):
+    if req.role is None and req.password is None:
+        raise HTTPException(status_code=422, detail="Indica al menos un campo a actualizar")
+
+    db = await get_db()
+    rows = await db.execute_fetchall("SELECT id, username, role FROM super_admins WHERE id = ?", (admin_id,))
+    if not rows:
+        raise HTTPException(status_code=404, detail="Administrador no encontrado")
+
+    current_target_role = rows[0][2]
+
+    if req.role is not None:
+        if req.role not in VALID_SUPER_ADMIN_ROLES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Rol inválido '{req.role}'. Debe ser 'super_admin', 'vendedor' o 'editor'",
+            )
+        if current_target_role == "super_admin" and req.role != "super_admin":
+            sa_counts = await db.execute_fetchall("SELECT COUNT(*) FROM super_admins WHERE role = 'super_admin'")
+            if sa_counts and sa_counts[0][0] <= 1:
+                raise HTTPException(status_code=400, detail="No se puede cambiar el rol del último super admin restante")
+        await db.execute("UPDATE super_admins SET role = ? WHERE id = ?", (req.role, admin_id))
+
+    if req.password is not None:
+        if not req.password:
+            raise HTTPException(status_code=400, detail="La contraseña no puede estar vacía")
+        password_hash = (await asyncio.to_thread(bcrypt.hashpw, req.password.encode(), bcrypt.gensalt())).decode()
+        await db.execute("UPDATE super_admins SET password_hash = ? WHERE id = ?", (password_hash, admin_id))
+
+    await db.commit()
+    return {"message": "Administrador actualizado exitosamente"}
+
+
+@router.delete("/admins/{admin_id}")
+async def delete_super_admin(
+    admin_id: int,
+    admin: dict = Depends(get_current_super_admin),
+):
+    db = await get_db()
+    rows = await db.execute_fetchall("SELECT id, username, role FROM super_admins WHERE id = ?", (admin_id,))
+    if not rows:
+        raise HTTPException(status_code=404, detail="Administrador no encontrado")
+
+    target_id = rows[0][0]
+    target_username = rows[0][1]
+    target_role = rows[0][2]
+
+    current_admin_id = admin.get("super_admin_id")
+    if current_admin_id == target_id or admin.get("username") == target_username:
+        raise HTTPException(status_code=400, detail="No puedes eliminar tu propia cuenta")
+
+    if target_role == "super_admin":
+        sa_counts = await db.execute_fetchall("SELECT COUNT(*) FROM super_admins WHERE role = 'super_admin'")
+        if sa_counts and sa_counts[0][0] <= 1:
+            raise HTTPException(status_code=400, detail="No se puede eliminar el último super admin restante")
+
+    await db.execute("DELETE FROM super_admins WHERE id = ?", (admin_id,))
+    await db.commit()
+    return {"message": "Administrador eliminado exitosamente"}

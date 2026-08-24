@@ -20,6 +20,16 @@ const routes = [
     component: () => import('../views/SuperAdminVenueDetail.vue'),
     meta: { requiresSuperAdmin: true },
   },
+  {
+    path: '/superadmin/admins',
+    name: 'superadmin-admins',
+    component: () => import('../views/SuperAdminUsers.vue'),
+    meta: { requiresSuperAdmin: true },
+  },
+  {
+    path: '/superadmin/users',
+    redirect: '/superadmin/admins',
+  },
 
   // Venue routes (dynamic slug)
   {

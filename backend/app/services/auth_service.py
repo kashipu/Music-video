@@ -146,11 +146,12 @@ def create_admin_token(admin_id: int, username: str, venue_id: int) -> str:
     return jwt.encode(payload, settings.app_secret_key, algorithm="HS256")
 
 
-def create_super_admin_token(admin_id: int, username: str) -> str:
+def create_super_admin_token(admin_id: int, username: str, role: str = "super_admin") -> str:
     exp = datetime.now(timezone.utc) + timedelta(hours=24)
     payload = {
         "super_admin_id": admin_id,
         "username": username,
+        "role": role,
         "is_super_admin": True,
         "exp": exp,
     }
@@ -160,7 +161,7 @@ def create_super_admin_token(admin_id: int, username: str) -> str:
 async def verify_super_admin(username: str, password: str) -> dict | None:
     db = await get_db()
     rows = await db.execute_fetchall(
-        "SELECT id, username, password_hash FROM super_admins WHERE username = ?",
+        "SELECT id, username, password_hash, role FROM super_admins WHERE username = ?",
         (username,),
     )
     if not rows:
@@ -170,7 +171,7 @@ async def verify_super_admin(username: str, password: str) -> dict | None:
     # never freezes every other request/WebSocket on the single worker
     if not await asyncio.to_thread(bcrypt.checkpw, password.encode(), admin[2].encode()):
         return None
-    return {"id": admin[0], "username": admin[1]}
+    return {"id": admin[0], "username": admin[1], "role": admin[3] if len(admin) > 3 and admin[3] else "super_admin"}
 
 
 def decode_token(token: str) -> dict:

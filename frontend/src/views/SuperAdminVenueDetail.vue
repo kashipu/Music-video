@@ -374,6 +374,15 @@ async function deleteVenue() {
   await fetch(`${API}/api/superadmin/venues/${venueId}`, { method: 'DELETE', headers: headers() })
   router.push({ name: 'superadmin' })
 }
+
+async function toggleVenue() {
+  await fetch(`${API}/api/superadmin/venues/${venueId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...headers() },
+    body: JSON.stringify({ active: !detail.value.venue.active }),
+  })
+  await fetchDetail()
+}
 </script>
 
 <template>
@@ -568,6 +577,7 @@ async function deleteVenue() {
         <!-- Danger Zone -->
         <div class="card danger-card">
           <p class="section-title">ZONA DE PELIGRO</p>
+          <button class="btn-venue-toggle" @click="toggleVenue">{{ detail.venue.active ? 'Desactivar bar' : 'Activar bar' }}</button>
           <button class="btn-delete" @click="deleteVenue">Eliminar bar permanentemente</button>
         </div>
       </div>
@@ -750,6 +760,11 @@ async function deleteVenue() {
 
 /* Danger */
 .danger-card { border-color: var(--danger-soft); }
+.btn-venue-toggle {
+  width: 100%; padding: 10px; margin-bottom: 8px; border-radius: 8px;
+  background: var(--bg-elevated); border: 1px solid var(--warning);
+  color: var(--warning); font-size: 13px; font-weight: 600; cursor: pointer;
+}
 .btn-delete {
   width: 100%; padding: 10px; border-radius: 8px;
   background: var(--danger-soft); border: 1px solid var(--danger);
