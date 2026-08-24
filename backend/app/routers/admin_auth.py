@@ -88,6 +88,7 @@ async def admin_login(req: AdminLoginRequest, _: None = Depends(limit_auth_attem
             raise HTTPException(status_code=404, detail="Bar no encontrado")
         if admin["venue_id"] != venue_rows[0][0]:
             raise HTTPException(status_code=403, detail="Este usuario no pertenece a este bar")
+    await db.execute("UPDATE admins SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?", (admin["id"],))
     return {"token": auth_service.create_admin_token(admin["id"], admin["username"], admin["venue_id"]), "admin": admin}
 
 

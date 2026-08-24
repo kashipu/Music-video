@@ -135,7 +135,8 @@ async def list_venues(admin: dict = Depends(get_current_super_admin)):
         "(SELECT COUNT(*) FROM queue_songs qs WHERE qs.venue_id = v.id AND qs.status IN ('pending','playing')) as queue_count, "
         "(SELECT COUNT(*) FROM user_sessions us WHERE us.venue_id = v.id AND us.ended_at IS NULL) as active_sessions, "
         "v.paid_until, v.payment_notes, "
-        "(SELECT MAX(ph.played_at) FROM play_history ph WHERE ph.venue_id = v.id) as last_used_at "
+        "(SELECT MAX(ph.played_at) FROM play_history ph WHERE ph.venue_id = v.id) as last_used_at, "
+        "(SELECT MAX(a.last_login_at) FROM admins a WHERE a.venue_id = v.id) as last_admin_login "
         "FROM venues v ORDER BY last_used_at DESC"
     )
     venues = []
@@ -152,6 +153,7 @@ async def list_venues(admin: dict = Depends(get_current_super_admin)):
             "admin_count": r[8], "queue_count": r[9], "active_sessions": r[10],
             "paid_until": r[11], "payment_notes": r[12],
             "last_used_at": r[13],
+            "last_admin_login": r[14],
             "payment_status": await compute_payment_status(r[11]),
         })
     return {"venues": venues}
