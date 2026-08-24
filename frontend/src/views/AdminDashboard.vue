@@ -704,6 +704,9 @@ function logout() {
             <a :href="`/${venueSlug}/usuario`" target="_blank" class="action-btn action-usuario">
               <span>&#128241;</span> Vista Usuario
             </a>
+            <RouterLink :to="{ name: 'admin-subscription', params: { venueSlug } }" class="action-btn action-subscription">
+              <span>&#128179;</span> Mi suscripción
+            </RouterLink>
           </div>
         </div>
 
@@ -1215,6 +1218,7 @@ function logout() {
 .action-registro:hover { border-color: var(--success); color: var(--success); }
 .action-video:hover { border-color: var(--warning); color: var(--warning); }
 .action-usuario:hover { border-color: var(--secondary); color: var(--secondary); }
+.action-subscription:hover { border-color: var(--primary); color: var(--primary); }
 
 /* QR */
 .qr-card { text-align: center; }

@@ -73,6 +73,7 @@ function forceLogout() { localStorage.removeItem('bq_super_token'); localStorage
     <header class="sa-header">
       <div><h1>Repitela</h1><span class="sa-badge">Administración</span></div>
       <div class="header-actions">
+        <RouterLink class="btn-admins" :to="{ name: 'superadmin-sales' }">Ventas</RouterLink>
         <RouterLink class="btn-admins" :to="{ name: 'superadmin-admins' }">Usuarios</RouterLink>
         <button class="theme-toggle" aria-label="Cambiar tema" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button>
         <UiButton variant="danger" class="btn-logout" @click="forceLogout">Salir</UiButton>
