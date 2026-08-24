@@ -8,7 +8,7 @@ import bcrypt
 from fastapi import APIRouter, HTTPException, Depends, Header, Query, UploadFile, File
 from pydantic import BaseModel, Field, StrictInt
 
-from app.services import auth_service
+from app.services import analytics_service, auth_service
 from app.database import get_db
 
 async def get_platform_settings() -> dict:
@@ -315,6 +315,12 @@ async def venue_stats(venue_id: int, admin: dict = Depends(get_current_super_adm
         },
         "admins": [{"id": a[0], "username": a[1], "created_at": a[2]} for a in admins],
     }
+
+
+@router.get("/venues/{venue_id}/analytics")
+async def venue_analytics(venue_id: int, period: str = Query("week", pattern="^(day|week|month|all)$"),
+                          admin: dict = Depends(get_current_super_admin)):
+    return await analytics_service.get_daily_analytics(venue_id, period)
 
 
 @router.get("/venues/{venue_id}/users")

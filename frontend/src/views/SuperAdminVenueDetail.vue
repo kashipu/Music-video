@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { formatDuration, thumbFallback } from '../utils/youtube.js'
 import { useTheme } from '../composables/useTheme.js'
@@ -13,6 +13,10 @@ const venueId = route.params.venueId
 
 document.title = 'Repitela - Detalle Venue'
 const detail = ref(null)
+const dailyAnalytics = ref(null)
+const bestDay = computed(() => dailyAnalytics.value?.days.reduce(
+  (best, day) => !best || day.people > best.people ? day : best, null
+))
 const editName = ref('')
 const editLogoUrl = ref('')
 const uploadingLogo = ref(false)
@@ -133,7 +137,7 @@ function fullUrl(path) {
 }
 
 onMounted(async () => {
-  await Promise.all([fetchDetail(), fetchPlaylist(), fetchUsers()])
+  await Promise.all([fetchDetail(), fetchDailyAnalytics(), fetchPlaylist(), fetchUsers()])
 })
 
 async function fetchDetail() {
@@ -155,6 +159,15 @@ async function fetchDetail() {
       window_minutes: cfg.window_minutes != null ? Number(cfg.window_minutes) : 30,
     }
   } catch { /* */ }
+}
+
+async function fetchDailyAnalytics() {
+  const res = await fetch(`${API}/api/superadmin/venues/${venueId}/analytics`, { headers: headers() })
+  if (res.ok) dailyAnalytics.value = await res.json()
+}
+
+function shortDate(date) {
+  return date.slice(5).split('-').reverse().join('/')
 }
 
 async function saveVenue() {
@@ -412,6 +425,19 @@ async function toggleVenue() {
             <div class="sg"><strong>{{ detail.stats.total_users }}</strong><span>Usuarios</span></div>
             <div class="sg"><strong>{{ detail.stats.active_sessions }}</strong><span>Sesiones</span></div>
             <div class="sg"><strong>{{ detail.stats.songs_in_queue }}</strong><span>En cola</span></div>
+          </div>
+        </div>
+
+        <div class="card" v-if="dailyAnalytics">
+          <p class="section-title">ACTIVIDAD</p>
+          <p v-if="bestDay" class="activity-best">Mejor día: <strong>{{ shortDate(bestDay.date) }}</strong> · {{ bestDay.people }} personas</p>
+          <p v-else class="text-muted">Sin actividad en los últimos 7 días</p>
+          <div v-if="dailyAnalytics.days.length" class="activity-days">
+            <div v-for="day in dailyAnalytics.days" :key="day.date" class="activity-day">
+              <span>{{ shortDate(day.date) }}</span>
+              <div class="activity-bar"><i :style="{ width: `${day.people / bestDay.people * 100}%` }"></i></div>
+              <strong>{{ day.people }}</strong>
+            </div>
           </div>
         </div>
 
@@ -693,6 +719,14 @@ async function toggleVenue() {
 }
 .sg strong { font-size: 22px; display: block; }
 .sg span { font-size: 11px; color: var(--text-muted); }
+
+/* Activity */
+.activity-best { margin-bottom: 12px; font-size: 13px; color: var(--text-muted); }
+.activity-best strong, .activity-day strong { color: var(--text); }
+.activity-days { display: flex; flex-direction: column; gap: 8px; }
+.activity-day { display: grid; grid-template-columns: 38px 1fr 24px; gap: 8px; align-items: center; font-size: 12px; color: var(--text-muted); }
+.activity-bar { height: 8px; overflow: hidden; border-radius: 99px; background: var(--bg-elevated); }
+.activity-bar i { display: block; height: 100%; min-width: 4px; border-radius: inherit; background: var(--primary); }
 
 /* Form */
 .form-stack { display: flex; flex-direction: column; gap: 12px; }
