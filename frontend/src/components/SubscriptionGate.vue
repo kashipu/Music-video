@@ -31,6 +31,11 @@ function goToSubscription() {
   router.push({ name: 'admin-subscription', params: { venueSlug } })
 }
 
+function logout() {
+  auth.adminLogout()
+  router.push({ name: 'admin-login', params: { venueSlug } })
+}
+
 onMounted(async () => {
   try {
     const res = await fetch(`${API}/api/admin/billing`, { headers: auth.adminHeaders() })
@@ -69,6 +74,7 @@ onMounted(async () => {
         <li>Sin límite de usuarios conectados</li>
       </ul>
       <UiButton class="paywall-cta" @click="goToSubscription">Reactivar suscripción</UiButton>
+      <button type="button" class="paywall-logout" @click="logout">Salir</button>
     </div>
   </div>
 </template>
@@ -194,5 +200,19 @@ onMounted(async () => {
 
 .paywall-cta {
   width: 100%;
+}
+
+.paywall-logout {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px;
+}
+.paywall-logout:hover {
+  color: var(--text);
+  text-decoration: underline;
 }
 </style>
