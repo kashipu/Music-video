@@ -8,6 +8,8 @@ RUN npm ci
 COPY . .
 
 # No VITE_API_URL needed — nginx proxies /api and /ws to backend
+ARG VITE_GOOGLE_CLIENT_ID
+ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 RUN npm run build
 
 FROM nginx:alpine
