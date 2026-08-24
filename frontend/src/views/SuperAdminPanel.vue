@@ -28,7 +28,6 @@ function relativeDate(date) {
   return `hace ${days} días`
 }
 const counts = computed(() => ({
-  all: venues.value.length,
   active: venues.value.filter(v => v.active).length,
   trial: venues.value.filter(v => v.paid_until == null).length,
   overdue: venues.value.filter(v => v.payment_status === 'overdue').length,
@@ -38,8 +37,7 @@ const filteredVenues = computed(() => venues.value.filter(v => {
   if (filter.value === 'active') return v.active
   if (filter.value === 'trial') return v.paid_until == null
   if (filter.value === 'overdue') return v.payment_status === 'overdue'
-  if (filter.value === 'paid') return v.payment_status === 'active' && v.paid_until != null
-  return true
+  return filter.value === 'paid' ? v.payment_status === 'active' && v.paid_until != null : true
 }))
 
 onMounted(fetchVenues)
@@ -70,12 +68,11 @@ function forceLogout() { localStorage.removeItem('bq_super_token'); localStorage
 
 <template>
   <div class="sa">
-    <header class="sa-header"><div><h1>Repitela</h1><span class="sa-badge">Administración</span></div><div class="header-actions"><button class="theme-toggle" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button><button class="btn-logout" @click="forceLogout">Salir</button></div></header>
+    <header class="sa-header"><div><h1>Repitela</h1><span class="sa-badge">Administración</span></div><div class="header-actions"><RouterLink class="btn-admins" :to="{ name: 'superadmin-admins' }">Administradores</RouterLink><button class="theme-toggle" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button><button class="btn-logout" @click="forceLogout">Salir</button></div></header>
     <main class="sa-content">
       <section class="indicators" aria-label="Indicadores de bares">
         <h2>Bares</h2>
         <div class="indicator-list">
-          <button :class="{ selected: filter === 'all' }" @click="filter = 'all'">{{ counts.all }} total</button>
           <button :class="{ selected: filter === 'active' }" @click="filter = 'active'">{{ counts.active }} activos</button>
           <button :class="{ selected: filter === 'trial' }" @click="filter = 'trial'">{{ counts.trial }} en prueba</button>
           <button :class="{ selected: filter === 'overdue' }" @click="filter = 'overdue'">{{ counts.overdue }} en mora</button>
@@ -88,7 +85,7 @@ function forceLogout() { localStorage.removeItem('bq_super_token'); localStorage
 
       <section class="venue-grid">
         <article v-for="venue in filteredVenues" :key="venue.id" class="venue-card" :class="{ inactive: !venue.active }">
-          <a href="#" class="venue-name" @click.prevent="router.push({ name: 'superadmin-venue', params: { venueId: venue.id } })">{{ venue.name }}</a>
+          <RouterLink class="venue-name" :to="{ name: 'superadmin-venue', params: { venueId: venue.id } }">{{ venue.name }}</RouterLink>
           <span class="venue-slug">/{{ venue.slug }}</span>
           <p><span>Último uso</span>{{ relativeDate(venue.last_used_at) }}</p>
           <p><span>Última conexión del admin</span>{{ relativeDate(venue.last_admin_login) }}</p>
@@ -102,7 +99,7 @@ function forceLogout() { localStorage.removeItem('bq_super_token'); localStorage
 </template>
 
 <style scoped>
-.sa-header { display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:var(--bg-card); border-bottom:1px solid var(--border); }.sa-header h1 { display:inline; font-size:18px; }.sa-badge { margin-left:10px; padding:2px 10px; border-radius:12px; background:var(--warning); color:#000; font-size:11px; font-weight:700; }.header-actions { display:flex; gap:8px; align-items:center; }.btn-logout { padding:6px 14px; border-radius:6px; background:var(--danger); color:white; font-size:13px; font-weight:600; }
+.sa-header { display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:var(--bg-card); border-bottom:1px solid var(--border); }.sa-header h1 { display:inline; font-size:18px; }.sa-badge { margin-left:10px; padding:2px 10px; border-radius:12px; background:var(--warning); color:#000; font-size:11px; font-weight:700; }.header-actions { display:flex; gap:8px; align-items:center; }.btn-logout { padding:6px 14px; border-radius:6px; background:var(--danger); color:white; font-size:13px; font-weight:600; }.btn-admins { padding:6px 14px; border-radius:6px; background:var(--bg-elevated); border:1px solid var(--border); color:var(--text); font-size:13px; font-weight:600; text-decoration:none; }
 .sa-content { max-width:1100px; margin:auto; padding:16px 12px; }.indicators { position:sticky; top:0; z-index:1; margin:-16px -12px 20px; padding:14px 12px; background:var(--bg-card); border-bottom:1px solid var(--border); }.indicators h2,.list-header h2 { margin:0; font-size:18px; }.indicator-list { display:flex; gap:12px; margin-top:8px; overflow-x:auto; white-space:nowrap; }.indicator-list button { padding:0; border:0; background:none; color:var(--text-muted); font:inherit; font-size:13px; cursor:pointer; }.indicator-list button.selected,.indicator-list button:hover { color:var(--primary); text-decoration:underline; }.list-header { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px; }.create-button,.save-button,.detail-button { width:auto; white-space:nowrap; }.create-form { padding:20px; margin-bottom:20px; }.form-grid { display:grid; grid-template-columns:1fr; gap:12px; }.form-group { display:flex; flex-direction:column; gap:4px; }.form-group label { color:var(--text-muted); font-size:12px; font-weight:600; }.error-msg { margin-top:8px; color:var(--danger); font-size:13px; }.save-button { margin-top:12px; }
 .venue-grid { display:grid; grid-template-columns:1fr; gap:12px; }.venue-card { display:flex; flex-direction:column; gap:8px; padding:16px; border:1px solid var(--border-soft); border-radius:var(--radius); background:var(--bg-card); min-width:0; }.venue-card.inactive { opacity:.6; }.venue-name { color:var(--text); font-size:17px; font-weight:700; overflow-wrap:anywhere; }.venue-name:hover { color:var(--primary); }.venue-slug { color:var(--text-muted); font-size:12px; margin-top:-6px; overflow-wrap:anywhere; }.venue-card p { display:flex; justify-content:space-between; gap:12px; margin:0; font-size:14px; }.venue-card p span { color:var(--text-muted); }.activity { color:var(--success); font-size:13px; font-weight:600; }.detail-button { align-self:flex-start; margin-top:4px; }.empty { color:var(--text-muted); text-align:center; }
 @media (min-width:640px) { .sa-header { padding:12px 24px; }.sa-content { padding:24px; }.indicators { margin:-24px -24px 24px; padding:16px 24px; }.form-grid { grid-template-columns:repeat(2, 1fr); }.venue-grid { grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); } }

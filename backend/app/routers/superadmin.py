@@ -109,7 +109,7 @@ async def super_admin_login(req: SuperLoginRequest):
     admin = await auth_service.verify_super_admin(req.username, req.password)
     if not admin:
         raise HTTPException(status_code=401, detail="Usuario o contrasena incorrectos")
-    token = auth_service.create_super_admin_token(admin["id"], admin["username"])
+    token = auth_service.create_super_admin_token(admin["id"], admin["username"], role=admin.get("role", "super_admin"))
     return {"token": token, "admin": admin}
 
 
@@ -638,7 +638,7 @@ async def update_super_admin(
     if not rows:
         raise HTTPException(status_code=404, detail="Administrador no encontrado")
 
-    current_target_role = rows[0][2]
+    current_target_role = rows[0][2] or "super_admin"
 
     if req.role is not None:
         if req.role not in VALID_SUPER_ADMIN_ROLES:
@@ -647,7 +647,7 @@ async def update_super_admin(
                 detail=f"Rol inválido '{req.role}'. Debe ser 'super_admin', 'vendedor' o 'editor'",
             )
         if current_target_role == "super_admin" and req.role != "super_admin":
-            sa_counts = await db.execute_fetchall("SELECT COUNT(*) FROM super_admins WHERE role = 'super_admin'")
+            sa_counts = await db.execute_fetchall("SELECT COUNT(*) FROM super_admins WHERE COALESCE(role, 'super_admin') = 'super_admin'")
             if sa_counts and sa_counts[0][0] <= 1:
                 raise HTTPException(status_code=400, detail="No se puede cambiar el rol del último super admin restante")
         await db.execute("UPDATE super_admins SET role = ? WHERE id = ?", (req.role, admin_id))
@@ -674,14 +674,14 @@ async def delete_super_admin(
 
     target_id = rows[0][0]
     target_username = rows[0][1]
-    target_role = rows[0][2]
+    target_role = rows[0][2] or "super_admin"
 
     current_admin_id = admin.get("super_admin_id")
     if current_admin_id == target_id or admin.get("username") == target_username:
         raise HTTPException(status_code=400, detail="No puedes eliminar tu propia cuenta")
 
     if target_role == "super_admin":
-        sa_counts = await db.execute_fetchall("SELECT COUNT(*) FROM super_admins WHERE role = 'super_admin'")
+        sa_counts = await db.execute_fetchall("SELECT COUNT(*) FROM super_admins WHERE COALESCE(role, 'super_admin') = 'super_admin'")
         if sa_counts and sa_counts[0][0] <= 1:
             raise HTTPException(status_code=400, detail="No se puede eliminar el último super admin restante")
 
