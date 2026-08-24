@@ -20,6 +20,22 @@ const markingPaid = ref(false)
 const paymentNotes = ref('')
 const editQrUrl = ref('')
 const editConfig = ref({ max_duration_sec: 600, max_songs_per_window: 5, window_minutes: 30 })
+const savingConfig = ref(false)
+const configSaveMsg = ref('')
+const configError = ref('')
+
+function formatDurationHelper(seconds) {
+  const sec = Number(seconds)
+  if (!sec || isNaN(sec) || sec <= 0) return ''
+  const m = Math.floor(sec / 60)
+  const s = sec % 60
+  if (m >= 60) {
+    const h = Math.floor(m / 60)
+    const remM = m % 60
+    return remM > 0 ? `~${h}h ${remM}m` : `~${h}h`
+  }
+  return s > 0 ? `~${m}m ${s}s` : `~${m}m`
+}
 const THEME_PRESETS = [
   {
     id: 'purple-night',
@@ -127,10 +143,17 @@ async function fetchDetail() {
   editName.value = detail.value.venue.name
   editLogoUrl.value = detail.value.venue.logo_url || ''
   editQrUrl.value = detail.value.venue.qr_url || ''
-  // Load theme from config
+  // Load config & theme
   try {
-    const cfg = JSON.parse(detail.value.venue.config || '{}')
+    const cfg = typeof detail.value.venue.config === 'string'
+      ? JSON.parse(detail.value.venue.config || '{}')
+      : (detail.value.venue.config || {})
     selectedPreset.value = cfg.theme?.preset || 'purple-night'
+    editConfig.value = {
+      max_duration_sec: cfg.max_duration_sec != null ? Number(cfg.max_duration_sec) : 600,
+      max_songs_per_window: cfg.max_songs_per_window != null ? Number(cfg.max_songs_per_window) : 5,
+      window_minutes: cfg.window_minutes != null ? Number(cfg.window_minutes) : 30,
+    }
   } catch { /* */ }
 }
 
@@ -158,6 +181,53 @@ async function saveVenue() {
       setTimeout(() => { saveMsg.value = '' }, 2000)
     }
   } finally { saving.value = false }
+}
+
+async function saveConfig() {
+  configError.value = ''
+  configSaveMsg.value = ''
+
+  const maxSongs = Number(editConfig.value.max_songs_per_window)
+  const windowMins = Number(editConfig.value.window_minutes)
+  const maxDuration = Number(editConfig.value.max_duration_sec)
+
+  if (!Number.isInteger(maxSongs) || maxSongs < 1 || maxSongs > 50) {
+    configError.value = 'Las canciones por ventana deben ser un número entero entre 1 y 50'
+    return
+  }
+  if (!Number.isInteger(windowMins) || windowMins < 1 || windowMins > 720) {
+    configError.value = 'Los minutos de ventana deben ser un número entero entre 1 y 720 (máx. 12 horas)'
+    return
+  }
+  if (!Number.isInteger(maxDuration) || maxDuration < 30 || maxDuration > 7200) {
+    configError.value = 'La duración máxima debe ser entre 30 y 7200 segundos (máx. 2 horas)'
+    return
+  }
+
+  savingConfig.value = true
+  try {
+    const res = await fetch(`${API}/api/superadmin/venues/${venueId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...headers() },
+      body: JSON.stringify({
+        max_duration_sec: maxDuration,
+        max_songs_per_window: maxSongs,
+        window_minutes: windowMins,
+      }),
+    })
+    if (res.ok) {
+      configSaveMsg.value = 'Guardado'
+      await fetchDetail()
+      setTimeout(() => { configSaveMsg.value = '' }, 2000)
+    } else {
+      const err = await res.json().catch(() => ({}))
+      configError.value = err.detail || 'Error al guardar límites'
+    }
+  } catch (e) {
+    configError.value = e.message || 'Error al guardar límites'
+  } finally {
+    savingConfig.value = false
+  }
 }
 
 async function markAsPaid() {
@@ -421,6 +491,61 @@ async function deleteVenue() {
           </div>
         </div>
 
+        <!-- Limits Config -->
+        <div class="card">
+          <p class="section-title">LIMITES DE PEDIDOS</p>
+          <div class="form-stack">
+            <div class="form-group">
+              <label>Canciones por ventana</label>
+              <input
+                v-model.number="editConfig.max_songs_per_window"
+                type="number"
+                min="1"
+                max="50"
+                class="input-field"
+                placeholder="5"
+              />
+              <span class="field-hint">Máximo de canciones que un usuario puede pedir por ventana</span>
+            </div>
+            <div class="form-group">
+              <label>Minutos de ventana</label>
+              <input
+                v-model.number="editConfig.window_minutes"
+                type="number"
+                min="1"
+                max="720"
+                class="input-field"
+                placeholder="30"
+              />
+              <span class="field-hint">Tiempo en minutos antes de renovar el cupo de canciones</span>
+            </div>
+            <div class="form-group">
+              <label>Duración máxima por canción (segundos)</label>
+              <div class="duration-input-wrap">
+                <input
+                  v-model.number="editConfig.max_duration_sec"
+                  type="number"
+                  min="30"
+                  max="7200"
+                  class="input-field"
+                  placeholder="600"
+                />
+                <span v-if="editConfig.max_duration_sec" class="duration-tag">
+                  {{ formatDurationHelper(editConfig.max_duration_sec) }}
+                </span>
+              </div>
+              <span class="field-hint">Máx. 7200s (2 horas). Videos más largos serán rechazados.</span>
+            </div>
+            <p v-if="configError" class="config-error">{{ configError }}</p>
+            <div class="form-row">
+              <button class="btn btn-primary" style="width:auto;" :disabled="savingConfig" @click="saveConfig">
+                {{ savingConfig ? 'Guardando...' : 'Guardar límites' }}
+              </button>
+              <span v-if="configSaveMsg" class="save-msg">{{ configSaveMsg }}</span>
+            </div>
+          </div>
+        </div>
+
         <!-- URLs -->
         <div class="card">
           <p class="section-title">ENLACES</p>
@@ -580,6 +705,15 @@ async function deleteVenue() {
 .logo-hint { font-size: 11px; color: var(--text-muted); }
 .form-row { display: flex; align-items: center; gap: 12px; }
 .save-msg { font-size: 13px; color: var(--success); font-weight: 600; }
+.field-hint { font-size: 11px; color: var(--text-muted); line-height: 1.3; }
+.duration-input-wrap { position: relative; display: flex; align-items: center; }
+.duration-input-wrap .input-field { padding-right: 90px; }
+.duration-tag {
+  position: absolute; right: 12px; font-size: 12px; font-weight: 600;
+  color: var(--primary); background: var(--primary-soft); padding: 3px 8px;
+  border-radius: 4px; pointer-events: none;
+}
+.config-error { font-size: 12px; color: var(--danger); font-weight: 500; }
 
 /* URLs */
 .url-list { display: flex; flex-direction: column; gap: 8px; }
