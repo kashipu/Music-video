@@ -7,6 +7,7 @@ import { useTheme } from '../composables/useTheme.js'
 import { useToast, safeFetch } from '../composables/useToast.js'
 import { formatDuration, thumbFallback } from '../utils/youtube.js'
 import { trackAdminAction } from '../utils/analytics.js'
+import SubscriptionGate from '../components/SubscriptionGate.vue'
 
 const toast = useToast()
 
@@ -645,6 +646,8 @@ function logout() {
 
 <template>
   <div class="admin">
+    <SubscriptionGate />
+
     <!-- Toast -->
     <Transition name="fade">
       <div v-if="adminToast" class="toast">{{ adminToast }}</div>
