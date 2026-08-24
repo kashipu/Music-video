@@ -123,6 +123,9 @@ async function startGoogleLogin() {
     >
       <template #footer>
         <p class="signup-prompt">
+          <RouterLink :to="{ name: 'admin-forgot-password' }" class="signup-link">¿Olvidaste tu contraseña?</RouterLink>
+        </p>
+        <p class="signup-prompt">
           ¿No tienes cuenta?
           <RouterLink :to="{ name: 'admin-signup' }" class="signup-link">Regístrate</RouterLink>
         </p>

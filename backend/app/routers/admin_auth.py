@@ -25,20 +25,38 @@ async def limit_auth_attempts(request: Request):
     _attempts[key] = attempts
 
 
-async def valid_turnstile(token: str | None) -> bool:
+TURNSTILE_ACTION = "signup"
+
+
+async def valid_turnstile(token: str | None, request: Request | None = None) -> bool:
     # ponytail: local development has no secret; production must configure one to accept signups.
     if not settings.turnstile_secret_key:
         return True
-    if not token:
+    # Cloudflare emite tokens de ~2KB; mas que eso no es un token nuestro.
+    if not token or len(token) > 2048:
         return False
+    # remoteip ata el token al cliente que resolvio el reto.
+    remote_ip = request.client.host if request and request.client else None
     try:
-        async with httpx.AsyncClient(timeout=5) as client:
+        async with httpx.AsyncClient(timeout=10) as client:
             response = await client.post("https://challenges.cloudflare.com/turnstile/v0/siteverify", data={
-                "secret": settings.turnstile_secret_key, "response": token,
+                "secret": settings.turnstile_secret_key,
+                "response": token,
+                **({"remoteip": remote_ip} if remote_ip else {}),
             })
-        return response.is_success and response.json().get("success") is True
+        if not response.is_success:
+            return False
+        result = response.json()
     except (httpx.HTTPError, ValueError):
         return False
+
+    if result.get("success") is not True:
+        return False
+    # Sin estos dos checks, un token valido de OTRO widget/formulario nuestro sirve aqui.
+    if result.get("action") != TURNSTILE_ACTION:
+        return False
+    hostnames = {h.strip() for h in settings.turnstile_hostnames.split(",") if h.strip()}
+    return not hostnames or result.get("hostname") in hostnames
 
 
 class AdminSignupRequest(BaseModel):
@@ -101,10 +119,10 @@ async def admin_login(req: AdminLoginRequest, _: None = Depends(limit_auth_attem
 
 
 @router.post("/signup", status_code=201)
-async def signup(req: AdminSignupRequest, _: None = Depends(limit_auth_attempts)):
+async def signup(req: AdminSignupRequest, request: Request, _: None = Depends(limit_auth_attempts)):
     if not req.terms_accepted or not req.privacy_accepted:
         raise HTTPException(status_code=400, detail="Debes aceptar los terminos y el tratamiento de datos")
-    if not await valid_turnstile(req.turnstile_token):
+    if not await valid_turnstile(req.turnstile_token, request):
         raise HTTPException(status_code=400, detail="Verificacion anti-bot invalida")
     try:
         admin = await admin_signup_service.create_admin_with_trial(

@@ -11,6 +11,8 @@ class Settings(BaseSettings):
     youtube_api_key: str = ""
     google_client_id: str = ""
     turnstile_secret_key: str = ""
+    # Hostnames que Cloudflare puede reportar como origen del reto. Vacio = no se valida.
+    turnstile_hostnames: str = ""
     brevo_api_key: str = ""
     email_from: str = "no-reply@repitela.com"
     frontend_url: str = "http://localhost:5173"

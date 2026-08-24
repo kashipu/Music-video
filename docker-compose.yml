@@ -14,6 +14,16 @@ services:
       - DATABASE_PATH=/data/barqueue.db
       - YOUTUBE_API_KEY=${YOUTUBE_API_KEY:-}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      # Sin BREVO_API_KEY no se envia correo: el link de verificacion se loguea
+      # y la cuenta igual sirve (el login no exige email_verified).
+      - BREVO_API_KEY=${BREVO_API_KEY:-}
+      - EMAIL_FROM=${EMAIL_FROM:-no-reply@repitela.com}
+      # Base de los links de verificacion/reset. Sin esto apuntan a localhost.
+      - FRONTEND_URL=${FRONTEND_URL:-https://app.repitela.com}
+      # Sin secret, valid_turnstile() acepta todo: el registro queda sin anti-bot.
+      - TURNSTILE_SECRET_KEY=${TURNSTILE_SECRET_KEY:-}
+      # Hostnames que Cloudflare puede reportar en siteverify. Nunca localhost en prod.
+      - TURNSTILE_HOSTNAMES=${TURNSTILE_HOSTNAMES:-app.repitela.com}
       - CORS_ORIGINS=${CORS_ORIGINS:-*}
       - MAX_SONGS_PER_WINDOW=${MAX_SONGS_PER_WINDOW:-5}
       - WINDOW_MINUTES=${WINDOW_MINUTES:-30}
@@ -33,6 +43,8 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID:-}
+        # Sitekey publica del widget de Turnstile (no es secreto).
+        VITE_TURNSTILE_SITE_KEY: ${VITE_TURNSTILE_SITE_KEY:-0x4AAAAAAEZ0hYgY2o1yd8oe}
     expose:
       - "80"
     depends_on:

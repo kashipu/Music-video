@@ -17,4 +17,7 @@ EXPOSE 8000
 # Un worker asyncio sobra para la escala de un bar y evita ademas la contencion de
 # escritura de SQLite entre procesos. Si algun dia hace falta escalar horizontalmente,
 # el paso es mover el broadcast a Redis pub/sub, no subir workers.
-CMD ["gunicorn", "app.main:app", "-w", "1", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000", "--access-logfile", "-"]
+# Sin --forwarded-allow-ips, uvicorn ignora X-Forwarded-For de nginx (otro contenedor,
+# no 127.0.0.1) y request.client.host es la IP de nginx para TODOS: el rate limit de
+# login pasa a ser global. El backend solo esta expuesto en la red interna de compose.
+CMD ["gunicorn", "app.main:app", "-w", "1", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000", "--forwarded-allow-ips", "*", "--access-logfile", "-"]

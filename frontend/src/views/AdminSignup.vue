@@ -101,7 +101,10 @@ async function submitSignup() {
       }),
     })
     if (!res.ok) throw new Error(await responseError(res))
-    success.value = 'Cuenta creada. Revisa tu correo para verificarla.'
+    // La cuenta ya sirve: el login no exige email verificado. Mandamos a entrar en
+    // vez de dejar el form lleno (un segundo submit daba 409).
+    success.value = 'Cuenta creada. Ya puedes iniciar sesion con tu correo.'
+    setTimeout(() => router.push({ name: 'admin-login-global' }), 1500)
   } catch (err) {
     error.value = err.message
   } finally {
@@ -179,6 +182,8 @@ onMounted(async () => {
     await loadTurnstile()
     turnstileWidget = window.turnstile.render(turnstileElement.value, {
       sitekey: TURNSTILE_SITE_KEY,
+      // El backend exige result.action === 'signup' en siteverify.
+      action: 'signup',
       callback: token => { turnstileToken.value = token },
       'expired-callback': () => { turnstileToken.value = '' },
     })
@@ -300,9 +305,9 @@ onBeforeUnmount(() => {
           <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
           <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
         </svg>
-        Continuar con Google
+        Regístrate con Google
       </Button>
-      <p class="google-consent">Al continuar con Google, aceptas nuestros <a href="/privacidad" target="_blank" rel="noopener noreferrer">términos y política de tratamiento de datos</a>.</p>
+      <p class="google-consent">Al registrarte con Google, aceptas nuestros <a href="/privacidad" target="_blank" rel="noopener noreferrer">términos y política de tratamiento de datos</a>.</p>
     </form>
   </AuthSplitLayout>
 </template>

@@ -15,14 +15,16 @@ class OnboardingRequest(BaseModel):
     full_name: str = Field(min_length=2, max_length=100)
     phone: str = Field(min_length=7, max_length=30)
     role: Literal["owner", "manager"]
+    city: str = Field(min_length=2, max_length=100)
+    country: str = Field(min_length=2, max_length=100)
     venue_name: str = Field(min_length=2, max_length=100)
     venue_address: str = Field(min_length=3, max_length=255)
     venue_type: Literal["discoteca", "rock", "musica_popular", "otro"]
     venue_type_other: str | None = Field(default=None, max_length=100)
 
 
-async def get_current_admin(authorization: str = Header(...)) -> dict:
-    if not authorization.startswith("Bearer "):
+async def get_current_admin(authorization: str | None = Header(None)) -> dict:
+    if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Sesion invalida")
     token = authorization[7:]
     try:
@@ -42,9 +44,10 @@ async def complete_onboarding(req: OnboardingRequest, admin: dict = Depends(get_
 
     db = await get_db()
     await db.execute(
-        "UPDATE admins SET full_name = ?, phone = ?, role = ?, onboarding_completed_at = CURRENT_TIMESTAMP "
+        "UPDATE admins SET full_name = ?, phone = ?, role = ?, city = ?, country = ?, onboarding_completed_at = CURRENT_TIMESTAMP "
         "WHERE id = ? AND venue_id = ?",
-        (req.full_name.strip(), req.phone.strip(), req.role, admin["admin_id"], admin["venue_id"]),
+        (req.full_name.strip(), req.phone.strip(), req.role, req.city.strip(), req.country.strip(),
+         admin["admin_id"], admin["venue_id"]),
     )
     await db.execute(
         "UPDATE venues SET name = ?, address = ?, venue_type = ?, venue_type_other = ? WHERE id = ?",

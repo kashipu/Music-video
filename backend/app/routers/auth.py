@@ -7,8 +7,8 @@ from app.database import get_db
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
-async def get_current_user(authorization: str = Header(...)) -> dict:
-    if not authorization.startswith("Bearer "):
+async def get_current_user(authorization: str | None = Header(None)) -> dict:
+    if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Sesion invalida")
     token = authorization[7:]
     try:

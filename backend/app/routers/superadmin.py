@@ -25,8 +25,9 @@ async def get_platform_settings() -> dict:
     return {"trial_days": 15, "grace_period_days": 5, "monthly_price_cents": 0}
 
 
-async def compute_payment_status(paid_until: str | None) -> str:
-    grace_period_days = (await get_platform_settings())["grace_period_days"]
+async def compute_payment_status(paid_until: str | None, grace_period_days: int | None = None) -> str:
+    if grace_period_days is None:
+        grace_period_days = (await get_platform_settings())["grace_period_days"]
     if paid_until is None:
         return "active"
     try:
@@ -112,8 +113,8 @@ class UpdateVenueRequest(BaseModel):
     theme: dict | None = None
 
 
-async def get_current_super_admin(authorization: str = Header(...)) -> dict:
-    if not authorization.startswith("Bearer "):
+async def get_current_super_admin(authorization: str | None = Header(None)) -> dict:
+    if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Sesion invalida")
     token = authorization[7:]
     try:
@@ -152,7 +153,7 @@ async def get_settings(admin: dict = Depends(get_current_super_admin)):
 
 @router.patch("/settings")
 async def update_settings(req: UpdatePlatformSettingsRequest,
-                          admin: dict = Depends(get_current_super_admin)):
+                          admin: dict = Depends(require_role("super_admin"))):
     if req.trial_days is None and req.grace_period_days is None and req.monthly_price_cents is None:
         raise HTTPException(status_code=422, detail="Indica al menos un valor")
 
@@ -209,9 +210,14 @@ async def list_venues(admin: dict = Depends(get_current_super_admin)):
         "(SELECT COUNT(*) FROM user_sessions us WHERE us.venue_id = v.id AND us.ended_at IS NULL) as active_sessions, "
         "v.paid_until, v.payment_notes, "
         "(SELECT MAX(ph.played_at) FROM play_history ph WHERE ph.venue_id = v.id) as last_used_at, "
-        "(SELECT MAX(a.last_login_at) FROM admins a WHERE a.venue_id = v.id) as last_admin_login "
+        "(SELECT MAX(a.last_login_at) FROM admins a WHERE a.venue_id = v.id) as last_admin_login, "
+        # paid_until ya no distingue trial de pago: el signup tambien lo setea.
+        # El estado real es el kind del ultimo movimiento no anulado.
+        "(SELECT e.kind FROM venue_billing_events e WHERE e.venue_id = v.id AND e.status != 'voided' "
+        " ORDER BY e.created_at DESC, e.id DESC LIMIT 1) as last_billing_kind "
         "FROM venues v ORDER BY last_used_at DESC"
     )
+    grace_period_days = (await get_platform_settings())["grace_period_days"]
     venues = []
     for r in rows:
         config = {}
@@ -227,7 +233,8 @@ async def list_venues(admin: dict = Depends(get_current_super_admin)):
             "paid_until": r[11], "payment_notes": r[12],
             "last_used_at": r[13],
             "last_admin_login": r[14],
-            "payment_status": await compute_payment_status(r[11]),
+            "on_trial": r[15] in ("trial", None),
+            "payment_status": await compute_payment_status(r[11], grace_period_days),
         })
     return {"venues": venues, "kpis": kpis}
 
@@ -270,8 +277,10 @@ async def create_venue(req: CreateVenueRequest, admin: dict = Depends(require_ro
     # Create admin for this venue
     password_hash = (await asyncio.to_thread(bcrypt.hashpw, req.admin_password.encode(), bcrypt.gensalt())).decode()
     await db.execute(
-        "INSERT INTO admins (venue_id, username, password_hash, email, phone, address, city) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        # El superadmin ya capturo los datos a mano: mandarlo al wizard de onboarding
+        # solo le bloquea el panel al bar recien dado de alta.
+        "INSERT INTO admins (venue_id, username, password_hash, email, phone, address, city, "
+        "onboarding_completed_at) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
         (venue_id, req.admin_username, password_hash, req.admin_email,
          req.admin_phone, req.admin_address, req.admin_city),
     )
@@ -497,8 +506,11 @@ class AddAdminRequest(BaseModel):
 
 @router.post("/venues/{venue_id}/admins")
 async def add_venue_admin(venue_id: int, req: AddAdminRequest,
-                          admin: dict = Depends(get_current_super_admin)):
+                          admin: dict = Depends(require_role("super_admin"))):
     db = await get_db()
+
+    if not await db.execute_fetchall("SELECT id FROM venues WHERE id = ?", (venue_id,)):
+        raise HTTPException(status_code=404, detail="Bar no encontrado")
 
     existing = await db.execute_fetchall("SELECT id FROM admins WHERE username = ?", (req.username,))
     if existing:
@@ -506,7 +518,9 @@ async def add_venue_admin(venue_id: int, req: AddAdminRequest,
 
     password_hash = (await asyncio.to_thread(bcrypt.hashpw, req.password.encode(), bcrypt.gensalt())).decode()
     await db.execute(
-        "INSERT INTO admins (venue_id, username, password_hash) VALUES (?, ?, ?)",
+        # Alta manual: el superadmin ya hizo el onboarding, no lo repite el admin.
+        "INSERT INTO admins (venue_id, username, password_hash, onboarding_completed_at) "
+        "VALUES (?, ?, ?, CURRENT_TIMESTAMP)",
         (venue_id, req.username, password_hash),
     )
     await db.commit()
@@ -515,8 +529,13 @@ async def add_venue_admin(venue_id: int, req: AddAdminRequest,
 
 @router.delete("/venues/{venue_id}/admins/{admin_id}")
 async def remove_venue_admin(venue_id: int, admin_id: int,
-                             admin: dict = Depends(get_current_super_admin)):
+                             admin: dict = Depends(require_role("super_admin"))):
     db = await get_db()
+    # Borrar el ultimo admin deja el bar sin nadie que pueda entrar al panel.
+    remaining = await db.execute_fetchall(
+        "SELECT COUNT(*) FROM admins WHERE venue_id = ? AND id != ?", (venue_id, admin_id))
+    if not remaining[0][0]:
+        raise HTTPException(status_code=409, detail="Es el unico admin del bar. Crea otro antes de borrarlo.")
     await db.execute("DELETE FROM admins WHERE id = ? AND venue_id = ?", (admin_id, venue_id))
     await db.commit()
     return {"message": "Admin removed"}

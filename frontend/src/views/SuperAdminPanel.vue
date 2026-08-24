@@ -46,7 +46,7 @@ const filteredVenues = computed(() => {
   return venues.value.filter(v => {
     let matchesIndicator = true
     if (filter.value === 'active') matchesIndicator = v.active
-    else if (filter.value === 'trial') matchesIndicator = v.paid_until == null
+    else if (filter.value === 'trial') matchesIndicator = v.on_trial
     else if (filter.value === 'overdue') matchesIndicator = v.payment_status === 'overdue'
     else if (filter.value === 'upcoming') matchesIndicator = isUpcoming(v.paid_until)
     else if (filter.value === 'paid-today') matchesIndicator = daysUntil(v.paid_until) === 0
@@ -120,7 +120,7 @@ function forceLogout() { localStorage.removeItem('bq_super_token'); localStorage
             <div class="card-badges">
               <span v-if="venue.queue_count > 0 || venue.active_sessions > 0" class="activity-dot" role="img" aria-label="Actividad actual" title="Actividad actual"></span>
               <span v-if="venue.payment_status === 'overdue'" class="payment-badge payment-overdue">Mora</span>
-              <span v-else-if="venue.paid_until == null" class="payment-badge payment-trial">Trial</span>
+              <span v-else-if="venue.on_trial" class="payment-badge payment-trial">Prueba</span>
               <span v-else-if="isUpcoming(venue.paid_until)" class="payment-badge payment-upcoming">Vencimiento</span>
               <span v-else class="payment-badge payment-paid">Pago</span>
             </div>

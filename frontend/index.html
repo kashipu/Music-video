@@ -10,22 +10,57 @@
     <!-- End Google Tag Manager -->
 
     <meta charset="UTF-8" />
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#9835;</text></svg>" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Repitela" />
-    <meta name="theme-color" content="#0F0F1A" />
+    <meta name="apple-mobile-web-app-title" content="Repítela" />
+    <meta name="theme-color" content="#07070B" />
     <title>Repitela - La Musica la Pones Tu</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      #splash {
+        position: fixed; inset: 0; z-index: 9999;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 20px; background: #07070B;
+        transition: opacity 0.25s ease;
+      }
+      #splash svg { width: 72px; height: 72px; }
+      #splash span {
+        font-family: Inter, system-ui, sans-serif; font-weight: 700; font-size: 20px;
+        color: #F4F4F6; letter-spacing: 0.02em;
+      }
+      #splash.splash-hidden { opacity: 0; pointer-events: none; }
+    </style>
   </head>
   <body>
     <!-- Google Tag Manager (noscript) -->
     <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-PPVKNTZB"
     height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <!-- End Google Tag Manager (noscript) -->
+
+    <div id="splash" aria-hidden="true">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="-20 -10 208.71 208.71">
+        <defs>
+          <linearGradient id="brand" x1="0" y1="94.36" x2="174.18" y2="94.36" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#fb1014"/>
+            <stop offset=".21" stop-color="#fb1412"/>
+            <stop offset=".45" stop-color="#fb210f"/>
+            <stop offset=".7" stop-color="#fc380a"/>
+            <stop offset=".96" stop-color="#fd5703"/>
+            <stop offset="1" stop-color="#fe5d02"/>
+          </linearGradient>
+        </defs>
+        <path fill="url(#brand)" d="M148.52,22.03C136.86,8.75,119.81,1.39,102.28,0L16,.07c-21.79,3.83-21.23,34.16,1.11,36.28h80.91c36.49,2.23,36.26,54.39-.22,56.37-9.64.52-29.04-3.94-30.09,10.48-.42,5.74,2.79,8.43,6.16,12.44,13.88,16.52,28.36,32.58,42.44,48.96,5.17,6.01,10.28,13,15.68,18.68,2.26,2.37,4.89,4.44,7.99,4.58,7.93.37,17.36.84,26.68.6,5.93-.53,9.01-6.13,6.81-11.52-13.3-18-27.79-35.14-41.59-52.75-.45-.57-2.3-2.83-2.37-3.3-.09-.52.16-.27.34-.38,4.34-2.32,8.14-4.47,11.93-7.64,26-21.75,29.06-65.41,6.74-90.84ZM73.76,147.51c-1.32-1.37-4.81-3.63-6.54-4.9-12.34-9.08-25.1-17.62-37.41-26.74-5.24-2.61-10.9.58-11.41,6.44v58.75c.25,4.47,4.03,8.1,8.59,7.63,3.13-.33,9.35-4.97,12.24-6.86,11.25-7.33,22.26-15.06,33.5-22.4,3.6-2.67,4.13-8.67,1.02-11.9Z"/>
+      </svg>
+      <span>Repítela</span>
+    </div>
 
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
