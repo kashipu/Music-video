@@ -6,6 +6,23 @@ Repítela cobra suscripciones mensuales a los bares pero hoy todo es manual: el 
 
 **Hallazgo clave**: `venue_billing_events` (migración 021) ya está listo para pasarela — `source`, `provider_ref` con índice único (idempotencia de webhook gratis), `raw_payload`, `status`. **No hace falta migración nueva.** El badge "Wompi" y los estados Rechazado/Anulado ya se renderizan en `VenueBillingPanel.vue`.
 
+## Estado actual
+
+**Frontend: completo** (Fase C, D, E3/E4). `AdminSubscription.vue`, `SuperAdminSales.vue`, `SubscriptionGate.vue` (banner de gracia + paywall) construidos y verificados visualmente.
+
+**Backend: mínimo funcional, no la implementación completa del plan.** Se implementó solo lo que el frontend ya construido llama directo, de la forma más corta posible — sin refactor de `billing_service.py` (A1), importando `compute_payment_status`/`get_platform_settings` directo de `superadmin.py` en `billing.py`:
+- `GET /api/admin/billing`, `GET /api/admin/billing/checkout` — `backend/app/routers/billing.py` (nuevo).
+- `GET /api/superadmin/billing/summary` — agregado a `superadmin.py`.
+- Login (`admin_auth.py`) deja entrar a un bar suspendido por deuda (discriminado por `payment_status == 'suspended'`) para que pueda pagar — antes daba 403 sin salida.
+- `wompi_public_key/integrity_secret/events_secret` agregados a `config.py` (vacíos: sin cuenta sandbox todavía, el checkout responde 503 hasta que se configuren).
+- `grace_period_days` puesto en 3 y `monthly_price_cents` en 80.000 COP directo en la DB local, para que el flujo se vea completo.
+
+**Deliberadamente fuera de este alcance mínimo** (el frontend no los necesita para funcionar visualmente; quedan para cuando se pida el resto del plan):
+- A2 (record_event respeta `status`) y A3 (gracia dinámica en `auth_service.py`, sigue hardcodeada en 5).
+- B2: el webhook `POST /api/billing/wompi/webhook` — nadie lo llama sin cuenta Wompi real.
+- E1: el gate real en `get_current_admin` (hoy nada impide que un JWT vivo de un bar suspendido siga usando el resto de `/api/admin/*` — el paywall de `SubscriptionGate.vue` es solo visual todavía, no hay enforcement de backend).
+- Tests (`test_billing.py` extendido, `test_wompi_webhook.py`).
+
 ## Orden de ejecución acordado: frontend primero
 
 Se implementa **primero el frontend completo** (Fase C y D) contra el contrato de API ya definido abajo (endpoints y payloads exactos), para revisar diseño/UX antes de tocar backend. Mientras el backend no exista, las llamadas fetch fallarán en el navegador — se revisa maquetación/flujo con datos de ejemplo hardcodeados temporalmente donde haga falta, y se retiran al conectar el backend real. Solo después de aprobar el frontend se ejecuta Fase A (fixes) y Fase B (Wompi + endpoints), en ese orden, para no romper nada que ya esté validado visualmente.

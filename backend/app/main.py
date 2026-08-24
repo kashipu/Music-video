@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 
 from app.config import settings
 from app.database import init_db, close_db
-from app.routers import auth, queue, admin, admin_auth, playback, websocket, superadmin, test
+from app.routers import auth, queue, admin, admin_auth, playback, websocket, superadmin, billing, test
 
 
 def get_logos_dir():
@@ -91,6 +91,7 @@ app.include_router(admin_auth.router)
 app.include_router(playback.router)
 app.include_router(websocket.router)
 app.include_router(superadmin.router)
+app.include_router(billing.router)
 if settings.app_env == "test":
     app.include_router(test.router)
 

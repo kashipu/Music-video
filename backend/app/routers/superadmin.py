@@ -180,6 +180,33 @@ async def update_settings(req: UpdatePlatformSettingsRequest,
     return settings
 
 
+@router.get("/billing/summary")
+async def billing_summary(admin: dict = Depends(get_current_super_admin)):
+    db = await get_db()
+    months = await db.execute_fetchall(
+        "SELECT strftime('%Y-%m', created_at), SUM(amount_cents), COUNT(*) "
+        "FROM venue_billing_events WHERE kind = 'payment' AND status = 'approved' "
+        "GROUP BY 1 ORDER BY 1 DESC LIMIT 12"
+    )
+    movements = await db.execute_fetchall(
+        "SELECT e.id, e.venue_id, v.name, e.kind, e.source, e.status, e.amount_cents, e.days, "
+        "e.period_start, e.period_end, e.created_at "
+        "FROM venue_billing_events e JOIN venues v ON v.id = e.venue_id "
+        "ORDER BY e.created_at DESC, e.id DESC LIMIT 50"
+    )
+    return {
+        "months": [{"month": m[0], "total_cents": m[1] or 0, "count": m[2]} for m in months],
+        "movements": [
+            {
+                "id": mv[0], "venue_id": mv[1], "venue_name": mv[2], "kind": mv[3], "source": mv[4],
+                "status": mv[5], "amount_cents": mv[6], "days": mv[7],
+                "period_start": mv[8], "period_end": mv[9], "created_at": mv[10],
+            }
+            for mv in movements
+        ],
+    }
+
+
 @router.get("/venues")
 async def list_venues(admin: dict = Depends(get_current_super_admin)):
     db = await get_db()

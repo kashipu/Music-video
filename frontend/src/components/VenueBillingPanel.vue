@@ -93,11 +93,10 @@ const statusBadgeInfo = computed(() => {
 const periodSubtitle = computed(() => {
   const days = billing.value.days_remaining
   if (days == null || isNaN(days)) return 'Sin período registrado'
-  if (days > 1) return `${days} días restantes`
-  if (days === 1) return '1 día restante'
+  if (days > 1) return 'días restantes'
+  if (days === 1) return 'día restante'
   if (days === 0) return 'Vence hoy'
-  const abs = Math.abs(days)
-  return `Vencido hace ${abs} ${abs === 1 ? 'día' : 'días'}`
+  return Math.abs(days) === 1 ? 'día de mora' : 'días de mora'
 })
 
 async function markAsPaid() {
