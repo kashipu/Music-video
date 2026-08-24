@@ -125,9 +125,8 @@ async function handleGoogle(credential) {
         city: city.value || null,
         country: country.value || null,
         terms_version: '2026-08',
-        terms_accepted: accepted.value,
-        privacy_accepted: accepted.value,
-        turnstile_token: turnstileToken.value,
+        terms_accepted: true,
+        privacy_accepted: true,
       }),
     })
     if (!res.ok) throw new Error(await responseError(res))
@@ -141,19 +140,11 @@ async function handleGoogle(credential) {
     error.value = err.message
   } finally {
     loading.value = false
-    resetTurnstile()
   }
 }
 
 async function startGoogleSignup() {
-  if (!accepted.value) {
-    error.value = 'Debes aceptar los términos y el tratamiento de datos'
-    return
-  }
-  if (TURNSTILE_SITE_KEY && !turnstileToken.value) {
-    error.value = 'Completa la verificación anti-bot'
-    return
-  }
+  error.value = ''
   try {
     await startGoogleAuth(credential => handleGoogle(credential))
   } catch (err) {
@@ -311,6 +302,7 @@ onBeforeUnmount(() => {
         </svg>
         Continuar con Google
       </Button>
+      <p class="google-consent">Al continuar con Google, aceptas nuestros <a href="/privacidad" target="_blank" rel="noopener noreferrer">términos y política de tratamiento de datos</a>.</p>
     </form>
   </AuthSplitLayout>
 </template>
@@ -440,6 +432,22 @@ onBeforeUnmount(() => {
 
 .turnstile {
   min-height: 65px;
+}
+
+.google-consent {
+  margin: 0;
+  font-size: 12px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.google-consent a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.google-consent a:hover {
+  text-decoration: underline;
 }
 
 .divider {

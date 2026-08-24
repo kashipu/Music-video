@@ -91,6 +91,12 @@ const routes = [
     component: () => import('../views/ResetPassword.vue'),
   },
   {
+    path: '/admin/onboarding',
+    name: 'admin-onboarding',
+    component: () => import('../views/AdminOnboarding.vue'),
+    meta: { requiresAdmin: true },
+  },
+  {
     path: '/privacidad',
     name: 'privacy-policy',
     component: () => import('../views/PrivacyPolicy.vue'),
@@ -159,6 +165,15 @@ router.beforeEach((to, from, next) => {
     if (venueSlug && auth.adminInfo?.venue_slug && auth.adminInfo.venue_slug !== venueSlug) {
       auth.adminLogout()
       next({ name: 'admin-login', params: { venueSlug } })
+      return
+    }
+    const needsOnboarding = auth.adminInfo?.onboarding_completed_at == null
+    if (needsOnboarding && to.name !== 'admin-onboarding') {
+      next({ name: 'admin-onboarding' })
+      return
+    }
+    if (!needsOnboarding && to.name === 'admin-onboarding') {
+      next({ name: 'admin', params: { venueSlug: auth.adminInfo?.venue_slug } })
       return
     }
   }

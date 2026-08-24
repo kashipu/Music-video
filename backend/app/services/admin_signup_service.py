@@ -81,7 +81,8 @@ async def create_admin_with_trial(venue_name: str, email: str, password: str,
         source="self-signup",
     )
     return {"id": admin.lastrowid, "username": email, "venue_id": venue.lastrowid,
-            "venue_name": venue_name, "venue_slug": slug, "paid_until": paid_until}
+            "venue_name": venue_name, "venue_slug": slug, "paid_until": paid_until,
+            "onboarding_completed_at": None}
 
 
 async def create_email_token(admin_id: int, purpose: str) -> str:
@@ -170,7 +171,7 @@ async def google_signup(token: str, venue_name: str | None, terms_version: str,
     info = await verify_google_token(token)
     db = await get_db()
     rows = await db.execute_fetchall(
-        "SELECT a.id, a.username, a.venue_id, v.name, v.slug, v.logo_url, v.qr_url, v.config "
+        "SELECT a.id, a.username, a.venue_id, v.name, v.slug, v.logo_url, v.qr_url, v.config, a.onboarding_completed_at "
         "FROM admins a JOIN venues v ON a.venue_id = v.id "
         "WHERE a.google_sub = ? OR a.email = ? OR a.username = ? LIMIT 1",
         (info["sub"], info["email"].lower(), info["email"].lower()),
@@ -182,9 +183,10 @@ async def google_signup(token: str, venue_name: str | None, terms_version: str,
         return {"token": auth_service.create_admin_token(admin[0], admin[1], admin[2]), "admin": {
             "id": admin[0], "username": admin[1], "venue_id": admin[2], "venue_name": admin[3],
             "venue_slug": admin[4], "logo_url": admin[5], "qr_url": admin[6], "config": admin[7],
+            "onboarding_completed_at": admin[8],
         }}
     if not venue_name:
-        raise ValueError("VENUE_NAME_REQUIRED")
+        venue_name = f"Bar de {info['email'].split('@')[0]}"
     admin = await create_admin_with_trial(
         venue_name, info["email"], secrets.token_urlsafe(32), terms_version,
         phone, address, city, country, info["sub"], True,

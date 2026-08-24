@@ -160,7 +160,6 @@ async def google_signup(req: GoogleSignupRequest, _: None = Depends(limit_auth_a
     except ValueError as exc:
         messages = {
             "GOOGLE_NOT_CONFIGURED": (503, "Google Sign-In no esta configurado"),
-            "VENUE_NAME_REQUIRED": (422, "El nombre del bar es requerido"),
         }
         status, detail = messages.get(str(exc), (401, "Token de Google invalido"))
         raise HTTPException(status_code=status, detail=detail)

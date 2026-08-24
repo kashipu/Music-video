@@ -181,7 +181,7 @@ def decode_token(token: str) -> dict:
 async def verify_admin(username: str, password: str) -> dict | None:
     db = await get_db()
     rows = await db.execute_fetchall(
-        "SELECT a.id, a.username, a.password_hash, a.venue_id, v.name, v.slug, v.logo_url, v.qr_url, v.config "
+        "SELECT a.id, a.username, a.password_hash, a.venue_id, v.name, v.slug, v.logo_url, v.qr_url, v.config, a.onboarding_completed_at "
         "FROM admins a JOIN venues v ON a.venue_id = v.id "
         "WHERE a.username = ?",
         (username,),
@@ -204,6 +204,7 @@ async def verify_admin(username: str, password: str) -> dict | None:
         "logo_url": admin[6],
         "qr_url": admin[7],
         "config": admin[8],
+        "onboarding_completed_at": admin[9],
     }
 
 

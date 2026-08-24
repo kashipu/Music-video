@@ -1,4 +1,7 @@
+from typing import Literal
+
 from fastapi import APIRouter, HTTPException, Depends, Header, Query
+from pydantic import BaseModel, Field
 
 from app.models.schemas import AdminSongAddRequest, AdminReorderRequest
 from app.services import auth_service, playback_service, analytics_service, youtube_service, queue_service
@@ -6,6 +9,16 @@ from app.routers.websocket import manager
 from app.database import get_db
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+
+
+class OnboardingRequest(BaseModel):
+    full_name: str = Field(min_length=2, max_length=100)
+    phone: str = Field(min_length=7, max_length=30)
+    role: Literal["owner", "manager"]
+    venue_name: str = Field(min_length=2, max_length=100)
+    venue_address: str = Field(min_length=3, max_length=255)
+    venue_type: Literal["discoteca", "rock", "musica_popular", "otro"]
+    venue_type_other: str | None = Field(default=None, max_length=100)
 
 
 async def get_current_admin(authorization: str = Header(...)) -> dict:
@@ -19,6 +32,26 @@ async def get_current_admin(authorization: str = Header(...)) -> dict:
     if not payload.get("is_admin"):
         raise HTTPException(status_code=403, detail="Acceso de administrador requerido")
     return payload
+
+
+@router.post("/onboarding")
+async def complete_onboarding(req: OnboardingRequest, admin: dict = Depends(get_current_admin)):
+    venue_type_other = (req.venue_type_other or "").strip()
+    if req.venue_type == "otro" and not venue_type_other:
+        raise HTTPException(status_code=422, detail="Describe la tematica del local")
+
+    db = await get_db()
+    await db.execute(
+        "UPDATE admins SET full_name = ?, phone = ?, role = ?, onboarding_completed_at = CURRENT_TIMESTAMP "
+        "WHERE id = ? AND venue_id = ?",
+        (req.full_name.strip(), req.phone.strip(), req.role, admin["admin_id"], admin["venue_id"]),
+    )
+    await db.execute(
+        "UPDATE venues SET name = ?, address = ?, venue_type = ?, venue_type_other = ? WHERE id = ?",
+        (req.venue_name.strip(), req.venue_address.strip(), req.venue_type, venue_type_other or None, admin["venue_id"]),
+    )
+    await db.commit()
+    return {"message": "Onboarding completado"}
 
 
 @router.get("/queue")
