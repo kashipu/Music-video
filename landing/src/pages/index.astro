@@ -12,6 +12,15 @@ import CTAFinal from "@/components/CTAFinal.astro";
 import Footer from "@/components/Footer.astro";
 import FloatingWhatsApp from "@/components/FloatingWhatsApp.astro";
 
+const faqs = [
+  { q: "¿Necesito comprar pantallas o equipos especiales para mi bar?", a: "No. Puedes usar cualquier Smart TV con navegador web integrado, un televisor conectado por HDMI a un computador portátil, o un dispositivo como Fire TV Stick, Xiaomi Stick o Chromecast. Solo necesitas conexión a internet." },
+  { q: "¿Mis clientes tienen que descargar alguna aplicación en su celular?", a: "No. Todo funciona desde el navegador web móvil (Safari, Chrome, etc.). El cliente escanea el código QR de su mesa y accede de inmediato. No requiere descargar apps pesadas ni ingresar tarjetas de crédito." },
+  { q: "¿Qué pasa si un cliente pide una canción inapropiada para el bar?", a: "Tú y tu equipo tienen control absoluto desde el panel de administración en tu celular o PC. Con un solo toque puedes saltar la canción, eliminarla, pausar o reorganizar el orden de la cola con arrastrar y soltar." },
+  { q: "¿Qué sucede si nadie pide música durante unos minutos?", a: "Repítela incluye una Playlist de Respaldo automática. Cuando la cola se vacía, el sistema reproduce sin interrupciones tu lista musical precargada en YouTube para que tu bar nunca se quede en silencio." },
+  { q: "¿Cómo obtengo los códigos QR para las mesas?", a: "Desde el panel de administración puedes generar y descargar un PDF listo para imprimir en alta resolución con el logo, nombre y colores de tu bar para colocar en stickers, individuales o cartas." },
+  { q: "¿Cómo se realiza el pago de la suscripción mensual?", a: "El costo es de $50.000 COP al mes. Puedes pagar a través de Nequi, Daviplata, transferencia Bancolombia o tarjeta de crédito. No hay contratos de permanencia ni cobros automáticos obligatorios." },
+];
+
 const jsonLd = {
   "@context": "https://schema.org",
   "@graph": [
@@ -41,6 +50,18 @@ const jsonLd = {
       publisher: { "@id": "https://repitela.com/#organization" },
     },
     {
+      "@type": "BreadcrumbList",
+      "@id": "https://repitela.com/#breadcrumb",
+      itemListElement: [
+        {
+          "@type": "ListItem",
+          position: 1,
+          name: "Inicio",
+          item: "https://repitela.com/",
+        },
+      ],
+    },
+    {
       "@type": "SoftwareApplication",
       "@id": "https://repitela.com/#software",
       name: "Repítela",
@@ -68,6 +89,7 @@ const jsonLd = {
         price: "50000",
         priceCurrency: "COP",
         availability: "https://schema.org/InStock",
+        priceValidUntil: "2027-12-31",
         areaServed: { "@type": "Country", name: "Colombia" },
         priceSpecification: {
           "@type": "UnitPriceSpecification",
@@ -77,6 +99,18 @@ const jsonLd = {
           unitText: "mes",
         },
       },
+    },
+    {
+      "@type": "FAQPage",
+      "@id": "https://repitela.com/#faq",
+      mainEntity: faqs.map(({ q, a }) => ({
+        "@type": "Question",
+        name: q,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: a,
+        },
+      })),
     },
   ],
 };
