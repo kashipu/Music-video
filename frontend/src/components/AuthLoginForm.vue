@@ -1,6 +1,7 @@
 <script setup>
 import Button from './ui/Button.vue'
 import Input from './ui/Input.vue'
+import VenueLogo from './VenueLogo.vue'
 import { useTheme } from '../composables/useTheme.js'
 import logoPositive from '../assets/logo-color-positivo.svg'
 import logoNegative from '../assets/logo-color-negativo.svg'
@@ -26,7 +27,7 @@ const { currentMode } = useTheme()
 
 <template>
   <header class="login-header">
-    <img
+    <VenueLogo
       v-if="logoUrl"
       :src="logoUrl"
       :alt="title"

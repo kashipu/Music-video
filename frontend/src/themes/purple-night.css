@@ -1,0 +1,147 @@
+/* ==========================================================================
+   TEMA NOCHE MORADA
+   Paleta: violeta eléctrico #6C5CE7 · lavanda #A29BFE · oscuro #0F0F1A
+   Se activa por bar con data-venue-theme="purple-night" (ver useTheme.js).
+   Contrastes verificados contra WCAG: texto ≥4.5:1, bordes/controles ≥3:1.
+   ========================================================================== */
+
+/* TEMA CLARO */
+[data-venue-theme="purple-night"],
+[data-venue-theme="purple-night"][data-theme="light"] {
+  color-scheme: light;
+
+  /* Fondos y superficies */
+  --color-background: #f4f3fa;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #eae8f5;
+  --color-border: #7c77a8;
+
+  /* Textos */
+  --color-text: #161426;
+  --color-text-muted: #565275;
+
+  /* Acciones de marca */
+  --color-primary: #5644d6;
+  --color-on-primary: #ffffff;
+  --color-primary-hover: #4736b8;
+
+  --color-secondary: #0369a1;
+  --color-on-secondary: #ffffff;
+  --color-secondary-hover: #075985;
+
+  --color-accent: #7e22ce;
+  --color-on-accent: #ffffff;
+
+  /* Estados semánticos */
+  --color-success: #0f766e;
+  --color-on-success: #ffffff;
+
+  --color-warning: #854d0e;
+  --color-on-warning: #ffffff;
+
+  --color-error: #b91c1c;
+  --color-on-error: #ffffff;
+
+  --color-info: #0369a1;
+  --color-on-info: #ffffff;
+
+  /* Interacción */
+  --color-link: #5644d6;
+  --color-focus: #5644d6;
+  --color-disabled: #9d98ba;
+
+  /* Fondos suaves de estado (derivados de los tokens de arriba) */
+  --primary-soft: rgba(86, 68, 214, 0.10);
+  --secondary-soft: rgba(3, 105, 161, 0.10);
+  --accent-soft: rgba(126, 34, 206, 0.10);
+  --success-soft: rgba(15, 118, 110, 0.10);
+  --warning-soft: rgba(133, 77, 14, 0.10);
+  --danger-soft: rgba(185, 28, 28, 0.10);
+  --border-soft: rgba(22, 20, 38, 0.10);
+  --shadow: rgba(22, 20, 38, 0.08);
+  --shadow-glow-primary: 0 0 30px rgba(86, 68, 214, 0.20);
+}
+
+/* TEMA OSCURO */
+[data-venue-theme="purple-night"][data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Fondos y superficies */
+  --color-background: #0f0f1a;
+  --color-surface: #181729;
+  --color-surface-elevated: #23223b;
+  --color-border: #6b6799;
+
+  /* Textos */
+  --color-text: #f1f0fb;
+  --color-text-muted: #aba7cf;
+
+  /* Acciones de marca */
+  --color-primary: #8b7ef8;
+  --color-on-primary: #0f0f1a;
+  --color-primary-hover: #a095fa;
+
+  --color-secondary: #38bdf8;
+  --color-on-secondary: #081721;
+  --color-secondary-hover: #60a5fa;
+
+  --color-accent: #c084fc;
+  --color-on-accent: #160924;
+
+  /* Estados semánticos */
+  --color-success: #34d399;
+  --color-on-success: #081a12;
+
+  --color-warning: #fbbf24;
+  --color-on-warning: #1c1404;
+
+  --color-error: #f87171;
+  --color-on-error: #1c0808;
+
+  --color-info: #38bdf8;
+  --color-on-info: #081721;
+
+  /* Interacción */
+  --color-link: #8b7ef8;
+  --color-focus: #8b7ef8;
+  --color-disabled: #4b476b;
+
+  /* Fondos suaves de estado (derivados de los tokens de arriba) */
+  --primary-soft: rgba(139, 126, 248, 0.16);
+  --secondary-soft: rgba(56, 189, 248, 0.16);
+  --accent-soft: rgba(192, 132, 252, 0.16);
+  --success-soft: rgba(52, 211, 153, 0.16);
+  --warning-soft: rgba(251, 191, 36, 0.16);
+  --danger-soft: rgba(248, 113, 113, 0.16);
+  --border-soft: rgba(241, 240, 251, 0.12);
+  --shadow: rgba(0, 0, 0, 0.5);
+  --shadow-glow-primary: 0 0 30px rgba(139, 126, 248, 0.25), 0 0 60px rgba(139, 126, 248, 0.1);
+}
+
+/* --------------------------------------------------------------------------
+   MAPEO a los nombres que consumen los componentes (--bg, --primary, ...).
+   Los tokens --color-* de arriba son la fuente de verdad; esto solo los
+   conecta con las ~900 referencias que ya existen en la app, en vez de
+   renombrarlas todas.
+   -------------------------------------------------------------------------- */
+[data-venue-theme="purple-night"] {
+  --bg: var(--color-background);
+  --bg-card: var(--color-surface);
+  --bg-elevated: var(--color-surface-elevated);
+  --border: var(--color-border);
+
+  --text: var(--color-text);
+  --text-muted: var(--color-text-muted);
+
+  --primary: var(--color-primary);
+  --primary-dark: var(--color-primary-hover);
+  --primary-foreground: var(--color-on-primary);
+  --text-on-primary: var(--color-on-primary);
+
+  --secondary: var(--color-secondary);
+  --accent: var(--color-accent);
+
+  --success: var(--color-success);
+  --warning: var(--color-warning);
+  --danger: var(--color-error);
+}
