@@ -1,803 +1,318 @@
-# API Reference - BarQueue
+# API Reference - Repitela.com
 
-Base URL: `https://{domain}/api`
-
-Todas las respuestas son JSON. Los errores siguen el formato:
-
-```json
-{
-  "detail": "Descripción del error",
-  "code": "ERROR_CODE"
-}
-```
-
-## Autenticación
-
-Los endpoints protegidos requieren el header:
-
-```
-Authorization: Bearer <jwt_token>
-```
-
-Los endpoints de admin requieren un token de admin (obtenido vía `/api/admin/login`).
+Base URL en producción: `https://{domain}/api`  
+Base URL en desarrollo: `http://localhost:8000/api`
 
 ---
 
-## Auth / Registro
+## 1. Índice General de Módulos y Endpoints
 
-### `POST /api/auth/register`
+El backend expone **88 endpoints HTTP** (85 en routers principales + 2 en `main.py` + 1 en `test.py` para entorno de pruebas) y **1 endpoint de WebSocket** (`/ws/queue`), para un total de **89 rutas registradas**.
 
-Registra un usuario y crea una sesión. Es el primer paso después de escanear el QR.
-
-**Body:**
-
-```json
-{
-  "phone": "+573001234567",
-  "table_number": "5",
-  "venue_slug": "bar-la-esquina",
-  "data_consent": true
-}
 ```
-
-**Response 201:**
-
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIs...",
-  "user": {
-    "id": 42,
-    "phone": "+573001234567",
-    "display_name": null
-  },
-  "session": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "table_number": "5",
-    "venue_slug": "bar-la-esquina"
-  }
-}
-```
-
-**Errores:**
-
-| Status | Code | Descripción |
-|--------|------|-------------|
-| 400 | `CONSENT_REQUIRED` | `data_consent` debe ser `true` |
-| 404 | `VENUE_NOT_FOUND` | El `venue_slug` no existe |
-| 422 | `INVALID_PHONE` | Formato de teléfono inválido |
-
-**Notas:**
-- Si el teléfono ya existe en `users`, se reutiliza el usuario existente
-- Se crea una nueva `user_session` en cada registro
-- El JWT expira en 24 horas
-
----
-
-### `GET /api/auth/session`
-
-Retorna información de la sesión actual.
-
-**Auth:** Bearer token requerido
-
-**Response 200:**
-
-```json
-{
-  "user": {
-    "id": 42,
-    "phone": "+573001234567",
-    "display_name": "Carlos"
-  },
-  "session": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "table_number": "5",
-    "venue_slug": "bar-la-esquina",
-    "started_at": "2026-03-24T21:00:00Z"
-  },
-  "rate_limit": {
-    "songs_remaining": 3,
-    "window_resets_at": "2026-03-24T21:30:00Z"
-  }
-}
+ÍNDICE DE ROUTERS:
+├── 1. Auth Router (auth.py)                   :  4 endpoints HTTP
+├── 2. Admin Auth Router (admin_auth.py)       :  7 endpoints HTTP
+├── 3. Admin Operations Router (admin.py)      : 29 endpoints HTTP
+├── 4. Queue Router (queue.py)                 :  9 endpoints HTTP
+├── 5. Playback Router (playback.py)           :  4 endpoints HTTP
+├── 6. SuperAdmin Router (superadmin.py)       : 29 endpoints HTTP
+├── 7. Billing & Webhook Router (billing.py)   :  3 endpoints HTTP
+├── 8. Main & System Routes (main.py)          :  2 endpoints HTTP
+├── 9. Test Environment Router (test.py)       :  1 endpoint HTTP (APP_ENV=test)
+└── 10. WebSocket Endpoint (websocket.py)      :  1 endpoint WS (/ws/queue) + 17 eventos
 ```
 
 ---
 
-### `PATCH /api/auth/profile`
+## 2. Convenciones de Errores y Seguridad
 
-Actualiza el nombre del usuario.
-
-**Auth:** Bearer token requerido
-
-**Body:**
+### Formato de Errores
+Todas las respuestas de error siguen el estándar nativo de **FastAPI / Starlette** con cuerpo JSON:
 
 ```json
 {
-  "display_name": "Carlos"
+  "detail": "Descripción del error en lenguaje natural"
 }
 ```
 
-**Response 200:**
+Para errores de validación de esquema Pydantic (HTTP 422), `detail` es una lista de objetos describiendo la regla violada:
 
 ```json
 {
-  "id": 42,
-  "phone": "+573001234567",
-  "display_name": "Carlos"
-}
-```
-
----
-
-## Cola de Canciones (Cliente)
-
-### `GET /api/queue`
-
-Retorna la cola actual del venue. **No requiere autenticación.**
-
-**Query params:**
-
-| Param | Tipo | Descripción |
-|-------|------|-------------|
-| `venue` | string | Slug del venue (requerido) |
-
-**Response 200:**
-
-```json
-{
-  "now_playing": {
-    "id": 101,
-    "youtube_id": "dQw4w9WgXcQ",
-    "title": "Rick Astley - Never Gonna Give You Up",
-    "thumbnail_url": "https://i.ytimg.com/vi/dQw4w9WgXcQ/mqdefault.jpg",
-    "duration_sec": 213,
-    "added_by": "Carlos",
-    "table_number": "5",
-    "playing_since": "2026-03-24T21:15:00Z"
-  },
-  "queue": [
+  "detail": [
     {
-      "id": 102,
-      "position": 2,
-      "youtube_id": "kJQP7kiw5Fk",
-      "title": "Luis Fonsi - Despacito",
-      "thumbnail_url": "https://i.ytimg.com/vi/kJQP7kiw5Fk/mqdefault.jpg",
-      "duration_sec": 282,
-      "added_by": "María",
-      "table_number": "3",
-      "added_at": "2026-03-24T21:14:00Z",
-      "estimated_wait_sec": 180
+      "loc": ["body", "phone"],
+      "msg": "field required",
+      "type": "value_error.missing"
     }
-  ],
-  "total_in_queue": 5,
-  "fallback_active": false
-}
-```
-
----
-
-### `POST /api/queue/songs`
-
-Envía una URL de YouTube para validación. Retorna preview de la canción.
-
-**Auth:** Bearer token requerido
-
-**Body:**
-
-```json
-{
-  "youtube_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-}
-```
-
-**Response 200:**
-
-```json
-{
-  "youtube_id": "dQw4w9WgXcQ",
-  "title": "Rick Astley - Never Gonna Give You Up",
-  "thumbnail_url": "https://i.ytimg.com/vi/dQw4w9WgXcQ/mqdefault.jpg",
-  "duration_sec": 213,
-  "duration_formatted": "3:33",
-  "valid": true,
-  "recently_played_by_user": false,
-  "recently_played_minutes_ago": null
-}
-```
-
-**Errores:**
-
-| Status | Code | Descripción |
-|--------|------|-------------|
-| 400 | `INVALID_URL` | URL no es de YouTube o formato incorrecto |
-| 400 | `VIDEO_NOT_FOUND` | El video no existe o no está disponible |
-| 400 | `VIDEO_NOT_EMBEDDABLE` | El video no permite ser embebido |
-| 400 | `DURATION_EXCEEDED` | La canción supera el límite de duración |
-| 409 | `ALREADY_IN_QUEUE` | La canción ya está en la cola activa |
-| 429 | `RATE_LIMIT_EXCEEDED` | Se alcanzó el límite de 5 canciones en 30 min |
-
-**Nota:** Este endpoint NO encola la canción. Solo valida y retorna preview.
-
----
-
-### `POST /api/queue/songs/confirm`
-
-Confirma y encola una canción previamente validada.
-
-**Auth:** Bearer token requerido
-
-**Body:**
-
-```json
-{
-  "youtube_id": "dQw4w9WgXcQ"
-}
-```
-
-**Response 201:**
-
-```json
-{
-  "id": 103,
-  "youtube_id": "dQw4w9WgXcQ",
-  "title": "Rick Astley - Never Gonna Give You Up",
-  "position": 6,
-  "estimated_wait_sec": 900,
-  "songs_remaining": 2,
-  "window_resets_at": "2026-03-24T21:45:00Z"
-}
-```
-
-**Errores:**
-
-| Status | Code | Descripción |
-|--------|------|-------------|
-| 409 | `ALREADY_IN_QUEUE` | La canción fue encolada entre el preview y la confirmación |
-| 429 | `RATE_LIMIT_EXCEEDED` | Rate limit alcanzado |
-
----
-
-### `GET /api/queue/my-songs`
-
-Canciones del usuario en la sesión actual.
-
-**Auth:** Bearer token requerido
-
-**Response 200:**
-
-```json
-{
-  "songs": [
-    {
-      "id": 103,
-      "youtube_id": "dQw4w9WgXcQ",
-      "title": "Rick Astley - Never Gonna Give You Up",
-      "position": 6,
-      "status": "pending",
-      "added_at": "2026-03-24T21:16:00Z"
-    }
-  ],
-  "rate_limit": {
-    "songs_remaining": 2,
-    "window_resets_at": "2026-03-24T21:45:00Z"
-  }
-}
-```
-
----
-
-### `GET /api/queue/recent-history`
-
-Canciones que el usuario pidió en las últimas 2 horas (para evitar repeticiones).
-
-**Auth:** Bearer token requerido
-
-**Response 200:**
-
-```json
-{
-  "recent_songs": [
-    {
-      "youtube_id": "dQw4w9WgXcQ",
-      "title": "Rick Astley - Never Gonna Give You Up",
-      "thumbnail_url": "https://i.ytimg.com/vi/dQw4w9WgXcQ/mqdefault.jpg",
-      "status": "played",
-      "added_at": "2026-03-24T20:30:00Z",
-      "minutes_ago": 45
-    },
-    {
-      "youtube_id": "kJQP7kiw5Fk",
-      "title": "Luis Fonsi - Despacito",
-      "thumbnail_url": "https://i.ytimg.com/vi/kJQP7kiw5Fk/mqdefault.jpg",
-      "status": "pending",
-      "added_at": "2026-03-24T21:03:00Z",
-      "minutes_ago": 12
-    }
-  ],
-  "window_hours": 2
-}
-```
-
----
-
-### `GET /api/queue/remaining-slots`
-
-Cuántas canciones puede agregar el usuario en la ventana actual.
-
-**Auth:** Bearer token requerido
-
-**Response 200:**
-
-```json
-{
-  "songs_remaining": 3,
-  "max_songs": 5,
-  "window_minutes": 30,
-  "window_resets_at": "2026-03-24T21:45:00Z",
-  "recent_submissions": 2
-}
-```
-
----
-
-## Administración
-
-### `POST /api/admin/login`
-
-Login de administrador.
-
-**Body:**
-
-```json
-{
-  "username": "admin_bar",
-  "password": "secure_password"
-}
-```
-
-**Response 200:**
-
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIs...",
-  "admin": {
-    "id": 1,
-    "username": "admin_bar",
-    "venue_id": 1,
-    "venue_name": "Bar La Esquina"
-  }
-}
-```
-
----
-
-### `GET /api/admin/queue`
-
-Cola completa con detalles de administración.
-
-**Auth:** Admin token requerido
-
-**Response 200:**
-
-```json
-{
-  "now_playing": {
-    "id": 101,
-    "youtube_id": "dQw4w9WgXcQ",
-    "title": "Rick Astley - Never Gonna Give You Up",
-    "user_phone": "+573001234567",
-    "user_name": "Carlos",
-    "table_number": "5",
-    "added_at": "2026-03-24T21:10:00Z",
-    "playing_since": "2026-03-24T21:15:00Z"
-  },
-  "queue": [
-    {
-      "id": 102,
-      "position": 2,
-      "youtube_id": "kJQP7kiw5Fk",
-      "title": "Luis Fonsi - Despacito",
-      "user_phone": "+573009876543",
-      "user_name": "María",
-      "table_number": "3",
-      "added_at": "2026-03-24T21:14:00Z",
-      "duration_sec": 282
-    }
-  ],
-  "total_in_queue": 5,
-  "playback_status": "playing"
-}
-```
-
----
-
-### `DELETE /api/admin/queue/songs/{song_id}`
-
-Remueve una canción de la cola.
-
-**Auth:** Admin token requerido
-
-**Response 200:**
-
-```json
-{
-  "message": "Canción removida",
-  "song_id": 102
-}
-```
-
----
-
-### `PATCH /api/admin/queue/songs/{song_id}`
-
-Reordena una canción en la cola.
-
-**Auth:** Admin token requerido
-
-**Body:**
-
-```json
-{
-  "position": 2
-}
-```
-
-**Response 200:**
-
-```json
-{
-  "message": "Canción reordenada",
-  "song_id": 102,
-  "new_position": 2
-}
-```
-
----
-
-### `POST /api/admin/queue/songs`
-
-El admin agrega una canción directamente (sin rate limit).
-
-**Auth:** Admin token requerido
-
-**Body:**
-
-```json
-{
-  "youtube_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-}
-```
-
-**Response 201:**
-
-```json
-{
-  "id": 110,
-  "youtube_id": "dQw4w9WgXcQ",
-  "title": "Rick Astley - Never Gonna Give You Up",
-  "position": 7,
-  "added_by": "admin"
-}
-```
-
----
-
-### `POST /api/admin/queue/skip`
-
-Salta la canción actual y avanza a la siguiente.
-
-**Auth:** Admin token requerido
-
-**Response 200:**
-
-```json
-{
-  "message": "Canción saltada",
-  "skipped": {
-    "id": 101,
-    "title": "Rick Astley - Never Gonna Give You Up"
-  },
-  "now_playing": {
-    "id": 102,
-    "title": "Luis Fonsi - Despacito"
-  }
-}
-```
-
----
-
-### `POST /api/admin/playback/pause`
-
-Pausa la reproducción en el kiosco.
-
-**Auth:** Admin token requerido
-
-**Response 200:**
-
-```json
-{
-  "playback_status": "paused"
-}
-```
-
----
-
-### `POST /api/admin/playback/resume`
-
-Reanuda la reproducción.
-
-**Auth:** Admin token requerido
-
-**Response 200:**
-
-```json
-{
-  "playback_status": "playing"
-}
-```
-
----
-
-### `GET /api/admin/history`
-
-Historial de canciones pedidas.
-
-**Auth:** Admin token requerido
-
-**Query params:**
-
-| Param | Tipo | Default | Descripción |
-|-------|------|---------|-------------|
-| `page` | int | 1 | Página |
-| `per_page` | int | 50 | Resultados por página |
-| `date_from` | string | - | Fecha inicio (ISO 8601) |
-| `date_to` | string | - | Fecha fin (ISO 8601) |
-
-**Response 200:**
-
-```json
-{
-  "history": [
-    {
-      "id": 1,
-      "youtube_id": "dQw4w9WgXcQ",
-      "title": "Rick Astley - Never Gonna Give You Up",
-      "user_name": "Carlos",
-      "user_phone": "+573001234567",
-      "table_number": "5",
-      "played_at": "2026-03-24T21:15:00Z",
-      "duration_sec": 213
-    }
-  ],
-  "pagination": {
-    "page": 1,
-    "per_page": 50,
-    "total": 234,
-    "total_pages": 5
-  }
-}
-```
-
----
-
-### `GET /api/admin/analytics`
-
-Estadísticas y data mining.
-
-**Auth:** Admin token requerido
-
-**Query params:**
-
-| Param | Tipo | Default | Descripción |
-|-------|------|---------|-------------|
-| `period` | string | `week` | `day`, `week`, `month`, `all` |
-
-**Response 200:**
-
-```json
-{
-  "period": "week",
-  "summary": {
-    "total_songs_played": 342,
-    "unique_users": 87,
-    "unique_songs": 198,
-    "avg_queue_length": 4.2,
-    "avg_wait_time_sec": 540
-  },
-  "top_songs": [
-    {
-      "youtube_id": "kJQP7kiw5Fk",
-      "title": "Luis Fonsi - Despacito",
-      "times_played": 12
-    }
-  ],
-  "peak_hours": [
-    { "hour": "22", "requests": 45 },
-    { "hour": "23", "requests": 38 },
-    { "hour": "21", "requests": 32 }
-  ],
-  "top_tables": [
-    { "table_number": "5", "total_songs": 28 },
-    { "table_number": "3", "total_songs": 22 }
   ]
 }
 ```
 
----
+> [!IMPORTANT]
+> **Contrato Real de Errores y Códigos de Máquina:**
+> En el backend **no existe** ninguna propiedad `"code"` dentro del cuerpo JSON de respuesta. Los códigos de error estructurados para consumo de clientes se transmiten exclusivamente mediante el header HTTP de respuesta:
+> 
+> ```http
+> X-Error-Code: <ERROR_CODE>
+> ```
+>
+> **Inconsistencia de Arquitectura:** El header `X-Error-Code` está implementado actualmente de forma exclusiva en los routers `auth.py` y `queue.py` (y `queue_service.py`). Los routers `admin.py`, `admin_auth.py`, `superadmin.py`, `playback.py`, `billing.py` y `main.py` devuelven únicamente el cuerpo `{"detail": "..."}` con el status HTTP correspondiente, sin incluir el header `X-Error-Code`.
 
-## Playback (Kiosco)
+### Tabla de Códigos `X-Error-Code` Soportados
 
-### `GET /api/playback/now-playing`
-
-Retorna la canción que debe reproducirse.
-
-**Query params:**
-
-| Param | Tipo | Descripción |
-|-------|------|-------------|
-| `venue` | string | Slug del venue (requerido) |
-
-**Response 200:**
-
-```json
-{
-  "song": {
-    "id": 101,
-    "youtube_id": "dQw4w9WgXcQ",
-    "title": "Rick Astley - Never Gonna Give You Up",
-    "duration_sec": 213
-  },
-  "playback_status": "playing",
-  "fallback_active": false,
-  "next_in_queue": {
-    "title": "Luis Fonsi - Despacito",
-    "added_by": "María"
-  }
-}
-```
-
-**Response 200 (cola vacía, fallback activo):**
-
-```json
-{
-  "song": null,
-  "playback_status": "playing",
-  "fallback_active": true,
-  "fallback_mode": "playlist",
-  "fallback_playlist": ["video_id_1", "video_id_2", "video_id_3"]
-}
-```
+| Código en Header `X-Error-Code` | Status HTTP | Router | Descripción |
+|---------------------------------|-------------|--------|-------------|
+| `CONSENT_REQUIRED` | 400 | [auth.py:37](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/auth.py#L37) | El usuario no aceptó el tratamiento de datos (`data_consent=false`). |
+| `INVALID_PHONE` | 422 | [auth.py:41](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/auth.py#L41) | El teléfono no cumple la longitud mínima (8 caracteres). |
+| `PIN_REQUIRED` | 400 | [auth.py:55](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/auth.py#L55) | El venue exige PIN diario y la petición no lo incluyó. |
+| `PIN_INVALID` | 403 | [auth.py:61](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/auth.py#L61) | El PIN ingresado no coincide con el PIN activo del día. |
+| `VENUE_NOT_FOUND` | 404 | [auth.py:74](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/auth.py#L74) | El slug del venue no existe en la base de datos. |
+| `INVALID_URL` | 400 | [queue.py:64](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/queue.py#L64) | La URL de YouTube no coincide con los patrones válidos. |
+| `RATE_LIMIT_EXCEEDED` | 429 | [queue.py:73,147](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/queue.py#L73) | El usuario excedió el límite de canciones en la ventana temporal. |
+| `ALREADY_IN_QUEUE` | 409 | [queue.py:78,152](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/queue.py#L78) | La canción ya se encuentra en cola (`pending` o `playing`). |
+| `VIDEO_NOT_FOUND` | 404 | [queue.py:84](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/queue.py#L84) | YouTube oEmbed / Data API no encontró el video. |
+| `VIDEO_NOT_EMBEDDABLE` | 400 | [queue.py:88](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/queue.py#L88) | El video tiene restricciones de reproducción externa/embebido. |
+| `VIDEO_BLOCKED` | 400 | [queue.py:101,165](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/queue.py#L101) | El video está en la lista negra `blocked_videos` del local. |
+| `DURATION_EXCEEDED` | 400 | [queue.py:114,194](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/queue.py#L114) | La duración supera `max_duration_sec` configurado en el venue. |
 
 ---
 
-### `POST /api/playback/finished`
+## 3. Autenticación y Tipos de Token
 
-El kiosco notifica que la canción actual terminó.
-
-**Body:**
-
-```json
-{
-  "song_id": 101,
-  "venue_slug": "bar-la-esquina"
-}
+Los endpoints protegidos requieren el header:
+```http
+Authorization: Bearer <jwt_token>
 ```
 
-**Response 200:**
+Existen 3 tipos de tokens emitidos con JWT HS256:
+1. **Cliente Final (Customer JWT):** Expira en 24h. Payload: `{"user_id": int, "session_id": str, "venue_id": int}`. Se invalida por inactividad (>120 min).
+2. **Administrador de Bar (Admin JWT):** Expira en 8h. Payload: `{"admin_id": int, "username": str, "venue_id": int, "is_admin": true}`.
+3. **SuperAdmin JWT:** Expira en 8h. Payload: `{"user_id": int, "username": str, "is_super_admin": true, "role": "super_admin" | "vendedor" | "editor"}`.
 
-```json
-{
-  "next_song": {
-    "id": 102,
-    "youtube_id": "kJQP7kiw5Fk",
-    "title": "Luis Fonsi - Despacito"
-  },
-  "fallback_active": false
-}
+---
+
+## 4. Documentación Detallada de Todos los Endpoints
+
+---
+
+### 4.1. Auth Router (`/api/auth`) — 4 Endpoints
+
+Módulo: [backend/app/routers/auth.py](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/auth.py)
+
+| Método y Ruta | Auth Requerida | Parámetros / Cuerpo | Respuesta Exitosa | Errores / Headers |
+|---|---|---|---|---|
+| `POST /api/auth/register`<br>([auth.py:35](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/auth.py#L35)) | Pública | **Body (JSON):**<br>• `phone`: `str` (8-20 car.)<br>• `venue_slug`: `str`<br>• `data_consent`: `bool`<br>• `table_number`: `str \| null = null`<br>• `display_name`: `str \| null = null`<br>• `pin`: `str \| null = null` | **Status 201 Created**<br>`{"token": str, "user": {"id": int, "phone": str, "display_name": str\|null}, "session": {"id": str, "table_number": str\|null, "venue_slug": str, "venue_id": int, "started_at": str}}` | **400** `CONSENT_REQUIRED`<br>**422** `INVALID_PHONE`<br>**400** `PIN_REQUIRED`<br>**403** `PIN_INVALID`<br>**404** `VENUE_NOT_FOUND`<br>**403** Bar inactivo |
+| `GET /api/auth/session`<br>([auth.py:98](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/auth.py#L98)) | Cliente JWT | Ninguno (actualiza timestamp de actividad de sesión) | **Status 200 OK**<br>`{"user": {"id": int, "phone": str, "display_name": str}, "session": {...}, "rate_limit": {"songs_remaining": int, "window_resets_at": str}}` | **401** Sesión inválida / expirada por inactividad<br>**404** Usuario no encontrado |
+| `PATCH /api/auth/profile`<br>([auth.py:130](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/auth.py#L130)) | Cliente JWT | **Body (JSON):**<br>• `display_name`: `str` | **Status 200 OK**<br>`{"id": int, "phone": str, "display_name": str}` | **401** No autorizado<br>**422** Error de validación |
+| `GET /api/auth/venue-info`<br>([auth.py:147](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/auth.py#L147)) | Pública | **Query:**<br>• `venue_slug`: `str` (requerido) | **Status 200 OK**<br>`{"id": int, "name": str, "active": bool, "logo_url": str\|null, "pin_required": bool, "theme": str\|null}` | **404** `Bar no encontrado` |
+
+---
+
+### 4.2. Admin Auth Router (`/api/admin`) — 7 Endpoints
+
+Módulo: [backend/app/routers/admin_auth.py](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin_auth.py)  
+*Limitador en memoria: Máximo 5 intentos/min por IP y ruta (responde HTTP 429 al superarlo).*
+
+| Método y Ruta | Auth Requerida | Parámetros / Cuerpo | Respuesta Exitosa | Errores / Notas |
+|---|---|---|---|---|
+| `POST /api/admin/login`<br>([admin_auth.py:103](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin_auth.py#L103)) | Pública (Rate Limit) | **Body (JSON):**<br>• `username`: `str`<br>• `password`: `str`<br>• `venue_slug`: `str \| null` | **Status 200 OK**<br>`{"token": str, "admin": {"id": int, "username": str, "venue_id": int, "venue_slug": str, "venue_name": str, "onboarding_completed_at": str\|null}}` | **401** Credenciales incorrectas<br>**403** Bar inactivo / usuario ajeno al bar<br>**404** Bar no encontrado<br>**429** Límite superado |
+| `POST /api/admin/signup`<br>([admin_auth.py:128](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin_auth.py#L128)) | Pública (Turnstile + Rate Limit) | **Body (JSON):**<br>• `venue_name`, `email`, `password`, `phone`, `address`, `city`, `country`, `terms_version`, `terms_accepted`, `privacy_accepted`, `turnstile_token` | **Status 201 Created**<br>`{"message": "Cuenta creada. Revisa tu correo para verificarla.", "venue_slug": str}` | **400** Términos o Turnstile inválido<br>**409** Correo ya registrado<br>**422** Datos inválidos<br>**429** Límite superado |
+| `POST /api/admin/verify-email`<br>([admin_auth.py:150](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin_auth.py#L150)) | Pública (Rate Limit) | **Body (JSON):**<br>• `token`: `str` | **Status 200 OK**<br>`{"message": "Correo verificado"}` | **400** Token inválido o vencido<br>**429** Límite superado |
+| `POST /api/admin/forgot-password`<br>([admin_auth.py:159](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin_auth.py#L159)) | Pública (Rate Limit) | **Body (JSON):**<br>• `email`: `str` | **Status 200 OK**<br>`{"message": "Si el correo existe, te enviamos instrucciones"}` | **429** Límite superado |
+| `POST /api/admin/reset-password`<br>([admin_auth.py:165](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin_auth.py#L165)) | Pública (Rate Limit) | **Body (JSON):**<br>• `token`: `str`<br>• `password`: `str` (min 8 car.) | **Status 200 OK**<br>`{"message": "Contrasena actualizada"}` | **400** Token inválido o vencido<br>**429** Límite superado |
+| `POST /api/admin/google-signup`<br>([admin_auth.py:174](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin_auth.py#L174)) | Pública (Turnstile + Rate Limit) | **Body (JSON):**<br>• `token` (Google ID Token), `venue_name`, `phone`, `address`, `city`, `country`, `terms_version`, `terms_accepted`, `privacy_accepted`, `turnstile_token` | **Status 201 Created**<br>`{"token": str, "admin": {...}}` | **400** Términos o Turnstile inválido<br>**401** Token de Google inválido<br>**503** Google OAuth no configurado |
+| `GET /api/admin/trial-info`<br>([admin_auth.py:193](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin_auth.py#L193)) | Pública | Ninguno | **Status 200 OK**<br>`{"trial_days": 15}` | Ninguno |
+
+---
+
+### 4.3. Admin Operations Router (`/api/admin`) — 29 Endpoints
+
+Módulo: [backend/app/routers/admin.py](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin.py)  
+*Todos los endpoints de este router requieren autenticación de administrador de bar (`Admin Bearer Token`).*
+
+| Método y Ruta | Parámetros / Cuerpo | Respuesta Exitosa | Errores / Eventos WebSocket |
+|---|---|---|---|
+| `POST /api/admin/onboarding`<br>([admin.py:40](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin.py#L40)) | **Body (JSON):**<br>• `full_name`, `phone`, `role` (`"owner" \| "manager"`), `city`, `country`, `venue_name`, `venue_address`, `venue_type` (`"discoteca" \| "rock" \| "musica_popular" \| "otro"`), `venue_type_other` | **Status 200 OK**<br>`{"message": "Onboarding completado"}` | **401** No autenticado<br>**422** Tipo 'otro' sin detalle |
+| `GET /api/admin/queue`<br>([admin.py:61](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin.py#L61)) | Ninguno | **Status 200 OK**<br>`{"now_playing": {...}\|null, "queue": [...], "playback_status": str, "volume": int, "banner_text": str, "show_brand": bool, "show_qr": bool, "qr_size": str, "fallback_active": bool, "fallback_playlist": [...]}` | **401** No autenticado |
+| `GET /api/admin/played`<br>([admin.py:126](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin.py#L126)) | Ninguno | **Status 200 OK**<br>`[{"id": int, "youtube_id": str, "title": str, "duration_sec": int, "added_by": str, "played_at": str}]` | **401** No autenticado |
+| `DELETE /api/admin/queue/songs/{song_id}`<br>([admin.py:152](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin.py#L152)) | **Path:** `song_id: int` | **Status 200 OK**<br>`{"status": "removed", "song_id": int}` | **401** No autenticado<br>**404** Canción no encontrada<br>WS: `song_removed`, `rate_limit_reset` |
+| `POST /api/admin/queue/songs/{song_id}/play-now`<br>([admin.py:168](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin.py#L168)) | **Path:** `song_id: int` | **Status 200 OK**<br>`{"status": "playing", "song_id": int}` | **401** No autenticado<br>**404** Canción no encontrada<br>WS: `now_playing_changed`, `your_song_playing`, `fallback_skip` |
+| `PATCH /api/admin/queue/songs/{song_id}`<br>([admin.py:203](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin.py#L203)) | **Path:** `song_id: int`<br>**Body:** `{"position": int}` | **Status 200 OK**<br>`{"status": "reordered", "song_id": int, "new_position": int}` | **401** No autenticado<br>**404** Canción no encontrada<br>WS: `queue_reordered` |
+| `POST /api/admin/queue/songs`<br>([admin.py:223](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin.py#L223)) | **Body (JSON):**<br>• `youtube_url`: `str` | **Status 200 OK**<br>`{"status": "added", "song": {...}}` | **400** URL inválida / video no encontrado<br>**409** Ya en cola<br>WS: `song_added` / `now_playing_changed` |
+| `POST /api/admin/queue/skip`<br>([admin.py:318](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin.py#L318)) | Ninguno | **Status 200 OK**<br>`{"status": "skipped", "now_playing": {...}}` o `{"status": "queue_empty"}` | **401** No autenticado<br>WS: `now_playing_changed`, `rate_limit_reset`, `your_song_playing`, `fallback_skip` |
+| `POST /api/admin/playback/start`<br>([admin.py:373](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin.py#L373)) | Ninguno | **Status 200 OK**<br>`{"status": "started", "now_playing": {...}}` o `{"status": "queue_empty"}` | **401** No autenticado<br>WS: `now_playing_changed`, `your_song_playing`, `fallback_skip` |
+| `GET /api/admin/playlist`<br>([admin.py:418](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin.py#L418)) | Ninguno | **Status 200 OK**<br>`[{"id": int, "youtube_id": str, "title": str, "duration_sec": int, "artist": str, "active": bool}]` | **401** No autenticado |
+| `POST /api/admin/fallback-status`<br>([admin.py:425](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin.py#L425)) | **Query:** `paused: bool = False` | **Status 200 OK**<br>`{"status": "ok", "paused": bool}` | **401** No autenticado<br>WS: `fallback_status_changed` |
+| `POST /api/admin/fallback-play`<br>([admin.py:440](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin.py#L440)) | Ninguno | **Status 200 OK**<br>`{"status": "ok"}` | **400** Playlist vacía<br>WS: `fallback_play_now` |
+| `POST /api/admin/fallback-skip`<br>([admin.py:455](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin.py#L455)) | Ninguno | **Status 200 OK**<br>`{"status": "ok"}` o `{"status": "playing_queue", "song": {...}}` | **401** No autenticado<br>WS: `fallback_skip`, `now_playing_changed` |
+| `POST /api/admin/fallback/add`<br>([admin.py:494](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin.py#L494)) | **Query:** `youtube_id: str` | **Status 200 OK**<br>`{"status": "added", "song": {...}}` | **400** Canción duplicada o no encontrada |
+| `DELETE /api/admin/fallback/{song_id}`<br>([admin.py:532](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin.py#L532)) | **Path:** `song_id: int` | **Status 200 OK**<br>`{"status": "removed", "song_id": int}` | **404** Canción no encontrada |
+| `POST /api/admin/playback/pause`<br>([admin.py:549](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin.py#L549)) | Ninguno | **Status 200 OK**<br>`{"status": "paused"}` | **401** No autenticado<br>WS: `playback_status_changed` |
+| `POST /api/admin/playback/resume`<br>([admin.py:560](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin.py#L560)) | Ninguno | **Status 200 OK**<br>`{"status": "playing"}` | **401** No autenticado<br>WS: `playback_status_changed` |
+| `GET /api/admin/history`<br>([admin.py:571](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin.py#L571)) | **Query:** `page=1`, `per_page=20`, `date_from`, `date_to` | **Status 200 OK**<br>`{"items": [...], "total": int, "page": int, "per_page": int, "pages": int}` | **401** No autenticado |
+| `GET /api/admin/analytics`<br>([admin.py:584](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin.py#L584)) | **Query:** `period: str = "week"` (`day\|week\|month\|all`) | **Status 200 OK**<br>`{"summary": {...}, "top_songs": [...], "hourly_distribution": [...], "daily_trends": [...]}` | **401** No autenticado |
+| `GET /api/admin/library`<br>([admin.py:592](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin.py#L592)) | **Query:** `search: str \| None` | **Status 200 OK**<br>`[{"youtube_id": str, "title": str, "artist": str, "duration_sec": int, "play_count": int, "last_played_at": str}]` | **401** No autenticado |
+| `POST /api/admin/volume`<br>([admin.py:630](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin.py#L630)) | **Query:** `volume: int` (0 a 100) | **Status 200 OK**<br>`{"volume": int}` | **401** No autenticado<br>WS: `volume_changed` |
+| `POST /api/admin/banner`<br>([admin.py:654](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin.py#L654)) | **Query:** `text: str`, `show_brand: bool \| None` | **Status 200 OK**<br>`{"banner_text": str}` | **401** No autenticado<br>WS: `banner_changed` |
+| `POST /api/admin/show-qr`<br>([admin.py:687](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin.py#L687)) | **Query:** `show: bool \| None`, `size: str \| None` (`S\|M\|L`) | **Status 200 OK**<br>`{"show_qr": bool, "qr_size": str}` | **400** Talla inválida<br>WS: `qr_visibility_changed` |
+| `GET /api/admin/tables`<br>([admin.py:718](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin.py#L718)) | Ninguno | **Status 200 OK**<br>`{"tables": [{"table_number": str, "users": [...], "pending_songs": int, "played_songs": int, "rate_limit": {...}}]}` | **401** No autenticado |
+| `POST /api/admin/tables/{table_number}/kick`<br>([admin.py:767](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin.py#L767)) | **Path:** `table_number: str` | **Status 200 OK**<br>`{"status": "kicked", "table_number": str, "sessions_ended": int, "songs_removed": int}` | **401** No autenticado<br>WS: `session_kicked`, `song_removed` |
+| `POST /api/admin/tables/{table_number}/reset-limit`<br>([admin.py:821](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin.py#L821)) | **Path:** `table_number: str` | **Status 200 OK**<br>`{"message": "Limite de mesa reseteado"}` | **401** No autenticado<br>WS: `rate_limit_reset` |
+| `GET /api/admin/daily-pin`<br>([admin.py:857](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin.py#L857)) | Ninguno | **Status 200 OK**<br>`{"pin": "1234", "date": "YYYY-MM-DD", "require_pin": bool}` | **401** No autenticado |
+| `POST /api/admin/daily-pin/regenerate`<br>([admin.py:865](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin.py#L865)) | Ninguno | **Status 200 OK**<br>`{"pin": "5678", "date": "YYYY-MM-DD"}` | **401** No autenticado |
+| `POST /api/admin/settings/pin`<br>([admin.py:881](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin.py#L881)) | **Query:** `require: bool` | **Status 200 OK**<br>`{"require_pin": bool}` | **401** No autenticado |
+
+---
+
+### 4.4. Queue Router (`/api/queue`) — 9 Endpoints
+
+Módulo: [backend/app/routers/queue.py](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/queue.py)
+
+| Método y Ruta | Auth Requerida | Parámetros / Cuerpo | Respuesta Exitosa | Errores / Headers |
+|---|---|---|---|---|
+| `GET /api/queue/search`<br>([queue.py:12](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/queue.py#L12)) | Pública | **Query:** `q: str` (min 2 car.) | **Status 200 OK**<br>`[{"youtube_id": str, "title": str, "thumbnail_url": str, "duration": str, "url": str}]` | Ninguno (Caché TTL 5 min) |
+| `GET /api/queue`<br>([queue.py:49](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/queue.py#L49)) | Pública | **Query:** `venue: str` (slug requerido) | **Status 200 OK**<br>`{"now_playing": {...}\|null, "queue": [...], "total_in_queue": int, "playback_status": str, "fallback_active": bool, "venue_name": str, "venue_logo": str\|null}` | **404** Venue no encontrado |
+| `POST /api/queue/songs`<br>([queue.py:60](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/queue.py#L60)) | Cliente JWT | **Body (JSON):**<br>• `youtube_url`: `str` | **Status 200 OK**<br>`{"youtube_id": str, "title": str, "thumbnail_url": str, "duration_sec": int, "duration_formatted": str, "valid": bool, "recently_played_by_user": bool}` | **400** `INVALID_URL`<br>**429** `RATE_LIMIT_EXCEEDED`<br>**409** `ALREADY_IN_QUEUE`<br>**404** `VIDEO_NOT_FOUND`<br>**400** `VIDEO_NOT_EMBEDDABLE`<br>**400** `VIDEO_BLOCKED`<br>**400** `DURATION_EXCEEDED` |
+| `POST /api/queue/songs/confirm`<br>([queue.py:138](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/queue.py#L138)) | Cliente JWT | **Body (JSON):**<br>• `youtube_id`: `str` | **Status 201 Created**<br>`{"id": int, "youtube_id": str, "title": str, "position": int, "estimated_wait_sec": int, "songs_remaining": int, "window_resets_at": str}` | **429** `RATE_LIMIT_EXCEEDED`<br>**409** `ALREADY_IN_QUEUE`<br>**400** `VIDEO_BLOCKED`<br>**400** `DURATION_EXCEEDED`<br>WS: `song_added` / `now_playing_changed` |
+| `POST /api/queue/start-playing/{song_id}`<br>([queue.py:259](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/queue.py#L259)) | Pública (Kiosco) | **Path:** `song_id: int`<br>**Query:** `venue: str` | **Status 200 OK**<br>`{"status": "playing", "song_id": int}` | **404** Bar no encontrado<br>WS: `now_playing_changed`, `your_song_playing` |
+| `GET /api/queue/my-songs`<br>([queue.py:293](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/queue.py#L293)) | Cliente JWT | Ninguno | **Status 200 OK**<br>`{"now_playing": {...}\|null, "pending": [...]}` | **401** No autorizado |
+| `GET /api/queue/recent-history`<br>([queue.py:306](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/queue.py#L306)) | Cliente JWT | Ninguno | **Status 200 OK**<br>`[{"youtube_id": str, "title": str, "played_at": str}]` (últimas 5) | **401** No autorizado |
+| `GET /api/queue/remaining-slots`<br>([queue.py:312](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/queue.py#L312)) | Cliente JWT | Ninguno | **Status 200 OK**<br>`{"remaining": int, "max": int, "window_minutes": int, "resets_at": str}` | **401** No autorizado |
+| `DELETE /api/queue/my-songs/{song_id}`<br>([queue.py:317](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/queue.py#L317)) | Cliente JWT | **Path:** `song_id: int` | **Status 200 OK**<br>`{"status": "cancelled", "song_id": int}` | **401** No autorizado<br>**404** Canción no encontrada / ajena<br>WS: `song_removed` |
+
+---
+
+### 4.5. Playback Router (`/api/playback`) — 4 Endpoints
+
+Módulo: [backend/app/routers/playback.py](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/playback.py)
+
+| Método y Ruta | Auth Requerida | Parámetros / Cuerpo | Respuesta Exitosa | Errores / Eventos WebSocket |
+|---|---|---|---|---|
+| `GET /api/playback/now-playing`<br>([playback.py:12](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/playback.py#L12)) | Pública (Kiosco) | **Query:** `venue: str` (slug) | **Status 200 OK**<br>`{"now_playing": {...}\|null, "next_song": {...}\|null, "playback_status": str, "volume": int, "banner_text": str, "show_brand": bool, "show_qr": bool, "qr_size": str, "fallback_active": bool, "fallback_playlist": [...]}` | **404** Bar no encontrado |
+| `POST /api/playback/fallback-playing`<br>([playback.py:23](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/playback.py#L23)) | Pública (Kiosco) | **Query:**<br>• `venue`: `str`<br>• `youtube_id`: `str`<br>• `title`: `str` | **Status 200 OK**<br>`{"status": "ok"}` | **404** Bar no encontrado<br>WS: `now_playing_changed` (`is_fallback: true`) |
+| `POST /api/playback/finished`<br>([playback.py:47](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/playback.py#L47)) | Opcional | **Body (JSON):**<br>• `song_id`: `int`<br>• `venue_slug`: `str` | **Status 200 OK**<br>`{"status": "advanced", "now_playing": {...}}` o `{"status": "queue_empty"}` | **404** Bar no encontrado<br>WS: `rate_limit_reset`, `now_playing_changed`, `your_song_playing` |
+| `POST /api/playback/error`<br>([playback.py:102](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/playback.py#L102)) | Opcional | **Body (JSON):**<br>• `song_id`: `int`<br>• `venue_slug`: `str`<br>• `error_code`: `int` | **Status 200 OK**<br>`{"status": "skipped", "now_playing": {...}}` o `{"status": "retrying", "attempt": int}` | **404** Bar no encontrado<br>WS: `song_error`, `song_error_notification`, `now_playing_changed` |
+
+---
+
+### 4.6. SuperAdmin Router (`/api/superadmin`) — 29 Endpoints
+
+Módulo: [backend/app/routers/superadmin.py](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/superadmin.py)  
+*Requiere `SuperAdmin Bearer Token`. Roles admitidos: `super_admin`, `vendedor`, `editor`.*
+
+| Método y Ruta | Rol Requerido | Parámetros / Cuerpo | Respuesta Exitosa | Errores / Notas |
+|---|---|---|---|---|
+| `POST /api/superadmin/login`<br>([superadmin.py:146](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/superadmin.py#L146)) | Pública | **Body (JSON):**<br>• `username`: `str`<br>• `password`: `str` | **Status 200 OK**<br>`{"token": str, "super_admin": {"id": int, "username": str, "role": str, "email": str, "phone": str}}` | **401** Credenciales incorrectas |
+| `GET /api/superadmin/settings`<br>([superadmin.py:158](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/superadmin.py#L158)) | Cualquiera | Ninguno | **Status 200 OK**<br>`{"trial_days": int, "grace_period_days": int, "monthly_price_cents": int}` | **401** No autorizado |
+| `PATCH /api/superadmin/settings`<br>([superadmin.py:163](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/superadmin.py#L163)) | `super_admin` | **Body (JSON):**<br>• `trial_days`: `int \| null`<br>• `grace_period_days`: `int \| null`<br>• `monthly_price_cents`: `int \| null` | **Status 200 OK**<br>`{"trial_days": int, "grace_period_days": int, "monthly_price_cents": int}` | **401** No autorizado<br>**403** Permiso denegado |
+| `GET /api/superadmin/billing/summary`<br>([superadmin.py:192](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/superadmin.py#L192)) | Cualquiera | Ninguno | **Status 200 OK**<br>`{"mrr_cents": int, "active_paying": int, "in_trial": int, "suspended": int, "total_venues": int, "monthly_price_cents": int, "current_month_revenue_cents": int}` | **401** No autorizado |
+| `GET /api/superadmin/venues`<br>([superadmin.py:219](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/superadmin.py#L219)) | Cualquiera | Ninguno | **Status 200 OK**<br>`[{"id": int, "name": str, "slug": str, "active": bool, "paid_until": str\|null, "payment_status": str, "admins": [...]}]` | **401** No autorizado |
+| `POST /api/superadmin/venues`<br>([superadmin.py:278](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/superadmin.py#L278)) | `vendedor`, `super_admin` | **Body (JSON):**<br>• `name`, `slug`, `admin_username`, `admin_password`, `admin_email`, `admin_phone`, `admin_address`, `admin_city`, `logo_url`, `qr_url`, `max_duration_sec`, `max_songs_per_window`, `window_minutes`, `trial_days` | **Status 200 OK**<br>`{"id": int, "slug": str, "name": str}` | **400** Slug ya en uso<br>**401** No autorizado<br>**403** Permiso denegado |
+| `PATCH /api/superadmin/venues/{venue_id}`<br>([superadmin.py:340](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/superadmin.py#L340)) | `editor`, `super_admin` | **Path:** `venue_id: int`<br>**Body:** `{"name", "logo_url", "qr_url", "active", "max_duration_sec", "max_songs_per_window", "window_minutes", "theme"}` | **Status 200 OK**<br>`{"status": "ok"}` | **401** No autorizado<br>**403** Permiso denegado |
+| `DELETE /api/superadmin/venues/{venue_id}`<br>([superadmin.py:378](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/superadmin.py#L378)) | `super_admin` | **Path:** `venue_id: int` | **Status 200 OK**<br>`{"status": "deleted"}` | **401** No autorizado<br>**403** Permiso denegado |
+| `GET /api/superadmin/venues/{venue_id}/stats`<br>([superadmin.py:401](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/superadmin.py#L401)) | Cualquiera | **Path:** `venue_id: int` | **Status 200 OK**<br>`{"venue": {...}, "stats": {"total_songs_played": int, "unique_users": int, "sessions_count": int, "history_7d": [...]}}` | **401** No autorizado<br>**404** Venue no encontrado |
+| `GET /api/superadmin/venues/{venue_id}/analytics`<br>([superadmin.py:479](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/superadmin.py#L479)) | Cualquiera | **Path:** `venue_id: int`<br>**Query:** `period="week"` | **Status 200 OK**<br>`{"summary": {...}, "top_songs": [...], "hourly_distribution": [...]}` | **401** No autorizado |
+| `GET /api/superadmin/venues/{venue_id}/users`<br>([superadmin.py:485](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/superadmin.py#L485)) | Cualquiera | **Path:** `venue_id: int` | **Status 200 OK**<br>`[{"id": int, "phone": str, "display_name": str, "created_at": str, "total_songs": int, "last_active": str}]` | **401** No autorizado |
+| `POST /api/superadmin/venues/{venue_id}/admins`<br>([superadmin.py:552](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/superadmin.py#L552)) | `super_admin` | **Path:** `venue_id: int`<br>**Body:** `{"username": str, "password": str}` | **Status 200 OK**<br>`{"id": int, "username": str}` | **401** No autorizado<br>**403** Permiso denegado |
+| `DELETE /api/superadmin/venues/{venue_id}/admins/{admin_id}`<br>([superadmin.py:575](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/superadmin.py#L575)) | `super_admin` | **Path:** `venue_id: int`, `admin_id: int` | **Status 200 OK**<br>`{"status": "deleted"}` | **401** No autorizado<br>**403** Permiso denegado |
+| `GET /api/superadmin/venues/{venue_id}/playlist`<br>([superadmin.py:599](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/superadmin.py#L599)) | Cualquiera | **Path:** `venue_id: int` | **Status 200 OK**<br>`[{"id": int, "youtube_id": str, "title": str, "artist": str, "duration_sec": int, "active": bool}]` | **401** No autorizado |
+| `POST /api/superadmin/venues/{venue_id}/playlist/import`<br>([superadmin.py:606](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/superadmin.py#L606)) | Cualquiera | **Path:** `venue_id: int`<br>**Body:** `{"playlist_url": str}` | **Status 200 OK**<br>`{"status": "imported", "count": int}` | **400** URL inválida<br>**401** No autorizado |
+| `POST /api/superadmin/venues/{venue_id}/playlist/add`<br>([superadmin.py:617](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/superadmin.py#L617)) | Cualquiera | **Path:** `venue_id: int`<br>**Body:** `{"youtube_url": str}` | **Status 200 OK**<br>`{"status": "added", "song": {...}}` | **400** URL inválida o video no encontrado |
+| `DELETE /api/superadmin/venues/{venue_id}/playlist/{song_id}`<br>([superadmin.py:656](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/superadmin.py#L656)) | Cualquiera | **Path:** `venue_id: int`, `song_id: int` | **Status 200 OK**<br>`{"status": "removed"}` | **401** No autorizado<br>**404** Canción no encontrada |
+| `PATCH /api/superadmin/venues/{venue_id}/playlist/{song_id}/toggle`<br>([superadmin.py:665](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/superadmin.py#L665)) | Cualquiera | **Path:** `venue_id: int`, `song_id: int` | **Status 200 OK**<br>`{"status": "toggled", "active": bool}` | **401** No autorizado<br>**404** Canción no encontrada |
+| `DELETE /api/superadmin/venues/{venue_id}/playlist`<br>([superadmin.py:677](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/superadmin.py#L677)) | Cualquiera | **Path:** `venue_id: int` | **Status 200 OK**<br>`{"status": "cleared"}` | **401** No autorizado |
+| `POST /api/superadmin/venues/{venue_id}/logo`<br>([superadmin.py:685](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/superadmin.py#L685)) | Cualquiera | **Path:** `venue_id: int`<br>**Form:** `file: UploadFile` (PNG, JPG, SVG, máx 2MB) | **Status 200 OK**<br>`{"status": "ok", "logo_url": str}` | **400** Formato o tamaño no válido |
+| `POST /api/superadmin/venues/{venue_id}/mark-paid`<br>([superadmin.py:730](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/superadmin.py#L730)) | `super_admin` | **Path:** `venue_id: int`<br>**Body:** `{"months": 1, "days": int\|null, "notes": str\|null, "amount_cents": int\|null}` | **Status 200 OK**<br>`{"status": "ok", "paid_until": str, "payment_status": str}` | **401** No autorizado<br>**403** Permiso denegado |
+| `POST /api/superadmin/venues/{venue_id}/extend-trial`<br>([superadmin.py:759](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/superadmin.py#L759)) | `super_admin` | **Path:** `venue_id: int`<br>**Body:** `{"days": int}` | **Status 200 OK**<br>`{"status": "ok", "paid_until": str, "payment_status": str}` | **401** No autorizado<br>**403** Permiso denegado |
+| `POST /api/superadmin/venues/{venue_id}/adjust-expiry`<br>([superadmin.py:781](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/superadmin.py#L781)) | `super_admin` | **Path:** `venue_id: int`<br>**Body:** `{"paid_until": "YYYY-MM-DD", "notes": str}` | **Status 200 OK**<br>`{"status": "ok", "paid_until": str, "payment_status": str}` | **401** No autorizado<br>**403** Permiso denegado |
+| `POST /api/superadmin/venues/{venue_id}/billing/events/{event_id}/void`<br>([superadmin.py:803](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/superadmin.py#L803)) | `super_admin` | **Path:** `venue_id: int`, `event_id: int` | **Status 200 OK**<br>`{"status": "voided", "event_id": int}` | **401** No autorizado<br>**403** Permiso denegado |
+| `PATCH /api/superadmin/venues/{venue_id}/billing/events/{event_id}`<br>([superadmin.py:821](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/superadmin.py#L821)) | `super_admin` | **Path:** `venue_id: int`, `event_id: int`<br>**Body:** `{"notes", "amount_cents", "period_end"}` | **Status 200 OK**<br>`{"status": "ok"}` | **401** No autorizado<br>**403** Permiso denegado |
+| `GET /api/superadmin/admins`<br>([superadmin.py:854](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/superadmin.py#L854)) | `super_admin` | Ninguno | **Status 200 OK**<br>`[{"id": int, "username": str, "email": str, "phone": str, "role": str, "last_login_at": str}]` | **401** No autorizado<br>**403** Permiso denegado |
+| `POST /api/superadmin/admins`<br>([superadmin.py:875](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/superadmin.py#L875)) | `super_admin` | **Body (JSON):**<br>• `username`, `password`, `phone`, `email`, `role` (`"vendedor" \| "editor" \| "super_admin"`) | **Status 200 OK**<br>`{"id": int, "username": str, "role": str}` | **400** Usuario duplicado<br>**401** No autorizado |
+| `PATCH /api/superadmin/admins/{admin_id}`<br>([superadmin.py:923](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/superadmin.py#L923)) | `super_admin` | **Path:** `admin_id: int`<br>**Body:** `{"role": str \| null, "password": str \| null}` | **Status 200 OK**<br>`{"status": "ok"}` | **401** No autorizado<br>**403** Permiso denegado |
+| `DELETE /api/superadmin/admins/{admin_id}`<br>([superadmin.py:961](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/superadmin.py#L961)) | `super_admin` | **Path:** `admin_id: int` | **Status 200 OK**<br>`{"status": "deleted"}` | **401** No autorizado<br>**403** Permiso denegado |
+
+---
+
+### 4.7. Billing & Webhook Router (`/api/admin` & `/api/billing`) — 3 Endpoints
+
+Módulo: [backend/app/routers/billing.py](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/billing.py)
+
+| Método y Ruta | Auth Requerida | Parámetros / Cuerpo | Respuesta Exitosa | Errores / Notas |
+|---|---|---|---|---|
+| `GET /api/admin/billing`<br>([billing.py:38](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/billing.py#L38)) | Admin JWT (permite suspendidos) | Ninguno | **Status 200 OK**<br>`{"payment_status": "active"\|"overdue"\|"suspended", "paid_until": str, "period_start": str, "days_remaining": int, "monthly_price_cents": int, "history": [...]}` | **401** Sesión inválida<br>**404** Bar no encontrado |
+| `GET /api/admin/billing/checkout`<br>([billing.py:84](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/billing.py#L84)) | Admin JWT | Ninguno | **Status 200 OK**<br>`{"public_key": str, "currency": "COP", "amount_in_cents": int, "reference": str, "signature": str}` | **409** Precio no configurado<br>**503** Wompi no configurado |
+| `POST /api/billing/wompi/webhook`<br>([billing.py:130](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/billing.py#L130)) | Firma HMAC-SHA256 en cuerpo | **Body (JSON):** Payload de Wompi Colombia (`event: "transaction.updated"`) | **Status 200 OK**<br>`{"ok": true}` | **400** JSON inválido<br>**403** Firma inválida<br>**503** Secret no configurado |
+
+---
+
+### 4.8. Main & System Routes (`/api`) — 2 Endpoints
+
+Módulo: [backend/app/main.py](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/main.py)
+
+| Método y Ruta | Auth Requerida | Parámetros / Cuerpo | Respuesta Exitosa | Errores / Headers |
+|---|---|---|---|---|
+| `GET /api/uploads/{filename}`<br>([main.py:101](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/main.py#L101)) | Pública | **Path:** `filename: str` | **Status 200 OK**<br>Archivo binario (`image/png`, `image/jpeg`, `image/svg+xml`) con `Cache-Control: public, max-age=604800` | **404** `File not found` |
+| `GET /api/health`<br>([main.py:115](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/main.py#L115)) | Pública | Ninguno | **Status 200 OK**<br>`{"status": "ok", "version": "1.0.2", "database": "connected"}` | Ninguno |
+
+---
+
+### 4.9. Test Environment Router (`/api/test`) — 1 Endpoint
+
+Módulo: [backend/app/routers/test.py](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/test.py)  
+*Montado condicionalmente en [backend/app/main.py:96](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/main.py#L96) solo si `APP_ENV=test`.*
+
+| Método y Ruta | Auth Requerida | Parámetros / Cuerpo | Respuesta Exitosa | Errores / Notas |
+|---|---|---|---|---|
+| `POST /api/test/reset`<br>([test.py:9](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/test.py#L9)) | Guard de Entorno (`APP_ENV=test`) | Ninguno (borra todas las tablas y siembra datos iniciales) | **Status 200 OK**<br>`{"status": "ok", "message": "Database reset and seeded"}` | **403** `Only allowed in test environment` |
+
+---
+
+## 5. WebSocket API (`/ws/queue`)
+
+Módulo: [backend/app/routers/websocket.py](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/websocket.py#L58)
+
+| Método y Ruta | Auth Requerida | Parámetros de Query | Descripción |
+|---|---|---|---|
+| `WEBSOCKET /ws/queue`<br>([websocket.py:58](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/websocket.py#L58)) | Token opcional en query string | • `venue`: `str` (requerido)<br>• `token`: `str \| null` (Customer o Admin JWT) | Canal de sincronización bidireccional en tiempo real para eventos de cola, reproductor, volumen y moderación. |
+
+### Conexión
+```
+ws://{domain}/ws/queue?venue={venue_slug}&token={jwt_token}
 ```
 
 ---
 
-## WebSocket
+### Catálogo Completo de los 17 Eventos Emitidos por el Backend
 
-### `ws://{domain}/ws/queue?venue={venue_slug}`
-
-Conexión WebSocket para recibir actualizaciones en tiempo real de la cola.
-
-**Eventos del servidor:**
-
-```json
-// Canción agregada
-{
-  "event": "song_added",
-  "data": {
-    "id": 103,
-    "youtube_id": "dQw4w9WgXcQ",
-    "title": "Rick Astley - Never Gonna Give You Up",
-    "position": 6,
-    "added_by": "Carlos"
-  }
-}
-
-// Canción removida
-{
-  "event": "song_removed",
-  "data": {
-    "id": 102,
-    "removed_by": "admin"
-  }
-}
-
-// Canción saltada
-{
-  "event": "song_skipped",
-  "data": {
-    "skipped_id": 101,
-    "now_playing": {
-      "id": 102,
-      "youtube_id": "kJQP7kiw5Fk",
-      "title": "Luis Fonsi - Despacito"
-    }
-  }
-}
-
-// Cola reordenada
-{
-  "event": "queue_reordered",
-  "data": {
-    "queue": [
-      { "id": 103, "position": 2 },
-      { "id": 104, "position": 3 }
-    ]
-  }
-}
-
-// Cambio de canción actual
-{
-  "event": "now_playing_changed",
-  "data": {
-    "song": {
-      "id": 102,
-      "youtube_id": "kJQP7kiw5Fk",
-      "title": "Luis Fonsi - Despacito"
-    }
-  }
-}
-
-// Playback pausado/reanudado
-{
-  "event": "playback_status_changed",
-  "data": {
-    "status": "paused"
-  }
-}
-
-// Tu canción está sonando (enviado SOLO al usuario dueño de la canción)
-{
-  "event": "your_song_playing",
-  "data": {
-    "song": {
-      "id": 103,
-      "youtube_id": "dQw4w9WgXcQ",
-      "title": "Rick Astley - Never Gonna Give You Up"
-    },
-    "message": "Tu canción está sonando ahora"
-  }
-}
-```
-
----
-
-## Health Check
-
-### `GET /api/health`
-
-**Response 200:**
+> [!WARNING]
+> **Evento Inexistente:** El evento `song_skipped` **nunca es emitido por el backend**. Cuando una canción se salta, el sistema emite `now_playing_changed`, `rate_limit_reset` al usuario afectado y `your_song_playing` al nuevo turno.
 
 ```json
 {
-  "status": "ok",
-  "version": "1.0.0",
-  "database": "connected"
+  "event": "<EVENT_NAME>",
+  "data": { ... }
 }
 ```
+
+| # | Evento | Tipo de Envío | Payload (`data`) | Disparador y Contexto |
+|---|---|---|---|---|
+| 1 | `song_added` | Broadcast | `{"song": {...}}` | Se encola una nueva canción (cliente o admin). |
+| 2 | `song_removed` | Broadcast | `{"song_id": int}` | Admin o usuario cancela/elimina una canción pendiente. |
+| 3 | `now_playing_changed` | Broadcast | `{"now_playing": {...} \| null, "previous_song": {...} \| null}` | Cambia la canción activa (inicio, skip, término, fallback o play-now). |
+| 4 | `your_song_playing` | Dirigido (`send_to_user`) | `{"song": {...}}` | Enviado al dueño de la canción cuando su video comienza a sonar. |
+| 5 | `queue_reordered` | Broadcast | `{"queue": [...]}` | Admin altera el orden de las canciones en espera. |
+| 6 | `playback_status_changed` | Broadcast | `{"status": "playing" \| "paused"}` | Admin pausa o reanuda la reproducción general. |
+| 7 | `banner_changed` | Broadcast | `{"banner_text": str, "show_brand": bool}` | Admin actualiza el cintillo o logo en la pantalla del kiosco. |
+| 8 | `volume_changed` | Broadcast | `{"volume": int}` | Admin ajusta el volumen en vivo (0 a 100). |
+| 9 | `qr_visibility_changed` | Broadcast | `{"show_qr": bool, "qr_size": "S" \| "M" \| "L"}` | Admin cambia visibilidad o tamaño del QR en pantalla. |
+| 10 | `fallback_status_changed` | Broadcast | `{"paused": bool}` | Admin pausa o activa la playlist de respaldo. |
+| 11 | `fallback_play_now` | Broadcast | `{}` | Admin fuerza al kiosco a cambiar a playlist de respaldo. |
+| 12 | `fallback_skip` | Broadcast | `{}` | Kiosco o admin salta canción de respaldo o regresa a la cola. |
+| 13 | `session_kicked` | Dirigido (`send_to_user`) | `{"reason": "session_terminated"}` | Admin expulsa a una mesa o usuario del local. |
+| 14 | `rate_limit_reset` | Dirigido (`send_to_user`) | `{"songs_remaining": int}` | Admin resetea el límite de una mesa o finaliza su canción. |
+| 15 | `table_registered` | Broadcast | `{"table_number": str \| null, "user_name": str}` | Notifica al panel admin cuando un cliente escanea y se registra. |
+| 16 | `song_error` | Broadcast | `{"song_id": int, "error_code": int}` | Kiosco reporta fallo en YouTube IFrame y salta de canción. |
+| 17 | `song_error_notification` | Dirigido (`send_to_user`) | `{"song_id": int, "title": str, "error_code": int}` | Notifica al cliente que su canción no pudo ser reproducida. |
