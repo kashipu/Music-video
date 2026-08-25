@@ -193,6 +193,8 @@ onMounted(async () => {
                     {{ formatCurrency(item.amount_cents) }}
                   </strong>
                   <span v-else class="trial-amount">Prueba +{{ item.days || 0 }} días</span>
+                  <Badge v-if="item.source === 'wompi'" variant="info">Wompi</Badge>
+                  <Badge v-else-if="item.kind === 'payment'" variant="neutral">Manual</Badge>
                 </div>
                 <div class="history-line-2">
                   <span>{{ formatDate(item.created_at) }}</span>
