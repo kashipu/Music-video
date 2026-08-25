@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     wompi_public_key: str = ""
     wompi_integrity_secret: str = ""
     wompi_events_secret: str = ""
+    google_signup_enabled: bool = True
+    wompi_checkout_enabled: bool = True
 
     session_inactivity_minutes: int = 120  # expire after 2h of inactivity
     session_max_hours: int = 24            # hard max session duration

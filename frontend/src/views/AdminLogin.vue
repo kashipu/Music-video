@@ -15,6 +15,7 @@ const router = useRouter()
 const auth = useAuthStore()
 
 const API = import.meta.env.VITE_API_URL || ''
+const GOOGLE_SIGNUP_ENABLED = import.meta.env.VITE_GOOGLE_SIGNUP_ENABLED !== 'false'
 const venueSlug = route.params.venueSlug || null
 document.title = venueSlug ? `${venueSlug.replace(/-/g, ' ')} - Admin` : 'Repítela - Admin'
 
@@ -117,7 +118,7 @@ async function startGoogleLogin() {
       :logo-url="venueLogo"
       :error="error"
       :loading="loading"
-      :show-google="true"
+      :show-google="GOOGLE_SIGNUP_ENABLED"
       @submit="handleLogin"
       @google="startGoogleLogin"
     >
