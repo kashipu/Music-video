@@ -72,7 +72,18 @@ ni `session_duration_sec`: la landing es publica y no hay sesion de bar.
 | `repitela_landing_lead_submitted` | Se envia el formulario (nombre/bar/ciudad/direccion) | `location`, `ciudad` |
 
 Valores de `location`: `navbar`, `navbar_mobile`, `hero`, `for_bars`, `pricing`,
-`cta_final`, `footer`, `floating`.
+`cta_final`, `footer`, `floating`, `blog_post`, `blog_sidebar`, `blog_post_body`.
+
+### Eventos del Blog (repitela.com/blog)
+
+| Evento | Donde se dispara | Parametros |
+|--------|-----------------|------------|
+| `repitela_blog_post_viewed` | Al cargar un artículo | `post_slug`, `post_title`, `reading_time_min` |
+| `repitela_blog_read_progress` | Al llegar al 50% y 90% de lectura | `post_slug`, `post_title`, `percent` |
+| `repitela_blog_share_clicked` | Al compartir por Facebook, X, WhatsApp o copiar enlace | `post_slug`, `post_title`, `share_platform` |
+| `repitela_blog_cta_clicked` | Al abrir la demo desde la barra lateral | `post_slug`, `post_title`, `cta_type`, `location` |
+
+El CTA lateral conserva `data-open-lead` para abrir el modal, pero no emite `repitela_landing_demo_opened`: registra solo el evento específico `repitela_blog_cta_clicked` para no duplicar conversiones.
 
 Las visitas (`page_view`, usuarios, fuentes de trafico) las reporta sola la
 etiqueta de Google (`G-JFQN47GREE`) que ya dispara en All Pages.
@@ -109,6 +120,14 @@ Todos los eventos incluyen automaticamente:
 | `song_id` | number | ID interno de la cancion | `42` |
 | `table_number` | string | Identificador de mesa/usuario | `"A3F21B"` |
 | `songs_cleared` | number | Canciones eliminadas al vaciar cola | `5` |
+| `location` | string | Ubicacion en la interfaz donde ocurrio el clic | `"blog_sidebar"` |
+| `ciudad` | string | Ciudad ingresada en el formulario de lead | `"Bogotá"` |
+| `post_slug` | string | Slug identificador del articulo del blog | `"playlist-para-bares-restaurantes"` |
+| `post_title` | string | Titulo completo del articulo del blog | `"Playlist para bares y restaurantes..."` |
+| `reading_time_min` | number | Minutos estimados de lectura del post | `5` |
+| `percent` | number | Hito de lectura alcanzado en el articulo | `50` |
+| `share_platform` | string | Plataforma seleccionada para compartir | `"whatsapp"` |
+| `cta_type` | string | Tipo de CTA del blog | `"demo_modal"` |
 
 ## Arquitectura
 
@@ -199,6 +218,12 @@ Las dimensiones son para valores de texto que usas para filtrar y agrupar (NO cr
 | Fuente de envio | Evento | Metodo: busqueda o pegar link | `submission_source` |
 | Razon de expiracion | Evento | Por que expiro la sesion | `expiry_reason` |
 | Es fallback | Evento | Si es cancion de playlist de respaldo | `is_fallback` |
+| Ubicacion Landing/Blog | Evento | Componente o seccion de origen del clic | `location` |
+| Ciudad Lead | Evento | Ciudad del bar en formulario de lead | `ciudad` |
+| Slug Articulo Blog | Evento | Identificador slug del articulo | `post_slug` |
+| Titulo Articulo Blog | Evento | Titulo del post de blog | `post_title` |
+| Plataforma Compartir | Evento | Red o canal donde se compartio el post | `share_platform` |
+| Tipo CTA Blog | Evento | Accion CTA disparada en el blog | `cta_type` |
 
 ### Paso 2: Metricas personalizadas (solo valores numericos)
 
@@ -218,6 +243,8 @@ Las metricas son para valores numericos que quieres promediar, sumar, etc. **Un 
 | Tiempo hasta confirmar | Segundos desde la busqueda hasta confirmar la cancion en la cola | `time_to_confirm_sec` | Segundos |
 | Posicion en cola | Posicion asignada en la cola al confirmar | `queue_position` | Estandar |
 | Canciones limpiadas | Canciones eliminadas en accion de vaciar cola | `songs_cleared` | Estandar |
+| Minutos lectura blog | Tiempo estimado de lectura del post | `reading_time_min` | Estandar |
+| Porcentaje scroll blog | Hito de lectura alcanzado | `percent` | Estandar |
 
 > **IMPORTANTE: Dimension vs Metrica — no se pueden duplicar**
 >

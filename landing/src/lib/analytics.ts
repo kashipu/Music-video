@@ -6,7 +6,7 @@ declare global {
   }
 }
 
-export const track = (event: string, params: Record<string, string> = {}) => {
+export const track = (event: string, params: Record<string, unknown> = {}) => {
   window.dataLayer = window.dataLayer || [];
   window.dataLayer.push({ event, ...params });
 };

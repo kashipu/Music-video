@@ -32,7 +32,7 @@ document.querySelectorAll<HTMLElement>("[data-open-lead]").forEach((btn) => {
     const location = btn.dataset.openLead ?? "unknown";
     if (leadDialog) {
       leadDialog.dataset.location = location;
-      track("repitela_landing_demo_opened", { location });
+      if (!btn.dataset.blogCta) track("repitela_landing_demo_opened", { location });
       leadDialog.showModal();
     }
   });
