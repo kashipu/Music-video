@@ -3,6 +3,7 @@
    Paleta: marrón #3B2418 · manteca #D2B56F · blanco #FFF8E9 · negro #111111
            verde militar #4B5D3A
    Se activa por bar con data-venue-theme="craft" (ver useTheme.js).
+   Contrastes verificados contra WCAG: texto ≥4.5:1, bordes/controles ≥3:1.
    ========================================================================== */
 
 /* TEMA CLARO */
@@ -10,111 +11,111 @@
 [data-venue-theme="craft"][data-theme="light"] {
   color-scheme: light;
 
-  /* Fondos y superficies */
-  --color-background: #d2b56f;       /* Fondo general */
-  --color-surface: #f7ebcb;          /* Tarjetas y secciones */
-  --color-surface-elevated: #fff8e9; /* Modales y menús */
-  --color-border: #9c814a;           /* Bordes y divisores */
+  /* Fondos y superficies — crema tintado de manteca, no manteca plena */
+  --color-background: #f7efdd;       /* Fondo general */
+  --color-surface: #fffbf2;          /* Tarjetas y secciones */
+  --color-surface-elevated: #ffffff; /* Modales y menús */
+  --color-border: #967c4c;           /* Bordes y divisores (3.5:1) */
 
-  /* Textos */
-  --color-text: #111111;             /* Texto principal */
-  --color-text-muted: #493a2f;       /* Texto secundario */
+  /* Textos — marrón muy oscuro en vez de negro puro */
+  --color-text: #2a1d14;             /* Texto principal (14.3:1) */
+  --color-text-muted: #6b5844;       /* Texto secundario (5.9:1) */
 
   /* Acciones de marca */
   --color-primary: #3b2418;          /* Botón principal */
-  --color-on-primary: #ffffff;
+  --color-on-primary: #fff8e9;
   --color-primary-hover: #2c1a12;
 
   --color-secondary: #4b5d3a;        /* Botón secundario */
-  --color-on-secondary: #ffffff;
+  --color-on-secondary: #fff8e9;
   --color-secondary-hover: #39472c;
 
-  --color-accent: #fff8e9;           /* Destacados suaves */
-  --color-on-accent: #3b2418;
+  --color-accent: #d2b56f;           /* Manteca: destacados y realces */
+  --color-on-accent: #2a1d14;
 
   /* Estados semánticos */
-  --color-success: #4b5d3a;
-  --color-on-success: #ffffff;
+  --color-success: #3f5130;
+  --color-on-success: #fff8e9;
 
-  --color-warning: #7a5a10;
-  --color-on-warning: #ffffff;
+  --color-warning: #8a6410;
+  --color-on-warning: #fff8e9;
 
-  --color-error: #a13d32;
-  --color-on-error: #ffffff;
+  --color-error: #9b3a2f;
+  --color-on-error: #fff8e9;
 
-  --color-info: #43758c;
-  --color-on-info: #ffffff;
+  --color-info: #3d6b80;
+  --color-on-info: #fff8e9;
 
   /* Interacción */
   --color-link: #3b2418;
   --color-focus: #4b5d3a;
-  --color-disabled: #a8915b;
+  --color-disabled: #b3a184;
 
   /* Fondos suaves de estado (derivados de los tokens de arriba) */
-  --primary-soft: rgba(59, 36, 24, 0.12);
-  --secondary-soft: rgba(75, 93, 58, 0.12);
-  --accent-soft: rgba(59, 36, 24, 0.08);
-  --success-soft: rgba(75, 93, 58, 0.12);
-  --warning-soft: rgba(122, 90, 16, 0.12);
-  --danger-soft: rgba(161, 61, 50, 0.12);
-  --border-soft: rgba(17, 17, 17, 0.12);
-  --shadow: rgba(59, 36, 24, 0.12);
-  --shadow-glow-primary: 0 0 30px rgba(59, 36, 24, 0.18);
+  --primary-soft: rgba(59, 36, 24, 0.10);
+  --secondary-soft: rgba(75, 93, 58, 0.10);
+  --accent-soft: rgba(210, 181, 111, 0.22);
+  --success-soft: rgba(63, 81, 48, 0.10);
+  --warning-soft: rgba(138, 100, 16, 0.12);
+  --danger-soft: rgba(155, 58, 47, 0.10);
+  --border-soft: rgba(42, 29, 20, 0.10);
+  --shadow: rgba(59, 36, 24, 0.10);
+  --shadow-glow-primary: 0 0 30px rgba(210, 181, 111, 0.35);
 }
 
 /* TEMA OSCURO */
 [data-venue-theme="craft"][data-theme="dark"] {
   color-scheme: dark;
 
-  /* Fondos y superficies */
-  --color-background: #111111;       /* Fondo general */
-  --color-surface: #1b1815;          /* Tarjetas y secciones */
-  --color-surface-elevated: #252019; /* Modales y menús */
-  --color-border: #544838;           /* Bordes y divisores */
+  /* Fondos y superficies — negro cálido, escalones parejos */
+  --color-background: #12100e;       /* Fondo general */
+  --color-surface: #1c1917;          /* Tarjetas y secciones */
+  --color-surface-elevated: #272220; /* Modales y menús */
+  --color-border: #7a6c5c;           /* Bordes y divisores (3.7:1) */
 
   /* Textos */
-  --color-text: #fff8e9;             /* Texto principal */
-  --color-text-muted: #c3b8a6;       /* Texto secundario */
+  --color-text: #fff8e9;             /* Texto principal (18:1) */
+  --color-text-muted: #b8ac9c;       /* Texto secundario (8.5:1) */
 
   /* Acciones de marca */
   --color-primary: #d2b56f;          /* Botón principal */
-  --color-on-primary: #111111;
-  --color-primary-hover: #e0be63;
+  --color-on-primary: #1a1410;
+  --color-primary-hover: #e3c88a;
 
-  --color-secondary: #8fa06b;        /* Botón secundario */
-  --color-on-secondary: #111111;
-  --color-secondary-hover: #a3b77a;
+  --color-secondary: #94a874;        /* Verde militar aclarado */
+  --color-on-secondary: #12100e;
+  --color-secondary-hover: #a8ba8b;
 
-  --color-accent: #3b2418;           /* Destacados cálidos */
+  --color-accent: #3b2418;           /* Marrón: destacados cálidos */
   --color-on-accent: #fff8e9;
 
   /* Estados semánticos */
-  --color-success: #8fa06b;
-  --color-on-success: #111111;
+  --color-success: #94a874;
+  --color-on-success: #12100e;
 
-  --color-warning: #e0be63;
-  --color-on-warning: #111111;
+  --color-warning: #e3c374;
+  --color-on-warning: #12100e;
 
-  --color-error: #f0a08f;
-  --color-on-error: #111111;
+  --color-error: #efa294;
+  --color-on-error: #12100e;
 
-  --color-info: #7fa9bc;
-  --color-on-info: #111111;
+  --color-info: #8cb4c6;
+  --color-on-info: #12100e;
 
   /* Interacción */
   --color-link: #d2b56f;
   --color-focus: #d2b56f;
-  --color-disabled: #544838;
+  --color-disabled: #5a5045;
 
   /* Fondos suaves de estado (derivados de los tokens de arriba) */
-  --primary-soft: rgba(210, 181, 111, 0.15);
-  --secondary-soft: rgba(143, 160, 107, 0.15);
+  --primary-soft: rgba(210, 181, 111, 0.16);
+  --secondary-soft: rgba(148, 168, 116, 0.16);
   --accent-soft: rgba(210, 181, 111, 0.10);
-  --success-soft: rgba(143, 160, 107, 0.15);
-  --warning-soft: rgba(224, 190, 99, 0.15);
-  --danger-soft: rgba(240, 160, 143, 0.15);
-  --border-soft: rgba(255, 248, 233, 0.12);
-  --shadow: rgba(0, 0, 0, 0.5);
+  --success-soft: rgba(148, 168, 116, 0.16);
+  --warning-soft: rgba(227, 195, 116, 0.16);
+  --danger-soft: rgba(239, 162, 148, 0.16);
+  --border-soft: rgba(255, 248, 233, 0.14);
+  --shadow: rgba(0, 0, 0, 0.55);
   --shadow-glow-primary: 0 0 30px rgba(210, 181, 111, 0.25), 0 0 60px rgba(210, 181, 111, 0.1);
 }
 

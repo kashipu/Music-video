@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { useWebSocket } from '../composables/useWebSocket.js'
 import { useTheme } from '../composables/useTheme.js'
 import { trackSongPlayed, trackSongEnded, trackSongError, trackFallbackActivated } from '../utils/analytics.js'
+import { isSvgLogo } from '../utils/logo.js'
 
 const route = useRoute()
 const venueSlug = route.params.venueSlug
@@ -732,7 +733,7 @@ onUnmounted(() => {
 
         <!-- Venue branding top-left -->
         <div v-if="showBrand && (venueName || venueLogo)" class="venue-brand">
-          <img v-if="venueLogo" :src="venueLogo.startsWith('/') ? API + venueLogo : venueLogo" class="venue-brand-logo" />
+          <img v-if="venueLogo" :src="venueLogo.startsWith('/') ? API + venueLogo : venueLogo" class="venue-brand-logo" :class="{ 'logo-adaptive': isSvgLogo(venueLogo) }" />
           <span v-else class="venue-brand-name">{{ venueName }}</span>
         </div>
 

@@ -41,7 +41,7 @@ export const THEME_PRESETS = [
     tokens: 'craft',
     accent: '#D2B56F',
     mode: 'dark',
-    colors: { bg: '#111111', text: '#FFF8E9' },
+    colors: { bg: '#12100E', text: '#FFF8E9' },
   },
   {
     id: 'purple-light',
@@ -85,6 +85,6 @@ export const THEME_PRESETS = [
     tokens: 'craft',
     accent: '#3B2418',
     mode: 'light',
-    colors: { bg: '#D2B56F', text: '#111111' },
+    colors: { bg: '#F7EFDD', text: '#2A1D14' },
   },
 ]
