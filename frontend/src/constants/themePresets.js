@@ -37,10 +37,10 @@ export const THEME_PRESETS = [
   {
     id: 'craft-dark',
     name: 'Artesanal Oscuro',
+    // Manteca sobre negro: 8.7:1 de contraste (AAA)
     accent: '#D2B56F',
     mode: 'dark',
-    // Marrón profundo: las cards/bordes derivados caen en tonos #3B2418
-    colors: { bg: '#1C120A', text: '#FFFFFF' },
+    colors: { bg: '#111111', text: '#FFFFFF' },
   },
   {
     id: 'purple-light',
@@ -80,9 +80,10 @@ export const THEME_PRESETS = [
   {
     id: 'craft-light',
     name: 'Artesanal Claro',
-    accent: '#D2B56F',
+    // Manteca oscurecido: el #D2B56F puro sobre crema da 1.9:1 (ilegible
+    // como color de links); este ocre da 5.1:1 (AA) manteniendo la familia.
+    accent: '#7E632E',
     mode: 'light',
-    // Crema tintado con manteca; texto en el negro de la paleta
     colors: { bg: '#FAF4E6', text: '#111111' },
   },
 ]

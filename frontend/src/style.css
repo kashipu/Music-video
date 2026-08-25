@@ -206,6 +206,19 @@ a { color: var(--primary); text-decoration: none; }
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
+/* ===== LOGO DEL BAR ===== */
+/* Los logos de los bares son SVG en negro: sobre fondo oscuro se invierten a
+   blanco; en claro quedan como vienen. El del kiosk (pantalla de video, fondo
+   siempre negro) se invierte siempre. */
+/* ponytail: invert(1) también invierte logos a color; si algún bar sube uno,
+   agregar flag por venue en vez de esta regla global */
+[data-theme="dark"] .venue-logo,
+[data-theme="dark"] .header-logo,
+[data-theme="dark"] .sidebar-logo,
+.venue-brand-logo {
+  filter: invert(1);
+}
+
 /* ===== THEME TOGGLE ===== */
 .theme-toggle {
   width: 44px; height: 44px; border-radius: 8px;

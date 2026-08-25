@@ -22,23 +22,29 @@ export function useTheme() {
   function toggleMode() {
     clearVenueTheme()
     applyMode(currentMode.value === 'dark' ? 'light' : 'dark')
-    // Re-apply venue accent/colors with the new mode
+    // Mantiene el acento del bar en ambos modos, pero el fondo/texto del preset
+    // solo aplican en SU modo: re-aplicarlos al alternar dejaba la página con los
+    // colores del modo original ("cambio a claro y no cambia nada").
     if (lastVenueConfig) {
       const theme = lastVenueConfig
       if (theme.accent) applyAccent(theme.accent)
-      if (theme.bg) {
-        const el = document.documentElement
-        el.style.setProperty('--bg', theme.bg)
-        el.style.setProperty('--bg-card', adjustBrightness(theme.bg, currentMode.value === 'dark' ? 15 : -5))
-        el.style.setProperty('--bg-elevated', adjustBrightness(theme.bg, currentMode.value === 'dark' ? 25 : -10))
-        el.style.setProperty('--border', adjustBrightness(theme.bg, currentMode.value === 'dark' ? 40 : -25))
-        const { r, g, b } = hexToRgb(theme.bg)
-        el.style.setProperty('--border-soft', `rgba(${r}, ${g}, ${b}, 0.3)`)
-      }
-      if (theme.text) {
-        document.documentElement.style.setProperty('--text', theme.text)
-        document.documentElement.style.setProperty('--text-muted', adjustBrightness(theme.text, currentMode.value === 'dark' ? -80 : 80))
-      }
+      if (theme.mode === currentMode.value) applySurfaces(theme)
+    }
+  }
+
+  function applySurfaces(theme) {
+    const el = document.documentElement
+    if (theme.bg) {
+      el.style.setProperty('--bg', theme.bg)
+      el.style.setProperty('--bg-card', adjustBrightness(theme.bg, theme.mode === 'dark' ? 15 : -5))
+      el.style.setProperty('--bg-elevated', adjustBrightness(theme.bg, theme.mode === 'dark' ? 25 : -10))
+      el.style.setProperty('--border', adjustBrightness(theme.bg, theme.mode === 'dark' ? 40 : -25))
+      const { r, g, b } = hexToRgb(theme.bg)
+      el.style.setProperty('--border-soft', `rgba(${r}, ${g}, ${b}, 0.3)`)
+    }
+    if (theme.text) {
+      el.style.setProperty('--text', theme.text)
+      el.style.setProperty('--text-muted', adjustBrightness(theme.text, theme.mode === 'dark' ? -80 : 80))
     }
   }
 
@@ -53,26 +59,9 @@ export function useTheme() {
 
     lastVenueConfig = theme
 
-    // Apply mode
     if (theme.mode) applyMode(theme.mode)
-
-    // Apply accent
     if (theme.accent) applyAccent(theme.accent)
-
-    // Apply custom bg/text if preset provides them
-    if (theme.bg) {
-      const el = document.documentElement
-      el.style.setProperty('--bg', theme.bg)
-      el.style.setProperty('--bg-card', adjustBrightness(theme.bg, theme.mode === 'dark' ? 15 : -5))
-      el.style.setProperty('--bg-elevated', adjustBrightness(theme.bg, theme.mode === 'dark' ? 25 : -10))
-      el.style.setProperty('--border', adjustBrightness(theme.bg, theme.mode === 'dark' ? 40 : -25))
-      const { r, g, b } = hexToRgb(theme.bg)
-      el.style.setProperty('--border-soft', `rgba(${r}, ${g}, ${b}, 0.3)`)
-    }
-    if (theme.text) {
-      document.documentElement.style.setProperty('--text', theme.text)
-      document.documentElement.style.setProperty('--text-muted', adjustBrightness(theme.text, theme.mode === 'dark' ? -80 : 80))
-    }
+    applySurfaces(theme)
   }
 
   function applyAccent(hex) {
@@ -125,9 +114,17 @@ function adjustHue(hex, degrees) {
 }
 
 function getContrastText(hex) {
+  // Luminancia relativa WCAG: elige negro o blanco según cuál dé MÁS contraste
+  // real (la heurística anterior ponía blanco sobre acentos medios, ilegible).
   const { r, g, b } = hexToRgb(hex)
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
-  return luminance > 0.5 ? '#000000' : '#FFFFFF'
+  const lin = (c) => {
+    const s = c / 255
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4)
+  }
+  const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+  const contrastWhite = 1.05 / (L + 0.05)
+  const contrastBlack = (L + 0.05) / 0.05
+  return contrastBlack >= contrastWhite ? '#000000' : '#FFFFFF'
 }
 
 function rgbToHex(r, g, b) {
