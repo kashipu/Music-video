@@ -3,6 +3,8 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router/index.js'
 import './style.css'
+// El orden importa: los temas por bar deben poder ganarle al tema por defecto.
+import './themes/default.css'
 import './themes/craft.css'
 
 const app = createApp(App)

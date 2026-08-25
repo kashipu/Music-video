@@ -1,0 +1,147 @@
+/* ==========================================================================
+   TEMA REPÍTELA (por defecto)
+   Paleta de la landing: naranja #FF5522 · violeta #A855F7 · cyan #00C8FF
+                         ámbar #FFB800 · obsidiana #07070B · card #0E0E14
+   Aplica cuando el bar no tiene un tema propio asignado.
+   Contrastes verificados contra WCAG: texto ≥4.5:1, controles ≥3:1.
+   ========================================================================== */
+
+/* TEMA OSCURO (el de la landing; es el modo por defecto de la app) */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Fondos y superficies */
+  --color-background: #07070b;       /* Fondo general (obsidiana) */
+  --color-surface: #0e0e14;          /* Tarjetas y secciones */
+  --color-surface-elevated: #1f1f29; /* Modales y menús */
+  --color-border: #5f5f78;           /* Bordes y divisores (3.3:1) */
+
+  /* Textos */
+  --color-text: #fafafa;             /* Texto principal (19.3:1) */
+  --color-text-muted: #bebecc;       /* Texto secundario (10.9:1) */
+
+  /* Acciones de marca */
+  --color-primary: #ff5522;          /* Naranja de marca (6.3:1) */
+  --color-on-primary: #07070b;       /* Texto oscuro: el blanco daba 3.2:1 */
+  --color-primary-hover: #ff7a52;
+
+  --color-secondary: #a855f7;        /* Violeta */
+  --color-on-secondary: #07070b;
+  --color-secondary-hover: #bd7ffa;
+
+  --color-accent: #00c8ff;           /* Cyan */
+  --color-on-accent: #07070b;
+
+  /* Estados semánticos */
+  --color-success: #34d399;
+  --color-on-success: #07070b;
+
+  --color-warning: #ffb800;
+  --color-on-warning: #07070b;
+
+  --color-error: #f87171;
+  --color-on-error: #07070b;
+
+  --color-info: #00c8ff;
+  --color-on-info: #07070b;
+
+  /* Interacción */
+  --color-link: #ff5522;
+  --color-focus: #ff5522;
+  --color-disabled: #4a4a5e;
+
+  /* Fondos suaves de estado */
+  --primary-soft: rgba(255, 85, 34, 0.15);
+  --secondary-soft: rgba(168, 85, 247, 0.15);
+  --accent-soft: rgba(0, 200, 255, 0.15);
+  --success-soft: rgba(52, 211, 153, 0.15);
+  --warning-soft: rgba(255, 184, 0, 0.15);
+  --danger-soft: rgba(248, 113, 113, 0.15);
+  --border-soft: rgba(255, 255, 255, 0.12);
+  --shadow: rgba(0, 0, 0, 0.5);
+  --shadow-glow-primary: 0 0 30px rgba(255, 85, 34, 0.25), 0 0 60px rgba(255, 85, 34, 0.1);
+}
+
+/* TEMA CLARO — mismos matices, ajustados para fondo claro */
+[data-theme="light"] {
+  color-scheme: light;
+
+  /* Fondos y superficies */
+  --color-background: #f5f5fa;       /* Fondo general */
+  --color-surface: #ffffff;          /* Tarjetas y secciones */
+  --color-surface-elevated: #ebebf2; /* Modales y menús */
+  --color-border: #82829b;           /* Bordes y divisores (3.4:1) */
+
+  /* Textos */
+  --color-text: #0e0e14;             /* Texto principal (18.4:1) */
+  --color-text-muted: #525266;       /* Texto secundario (7.6:1) */
+
+  /* Acciones de marca — naranja oscurecido: el #ff5522 puro da 3.0:1
+     sobre fondo claro, insuficiente para texto y enlaces */
+  --color-primary: #c43a0f;          /* (5.0:1 como texto, 5.3:1 con blanco) */
+  --color-on-primary: #ffffff;
+  --color-primary-hover: #a83109;
+
+  --color-secondary: #7e22ce;        /* Violeta oscurecido (6.5:1) */
+  --color-on-secondary: #ffffff;
+  --color-secondary-hover: #6b1cae;
+
+  --color-accent: #0e7490;           /* Cyan oscurecido (5.0:1) */
+  --color-on-accent: #ffffff;
+
+  /* Estados semánticos */
+  --color-success: #0f7a4a;
+  --color-on-success: #ffffff;
+
+  --color-warning: #8a6100;
+  --color-on-warning: #ffffff;
+
+  --color-error: #c62828;
+  --color-on-error: #ffffff;
+
+  --color-info: #0e7490;
+  --color-on-info: #ffffff;
+
+  /* Interacción */
+  --color-link: #c43a0f;
+  --color-focus: #c43a0f;
+  --color-disabled: #a0a0b5;
+
+  /* Fondos suaves de estado */
+  --primary-soft: rgba(196, 58, 15, 0.10);
+  --secondary-soft: rgba(126, 34, 206, 0.10);
+  --accent-soft: rgba(14, 116, 144, 0.10);
+  --success-soft: rgba(15, 122, 74, 0.10);
+  --warning-soft: rgba(138, 97, 0, 0.10);
+  --danger-soft: rgba(198, 40, 40, 0.10);
+  --border-soft: rgba(14, 14, 20, 0.10);
+  --shadow: rgba(14, 14, 20, 0.08);
+  --shadow-glow-primary: 0 0 30px rgba(196, 58, 15, 0.18);
+}
+
+/* --------------------------------------------------------------------------
+   MAPEO a los nombres que consumen los componentes (--bg, --primary, ...).
+   Los tokens --color-* de arriba son la fuente de verdad.
+   -------------------------------------------------------------------------- */
+:root {
+  --bg: var(--color-background);
+  --bg-card: var(--color-surface);
+  --bg-elevated: var(--color-surface-elevated);
+  --border: var(--color-border);
+
+  --text: var(--color-text);
+  --text-muted: var(--color-text-muted);
+
+  --primary: var(--color-primary);
+  --primary-dark: var(--color-primary-hover);
+  --primary-foreground: var(--color-on-primary);
+  --text-on-primary: var(--color-on-primary);
+
+  --secondary: var(--color-secondary);
+  --accent: var(--color-accent);
+
+  --success: var(--color-success);
+  --warning: var(--color-warning);
+  --danger: var(--color-error);
+}
