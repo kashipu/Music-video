@@ -18,20 +18,21 @@
   --color-border: #967c4c;           /* Bordes y divisores (3.5:1) */
 
   /* Textos — marrón muy oscuro en vez de negro puro */
-  --color-text: #2a1d14;             /* Texto principal (14.3:1) */
+  --color-text: #33241a;             /* Texto principal (12.3:1) */
   --color-text-muted: #6b5844;       /* Texto secundario (5.9:1) */
 
-  /* Acciones de marca */
-  --color-primary: #3b2418;          /* Botón principal */
+  /* Acciones de marca — marrón aclarado desde #3b2418 para que el botón no
+     lea como un bloque casi negro (9.5:1, sigue muy por encima del mínimo) */
+  --color-primary: #5c3a26;          /* Botón principal */
   --color-on-primary: #fff8e9;
-  --color-primary-hover: #2c1a12;
+  --color-primary-hover: #4a2e1e;
 
   --color-secondary: #4b5d3a;        /* Botón secundario */
   --color-on-secondary: #fff8e9;
   --color-secondary-hover: #39472c;
 
   --color-accent: #d2b56f;           /* Manteca: destacados y realces */
-  --color-on-accent: #2a1d14;
+  --color-on-accent: #3a281b;
 
   /* Estados semánticos */
   --color-success: #3f5130;
@@ -47,7 +48,7 @@
   --color-on-info: #fff8e9;
 
   /* Interacción */
-  --color-link: #3b2418;
+  --color-link: #5c3a26;
   --color-focus: #4b5d3a;
   --color-disabled: #b3a184;
 
@@ -86,7 +87,7 @@
   --color-on-secondary: #12100e;
   --color-secondary-hover: #a8ba8b;
 
-  --color-accent: #3b2418;           /* Marrón: destacados cálidos */
+  --color-accent: #4d3222;           /* Marrón cálido, un tono más claro */
   --color-on-accent: #fff8e9;
 
   /* Estados semánticos */

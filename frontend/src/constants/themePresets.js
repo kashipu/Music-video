@@ -83,8 +83,8 @@ export const THEME_PRESETS = [
     name: 'Artesanal Claro',
     // Paleta completa en src/themes/craft.css (no se deriva nada en runtime)
     tokens: 'craft',
-    accent: '#3B2418',
+    accent: '#5C3A26',
     mode: 'light',
-    colors: { bg: '#F7EFDD', text: '#2A1D14' },
+    colors: { bg: '#F7EFDD', text: '#33241A' },
   },
 ]
