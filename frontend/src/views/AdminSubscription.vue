@@ -105,8 +105,13 @@ async function payNow() {
       'amount-in-cents': checkout.amount_in_cents,
       reference: checkout.reference,
       'signature:integrity': checkout.signature,
-      'redirect-url': location.origin + location.pathname,
     })
+    // El WAF de Wompi bloquea el checkout (403 CloudFront) si redirect-url es
+    // localhost/http: en dev se omite (vuelves a la pestaña a mano; el webhook
+    // registra el pago igual). En producción https va normal.
+    if (location.protocol === 'https:') {
+      params.set('redirect-url', location.origin + location.pathname)
+    }
     window.location.href = `https://checkout.wompi.co/p/?${params}`
   } catch (e) {
     errorMsg.value = e.message || 'No se pudo iniciar el pago'
