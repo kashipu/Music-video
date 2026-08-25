@@ -1,317 +1,97 @@
-# Modelo de Datos - BarQueue
+# Modelo de Datos
 
-Base de datos SQLite con WAL mode habilitado para concurrencia de lecturas.
+Repitela usa SQLite multi-venue. Al inicializar, activa WAL, claves foráneas, `busy_timeout=15000`, caché de 64 MB y `synchronous=NORMAL` (`backend/app/database.py:17-31`). Las migraciones se aplican por nombre en orden lexicográfico y quedan registradas en `_migrations` (`backend/app/database.py:41-79`).
 
-## Diagrama de Relaciones (ER)
+El esquema actual tiene 17 tablas contando `_migrations`: 16 de producto y el registro de migraciones.
 
-```
-┌──────────────┐       ┌──────────────────┐       ┌──────────────┐
-│   venues     │       │  user_sessions   │       │    users     │
-│──────────────│       │──────────────────│       │──────────────│
-│ PK id        │◄──┐   │ PK id (UUID)     │   ┌──►│ PK id        │
-│    name      │   │   │ FK user_id ──────│───┘   │    phone     │
-│    slug      │   │   │ FK venue_id ─────│───┐   │    display   │
-│    fallback_ │   │   │    table_number  │   │   │    data_     │
-│    playlist  │   │   │    started_at    │   │   │    consent   │
-│    fallback_ │   │   │    ended_at      │   │   │    created_  │
-│    mode      │   │   └──────────────────┘   │   └──────┬───────┘
-│    config    │   │                          │          │
-│    created_  │   │                          │          │
-└──────┬───────┘   │                          │          │
-       │           │                          │          │
-       │   ┌───────┴──────────────────────────┘          │
-       │   │                                             │
-       ▼   ▼                                             ▼
-┌──────────────────┐                          ┌──────────────────┐
-│  queue_songs     │                          │ submission_log   │
-│──────────────────│                          │──────────────────│
-│ PK id            │                          │ PK id            │
-│ FK venue_id      │                          │ FK user_id       │
-│ FK user_id       │                          │ FK venue_id      │
-│ FK session_id    │                          │    submitted_at  │
-│    youtube_id    │                          └──────────────────┘
-│    title         │
-│    thumbnail_url │                          ┌──────────────────┐
-│    duration_sec  │                          │    admins        │
-│    position      │                          │──────────────────│
-│    status        │                          │ PK id            │
-│    added_at      │                          │ FK venue_id      │
-│    played_at     │                          │    username      │
-└──────────────────┘                          │    password_hash │
-                                              │    created_at    │
-┌──────────────────┐                          └──────────────────┘
-│  play_history    │
-│──────────────────│       ┌──────────────────┐
-│ PK id            │       │  song_metadata   │
-│ FK venue_id      │       │──────────────────│
-│ FK user_id       │       │ PK youtube_id    │
-│    youtube_id ───│──────►│    title         │
-│    title         │       │    artist        │
-│    artist        │       │    genre         │
-│    genre         │       │    tags (JSON)   │
-│    played_at     │       │    duration_sec  │
-│    duration_sec  │       │    first_seen_at │
-└──────────────────┘       └──────────────────┘
+## Tablas de producto
+
+### `venues`
+
+El bar/cliente: `id`, `name`, `slug` único, `fallback_playlist`, `fallback_mode` (`playlist` o `youtube_recommendations`), `config`, `created_at`, `active`, `logo_url`, `qr_url`, `paid_until`, `payment_notes`, `address`, `address_lat`, `address_lng`, `venue_type` (`discoteca`, `rock`, `musica_popular` u `otro`) y `venue_type_other`. Base en `001_initial_schema.sql:1-10`; extensiones en `002`, `004`, `005`, `008` y `014`.
+
+`config` es un blob JSON. Hoy guarda límites opcionales y el tema, por ejemplo:
+
+```json
+{
+  "max_duration_sec": 600,
+  "max_songs_per_window": 5,
+  "window_minutes": 30,
+  "theme": "craft-dark"
+}
 ```
 
-## Esquema SQL
+`theme` es uno de los IDs de `frontend/src/constants/themePresets.js:1-90`. El superadmin lee todo el JSON, modifica las claves solicitadas y lo escribe completo (`backend/app/routers/superadmin.py:344-372`). **Deuda conocida:** ese patrón read-modify-write puede perder una escritura concurrente; no hay control de versión ni actualización JSON atómica.
 
-### Tabla: `venues`
+### Identidad y sesiones
 
-Almacena la información de cada bar/venue.
+| Tabla | Columnas y propósito |
+|---|---|
+| `users` | `id`, `phone` único, `display_name`, `data_consent`, `created_at`. Clientes identificados por teléfono. |
+| `user_sessions` | `id` UUID, `user_id`, `venue_id`, `table_number`, `started_at`, `ended_at`, `last_activity_at`. Una sesión activa tiene `ended_at` nulo; `last_activity_at` sustenta la expiración por inactividad (`009_session_activity.sql:1-8`). |
+| `admins` | `id`, `venue_id`, `username` único, `password_hash`, `created_at`, `email`, `email_verified`, `google_sub`, `terms_accepted_at`, `terms_version`, `privacy_accepted_at`, `full_name`, `phone`, `role` (`owner` o `manager`), `onboarding_completed_at`, `last_login_at`, `address`, `city`, `country`. |
+| `super_admins` | `id`, `username` único, `password_hash`, `created_at`, `role` (`super_admin`, `vendedor` o `editor`), `last_login_at`, `phone`, `email`. |
+| `email_tokens` | `id`, `admin_id`, `token_hash`, `purpose` (`verify` o `reset`), `expires_at`, `used_at`, `created_at`. |
 
-```sql
-CREATE TABLE venues (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    name            TEXT NOT NULL,
-    slug            TEXT UNIQUE NOT NULL,
-    fallback_playlist TEXT,          -- JSON array de youtube_ids, ej: '["dQw4w9WgXcQ", "abc123"]'
-    fallback_mode   TEXT NOT NULL DEFAULT 'playlist'
-                    CHECK (fallback_mode IN ('playlist', 'youtube_recommendations')),
-    config          TEXT DEFAULT '{}', -- JSON con configuración del venue
-    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+`admins` arranca en `001_initial_schema.sql:64-70` y recibe sus campos actuales en `013`, `014`, `015`, `019` y `020`. `super_admins` nace en `002` y se completa en `016`–`018`; `email_tokens` está en `013`.
 
--- El slug se usa en las URLs: https://app.domain.com/{slug}
--- config ejemplo: {"max_duration_sec": 600, "max_songs_per_window": 5, "window_minutes": 30}
-```
+### Música y reproducción
 
-### Tabla: `users`
+| Tabla | Columnas y propósito |
+|---|---|
+| `queue_songs` | `id`, `venue_id`, `user_id`, `session_id`, `youtube_id`, `title`, `thumbnail_url`, `duration_sec`, `position`, `status` (`pending`, `playing`, `played`, `removed`), `added_at`, `played_at`. Cola por venue. |
+| `submission_log` | `id`, `user_id`, `venue_id`, `submitted_at`; soporte del límite de envíos. |
+| `play_history` | `id`, `venue_id`, `user_id`, `youtube_id`, `title`, `artist`, `genre`, `played_at`, `duration_sec`; historial de reproducción. |
+| `song_metadata` | `youtube_id` PK, `title`, `artist`, `genre`, `tags` JSON, `duration_sec`, `first_seen_at`; catálogo local de videos conocidos. |
+| `fallback_songs` | `id`, `venue_id`, `youtube_id`, `title`, `thumbnail_url`, `duration_sec`, `position`, `active`, `added_at`; canciones de respaldo, únicas por `(venue_id, youtube_id)`. |
+| `blocked_videos` | `id`, `youtube_id` único, `venue_id` nullable, `error_code`, `title`, `blocked_at`; bloqueos de reproducción o embebido. |
 
-Usuarios identificados por número de celular.
+Las seis tablas están definidas en `001_initial_schema.sql:34-96`, `003_fallback_songs.sql` y `010_blocked_videos.sql`. `idx_queue_active_video` **sí existe**: es un índice único parcial sobre `(venue_id, youtube_id)` para estados `pending` y `playing` (`001_initial_schema.sql:50-53`).
 
-```sql
-CREATE TABLE users (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    phone           TEXT UNIQUE NOT NULL,    -- Formato E.164: +573001234567
-    display_name    TEXT,                    -- Nombre opcional del usuario
-    data_consent    BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+### Operación, analytics y facturación
 
-CREATE INDEX idx_users_phone ON users(phone);
-```
+| Tabla | Columnas y propósito |
+|---|---|
+| `venue_daily_pins` | `id`, `venue_id`, `pin`, `valid_date`, `created_at`; PIN único por venue y fecha. |
+| `analytics_events` | `id`, `venue_id` nullable, `event_type`, `event_data` JSON, `user_id`, `session_id`, `created_at`. `venue_id` pasó a nullable para registrar búsquedas anónimas (`012_analytics_events_nullable_venue.sql:1-27`). |
+| `platform_settings` | Fila única `id=1`, `trial_days`, `grace_period_days`, `monthly_price_cents`. |
+| `venue_billing_events` | `id`, `venue_id`, `kind` (`payment`, `trial`, `legacy`, `adjustment`), `source`, datos del creador, `amount_cents`, `days`, período, `status`, `provider_ref`, `raw_payload`, `notes`, `created_at`. Conserva el historial de cobros y ajustes. |
+| `_migrations` | `id`, `filename` único, `applied_at`; control interno de migraciones. |
 
-### Tabla: `user_sessions`
+`venue_billing_events.venue_id` usa `ON DELETE CASCADE`; su índice de idempotencia hace único `(source, provider_ref)` cuando la referencia no es nula (`023_billing_adjustment.sql:5-33`). `platform_settings` se crea con una fila inicial en `013` y gana el precio en `021`.
 
-Registra cada sesión de un usuario en un venue (escaneo de QR).
+## Relaciones e índices relevantes
 
-```sql
-CREATE TABLE user_sessions (
-    id              TEXT PRIMARY KEY,        -- UUID v4
-    user_id         INTEGER NOT NULL REFERENCES users(id),
-    venue_id        INTEGER NOT NULL REFERENCES venues(id),
-    table_number    TEXT NOT NULL,           -- Número/nombre de mesa
-    started_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    ended_at        TIMESTAMP               -- NULL si está activa
-);
+`venues` es el límite de tenancy: lo referencian sesiones, cola, logs, historial, admins, fallback, PINs, analytics, bloqueos y facturación. Las canciones de cola referencian a `users` y `user_sessions`; el historial y los logs referencian usuarios. Salvo la cascada explícita de `venue_billing_events`, las FKs no declaran cascada.
 
-CREATE INDEX idx_sessions_user_venue ON user_sessions(user_id, venue_id);
-CREATE INDEX idx_sessions_venue_active ON user_sessions(venue_id, ended_at);
-```
+Índices operativos: cola por `(venue_id, status, position)` y sesión; sesiones activas por venue y por actividad; envíos por usuario/venue/fecha; historial por venue/fecha, video y usuario; analytics por venue/tipo/fecha; y los índices únicos descritos en las migraciones `001`, `003`, `006`, `010`, `013`, `021` y `023`.
 
-### Tabla: `queue_songs`
-
-La cola de canciones. Tabla central del sistema.
-
-```sql
-CREATE TABLE queue_songs (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    venue_id        INTEGER NOT NULL REFERENCES venues(id),
-    user_id         INTEGER NOT NULL REFERENCES users(id),
-    session_id      TEXT NOT NULL REFERENCES user_sessions(id),
-    youtube_id      TEXT NOT NULL,           -- ID del video (11 chars)
-    title           TEXT NOT NULL,
-    thumbnail_url   TEXT,
-    duration_sec    INTEGER,
-    position        INTEGER NOT NULL,        -- Orden en la cola
-    status          TEXT NOT NULL DEFAULT 'pending'
-                    CHECK (status IN ('pending', 'playing', 'played', 'removed')),
-    added_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    played_at       TIMESTAMP               -- Momento en que empezó a sonar
-);
-
--- Índice principal para consultar la cola activa de un venue
-CREATE INDEX idx_queue_venue_status ON queue_songs(venue_id, status, position);
-
--- Para verificar deduplicación (mismo video no puede estar pendiente 2 veces)
-CREATE UNIQUE INDEX idx_queue_active_video ON queue_songs(venue_id, youtube_id)
-    WHERE status IN ('pending', 'playing');
-
--- Para consultar las canciones de un usuario
-CREATE INDEX idx_queue_user ON queue_songs(user_id, venue_id);
-```
-
-### Tabla: `submission_log`
-
-Registro de envíos para implementar rate limiting.
-
-```sql
-CREATE TABLE submission_log (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id         INTEGER NOT NULL REFERENCES users(id),
-    venue_id        INTEGER NOT NULL REFERENCES venues(id),
-    submitted_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- Consulta de rate limit: COUNT(*) WHERE user_id = ? AND venue_id = ? AND submitted_at > datetime('now', '-30 minutes')
-CREATE INDEX idx_submissions_rate_limit ON submission_log(user_id, venue_id, submitted_at);
-```
-
-### Tabla: `admins`
-
-Cuentas de administrador (separadas de los clientes).
-
-```sql
-CREATE TABLE admins (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    venue_id        INTEGER NOT NULL REFERENCES venues(id),
-    username        TEXT UNIQUE NOT NULL,
-    password_hash   TEXT NOT NULL,           -- bcrypt hash
-    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-### Tabla: `play_history`
-
-Historial completo de canciones reproducidas. Fuente principal para analytics.
-
-```sql
-CREATE TABLE play_history (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    venue_id        INTEGER NOT NULL REFERENCES venues(id),
-    user_id         INTEGER NOT NULL REFERENCES users(id),
-    youtube_id      TEXT NOT NULL,
-    title           TEXT NOT NULL,
-    artist          TEXT,                    -- Extraído de metadata de YouTube
-    genre           TEXT,                    -- Categoría de YouTube
-    played_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    duration_sec    INTEGER
-);
-
-CREATE INDEX idx_history_venue_date ON play_history(venue_id, played_at);
-CREATE INDEX idx_history_youtube ON play_history(youtube_id);
-CREATE INDEX idx_history_user ON play_history(user_id, played_at);
-```
-
-### Tabla: `song_metadata`
-
-Catálogo de canciones conocidas. Se llena la primera vez que se solicita un video.
-
-```sql
-CREATE TABLE song_metadata (
-    youtube_id      TEXT PRIMARY KEY,        -- ID del video de YouTube
-    title           TEXT NOT NULL,
-    artist          TEXT,                    -- Extraído del título o metadata
-    genre           TEXT,                    -- Categoría de YouTube
-    tags            TEXT,                    -- JSON array de tags del video
-    duration_sec    INTEGER,
-    first_seen_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-## Configuración de SQLite
-
-```sql
--- Habilitar WAL mode para mejor concurrencia
-PRAGMA journal_mode = WAL;
-
--- Habilitar foreign keys (deshabilitadas por defecto en SQLite)
-PRAGMA foreign_keys = ON;
-
--- Timeout para escrituras concurrentes (5 segundos)
-PRAGMA busy_timeout = 5000;
-
--- Optimizar para velocidad de lectura
-PRAGMA cache_size = -64000;  -- 64MB cache
-PRAGMA synchronous = NORMAL; -- Balance entre seguridad y velocidad
-```
-
-## Estrategia de Migraciones
-
-Archivos SQL numerados en `backend/app/db/migrations/`:
+## Migraciones
 
 ```
-migrations/
-├── 001_initial_schema.sql
-├── 002_add_song_metadata.sql
-├── 003_add_venue_config.sql
-└── ...
+001_initial_schema.sql
+002_super_admins.sql
+003_fallback_songs.sql
+004_venue_logo.sql
+005_venue_qr_url.sql
+006_venue_daily_pin.sql
+007_analytics_events.sql
+008_venue_billing.sql
+009_session_activity.sql
+010_blocked_videos.sql
+011_performance_indexes.sql
+012_analytics_events_nullable_venue.sql
+013_admin_selfsignup.sql
+014_admin_onboarding.sql
+015_admin_last_login.sql
+016_super_admin_roles.sql
+017_super_admin_last_login.sql
+018_super_admin_contact.sql
+019_admin_contact.sql
+020_admin_country.sql
+021_venue_billing_history.sql
+022_backfill_onboarding.sql
+023_billing_adjustment.sql
 ```
 
-- Cada migración se ejecuta en orden al iniciar la app
-- Se registra en una tabla `_migrations` qué migraciones ya se aplicaron
-- Rollback manual (no automático) — SQLite no soporta todas las operaciones ALTER TABLE
-
-```sql
-CREATE TABLE _migrations (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    filename        TEXT UNIQUE NOT NULL,
-    applied_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-## Consultas Frecuentes
-
-### Cola activa de un venue
-
-```sql
-SELECT qs.*, u.display_name, us.table_number
-FROM queue_songs qs
-JOIN users u ON qs.user_id = u.id
-JOIN user_sessions us ON qs.session_id = us.id
-WHERE qs.venue_id = ?
-  AND qs.status IN ('pending', 'playing')
-ORDER BY qs.position ASC;
-```
-
-### Rate limit check
-
-```sql
-SELECT COUNT(*) as song_count
-FROM submission_log
-WHERE user_id = ?
-  AND venue_id = ?
-  AND submitted_at > datetime('now', '-30 minutes');
-```
-
-### Top 10 canciones más pedidas (mes actual)
-
-```sql
-SELECT youtube_id, title, artist, COUNT(*) as times_played
-FROM play_history
-WHERE venue_id = ?
-  AND played_at >= date('now', 'start of month')
-GROUP BY youtube_id
-ORDER BY times_played DESC
-LIMIT 10;
-```
-
-### Co-ocurrencia de canciones (qué se pide junto)
-
-```sql
-SELECT a.youtube_id AS song_a, b.youtube_id AS song_b,
-       a.title AS title_a, b.title AS title_b,
-       COUNT(*) AS co_occurrences
-FROM queue_songs a
-JOIN queue_songs b ON a.session_id = b.session_id
-  AND a.youtube_id < b.youtube_id
-WHERE a.venue_id = ?
-  AND a.status = 'played'
-  AND b.status = 'played'
-GROUP BY a.youtube_id, b.youtube_id
-ORDER BY co_occurrences DESC
-LIMIT 20;
-```
-
-### Horas pico por venue
-
-```sql
-SELECT strftime('%H', added_at) AS hour,
-       COUNT(*) AS requests
-FROM queue_songs
-WHERE venue_id = ?
-  AND added_at >= date('now', '-30 days')
-GROUP BY hour
-ORDER BY requests DESC;
-```
+Cada archivo se ejecuta una vez, dentro de una transacción por archivo; si falla no se registra en `_migrations` (`backend/app/database.py:60-79`). No hay rollback automático.
