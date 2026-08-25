@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
+import { useConfigStore } from '../stores/config.js'
 import { useTheme } from '../composables/useTheme.js'
 import { useGoogleAuth } from '../composables/useGoogleAuth.js'
 import AuthLoginForm from '../components/AuthLoginForm.vue'
@@ -13,9 +14,9 @@ const { startGoogleAuth } = useGoogleAuth()
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const config = useConfigStore()
 
 const API = import.meta.env.VITE_API_URL || ''
-const GOOGLE_SIGNUP_ENABLED = import.meta.env.VITE_GOOGLE_SIGNUP_ENABLED !== 'false'
 const venueSlug = route.params.venueSlug || null
 document.title = venueSlug ? `${venueSlug.replace(/-/g, ' ')} - Admin` : 'Repítela - Admin'
 
@@ -118,7 +119,7 @@ async function startGoogleLogin() {
       :logo-url="venueLogo"
       :error="error"
       :loading="loading"
-      :show-google="GOOGLE_SIGNUP_ENABLED"
+      :show-google="config.google_signup"
       @submit="handleLogin"
       @google="startGoogleLogin"
     >

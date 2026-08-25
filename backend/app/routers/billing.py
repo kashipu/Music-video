@@ -82,8 +82,8 @@ async def get_billing(admin: dict = Depends(get_current_admin)):
 
 @router.get("/billing/checkout")
 async def get_checkout(admin: dict = Depends(get_current_admin)):
-    if not settings.wompi_checkout_enabled:
-        raise HTTPException(status_code=503, detail="Pago temporalmente deshabilitado")
+    if not settings.pagos:
+        raise HTTPException(status_code=503, detail="Pagos temporalmente deshabilitados")
     settings_row = await get_platform_settings()
     amount = settings_row["monthly_price_cents"]
     if not amount:

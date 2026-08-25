@@ -172,7 +172,7 @@ async def reset_password(req: ResetPasswordRequest, _: None = Depends(limit_auth
 
 @router.post("/google-signup", status_code=201)
 async def google_signup(req: GoogleSignupRequest, _: None = Depends(limit_auth_attempts)):
-    if not settings.google_signup_enabled:
+    if not settings.google_signup:
         raise HTTPException(status_code=503, detail="Registro con Google temporalmente deshabilitado")
     if not req.terms_accepted or not req.privacy_accepted:
         raise HTTPException(status_code=400, detail="Debes aceptar los terminos y el tratamiento de datos")

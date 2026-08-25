@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from app.config import settings
 from app.database import init_db, close_db
@@ -127,3 +127,11 @@ async def health():
         "version": "1.0.2",
         "database": db_status,
     }
+
+
+@app.get("/api/config")
+async def public_config():
+    return JSONResponse(
+        {"google_signup": settings.google_signup, "pagos": settings.pagos},
+        headers={"Cache-Control": "public, max-age=60"},
+    )

@@ -5,17 +5,18 @@ import AuthSplitLayout from '../components/AuthSplitLayout.vue'
 import Button from '../components/ui/Button.vue'
 import Input from '../components/ui/Input.vue'
 import { useAuthStore } from '../stores/auth.js'
+import { useConfigStore } from '../stores/config.js'
 import { useGoogleAuth } from '../composables/useGoogleAuth.js'
 import { LATAM_COUNTRIES } from '../data/countries.js'
 
 document.title = 'Repítela - Crear Cuenta'
 
 const API = import.meta.env.VITE_API_URL || ''
-const GOOGLE_SIGNUP_ENABLED = import.meta.env.VITE_GOOGLE_SIGNUP_ENABLED !== 'false'
 const { startGoogleAuth } = useGoogleAuth()
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY
 const router = useRouter()
 const auth = useAuthStore()
+const config = useConfigStore()
 
 const venueName = ref('')
 const email = ref('')
@@ -298,7 +299,7 @@ onBeforeUnmount(() => {
       <p v-if="error" class="error-msg" role="alert">{{ error }}</p>
       <p v-if="success" class="success-msg" role="status">{{ success }}</p>
       <Button type="submit" :disabled="loading || !accepted || (TURNSTILE_SITE_KEY && !turnstileToken)">{{ loading ? 'Creando...' : 'Crear cuenta' }}</Button>
-      <template v-if="GOOGLE_SIGNUP_ENABLED">
+      <template v-if="config.google_signup">
         <div class="divider">o continúa con</div>
         <Button type="button" variant="secondary" :disabled="loading" @click="startGoogleSignup">
           <svg viewBox="0 0 24 24" width="16" aria-hidden="true">

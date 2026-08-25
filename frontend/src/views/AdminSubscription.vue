@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
+import { useConfigStore } from '../stores/config.js'
 import { useTheme } from '../composables/useTheme.js'
 import Badge from '../components/ui/Badge.vue'
 import UiButton from '../components/ui/Button.vue'
@@ -9,9 +10,9 @@ import UiButton from '../components/ui/Button.vue'
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const config = useConfigStore()
 const { currentMode, toggleMode } = useTheme()
 const API = import.meta.env.VITE_API_URL || ''
-const WOMPI_ENABLED = import.meta.env.VITE_WOMPI_ENABLED !== 'false'
 const venueSlug = route.params.venueSlug
 
 const loading = ref(true)
@@ -166,7 +167,7 @@ onMounted(async () => {
             <strong class="price-value">{{ formatCurrency(billing.monthly_price_cents) }}</strong>
           </div>
 
-          <UiButton v-if="WOMPI_ENABLED" class="pay-btn" :disabled="paying" @click="payNow">
+          <UiButton v-if="config.pagos" class="pay-btn" :disabled="paying" @click="payNow">
             {{ paying ? 'Redirigiendo a Wompi...' : 'Pagar con Wompi' }}
           </UiButton>
           <span v-if="errorMsg" class="error-msg" role="alert">{{ errorMsg }}</span>
