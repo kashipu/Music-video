@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
+import { useConfigStore } from '../stores/config.js'
 import { useTheme } from '../composables/useTheme.js'
 import { useGoogleAuth } from '../composables/useGoogleAuth.js'
 import AuthLoginForm from '../components/AuthLoginForm.vue'
@@ -13,6 +14,7 @@ const { startGoogleAuth } = useGoogleAuth()
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+const config = useConfigStore()
 
 const API = import.meta.env.VITE_API_URL || ''
 const venueSlug = route.params.venueSlug || null
@@ -117,7 +119,7 @@ async function startGoogleLogin() {
       :logo-url="venueLogo"
       :error="error"
       :loading="loading"
-      :show-google="true"
+      :show-google="config.google_signup"
       @submit="handleLogin"
       @google="startGoogleLogin"
     >
