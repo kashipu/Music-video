@@ -3,7 +3,10 @@
    Paleta de la landing: naranja #FF5522 · violeta #A855F7 · cyan #00C8FF
                          ámbar #FFB800 · obsidiana #07070B · card #0E0E14
    Aplica cuando el bar no tiene un tema propio asignado.
-   Contrastes verificados contra WCAG: texto ≥4.5:1, controles ≥3:1.
+   Fidelidad con la landing: texto BLANCO sobre el naranja y el violeta,
+   igual que --primary-foreground/--secondary-foreground de la landing.
+   El blanco sobre #FF5522 queda en 3.2:1 (bajo AA): decisión de marca
+   consciente. El texto de enlace sí se mantiene legible (ver --color-link).
    ========================================================================== */
 
 /* TEMA OSCURO (el de la landing; es el modo por defecto de la app) */
@@ -22,12 +25,12 @@
   --color-text-muted: #bebecc;       /* Texto secundario (10.9:1) */
 
   /* Acciones de marca */
-  --color-primary: #ff5522;          /* Naranja de marca (6.3:1) */
-  --color-on-primary: #07070b;       /* Texto oscuro: el blanco daba 3.2:1 */
+  --color-primary: #ff5522;          /* Naranja de marca (landing) */
+  --color-on-primary: #ffffff;       /* Blanco, como la landing (3.2:1, marca) */
   --color-primary-hover: #ff7a52;
 
-  --color-secondary: #a855f7;        /* Violeta */
-  --color-on-secondary: #07070b;
+  --color-secondary: #a855f7;        /* Violeta (landing) */
+  --color-on-secondary: #ffffff;     /* Blanco, como la landing */
   --color-secondary-hover: #bd7ffa;
 
   --color-accent: #00c8ff;           /* Cyan */
@@ -77,11 +80,12 @@
   --color-text: #0e0e14;             /* Texto principal (18.4:1) */
   --color-text-muted: #525266;       /* Texto secundario (7.6:1) */
 
-  /* Acciones de marca — naranja oscurecido: el #ff5522 puro da 3.0:1
-     sobre fondo claro, insuficiente para texto y enlaces */
-  --color-primary: #c43a0f;          /* (5.0:1 como texto, 5.3:1 con blanco) */
+  /* Acciones de marca — el naranja #FF5522 de la landing en el botón,
+     con texto blanco (3.2:1: decisión de marca). Los enlaces de TEXTO usan
+     --color-link oscurecido, porque #FF5522 como texto da 3.0:1 (ilegible). */
+  --color-primary: #ff5522;          /* Naranja de marca (landing) */
   --color-on-primary: #ffffff;
-  --color-primary-hover: #a83109;
+  --color-primary-hover: #e64a1c;
 
   --color-secondary: #7e22ce;        /* Violeta oscurecido (6.5:1) */
   --color-on-secondary: #ffffff;
@@ -103,13 +107,14 @@
   --color-info: #0e7490;
   --color-on-info: #ffffff;
 
-  /* Interacción */
+  /* Interacción — enlaces de TEXTO en naranja oscurecido legible (#ff5522
+     como texto sobre fondo claro da 3.0:1). El botón sí usa el naranja de marca. */
   --color-link: #c43a0f;
   --color-focus: #c43a0f;
   --color-disabled: #a0a0b5;
 
   /* Fondos suaves de estado */
-  --primary-soft: rgba(196, 58, 15, 0.10);
+  --primary-soft: rgba(255, 85, 34, 0.12);
   --secondary-soft: rgba(126, 34, 206, 0.10);
   --accent-soft: rgba(14, 116, 144, 0.10);
   --success-soft: rgba(15, 122, 74, 0.10);
@@ -117,7 +122,7 @@
   --danger-soft: rgba(198, 40, 40, 0.10);
   --border-soft: rgba(14, 14, 20, 0.10);
   --shadow: rgba(14, 14, 20, 0.08);
-  --shadow-glow-primary: 0 0 30px rgba(196, 58, 15, 0.18);
+  --shadow-glow-primary: 0 0 30px rgba(255, 85, 34, 0.18);
 }
 
 /* --------------------------------------------------------------------------
