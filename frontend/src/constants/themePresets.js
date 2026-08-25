@@ -2,6 +2,7 @@ export const THEME_PRESETS = [
   {
     id: 'purple-night',
     name: 'Noche Morada',
+    tokens: 'purple-night',
     accent: '#6C5CE7',
     mode: 'dark',
     colors: { bg: '#0F0F1A', text: '#EAEAEA' },
@@ -9,6 +10,7 @@ export const THEME_PRESETS = [
   {
     id: 'red-fire',
     name: 'Fuego Rojo',
+    tokens: 'red-fire',
     accent: '#E74C3C',
     mode: 'dark',
     colors: { bg: '#1A0F0F', text: '#EAEAEA' },
@@ -16,6 +18,7 @@ export const THEME_PRESETS = [
   {
     id: 'green-jungle',
     name: 'Selva Verde',
+    tokens: 'green-jungle',
     accent: '#00B894',
     mode: 'dark',
     colors: { bg: '#0F1A15', text: '#EAEAEA' },
@@ -23,6 +26,7 @@ export const THEME_PRESETS = [
   {
     id: 'blue-ocean',
     name: 'Oceano Azul',
+    tokens: 'blue-ocean',
     accent: '#0984E3',
     mode: 'dark',
     colors: { bg: '#0F131A', text: '#EAEAEA' },
@@ -30,6 +34,7 @@ export const THEME_PRESETS = [
   {
     id: 'gold-elegance',
     name: 'Elegancia Dorada',
+    tokens: 'gold-elegance',
     accent: '#F39C12',
     mode: 'dark',
     colors: { bg: '#1A170F', text: '#EAEAEA' },
@@ -46,6 +51,7 @@ export const THEME_PRESETS = [
   {
     id: 'purple-light',
     name: 'Morado Claro',
+    tokens: 'purple-light',
     accent: '#6C5CE7',
     mode: 'light',
     colors: { bg: '#F4F4F8', text: '#1A1A2E' },
@@ -53,6 +59,7 @@ export const THEME_PRESETS = [
   {
     id: 'red-light',
     name: 'Rojo Claro',
+    tokens: 'red-light',
     accent: '#E74C3C',
     mode: 'light',
     colors: { bg: '#FDF4F4', text: '#1A1A2E' },
@@ -60,6 +67,7 @@ export const THEME_PRESETS = [
   {
     id: 'green-light',
     name: 'Verde Claro',
+    tokens: 'green-light',
     accent: '#00B894',
     mode: 'light',
     colors: { bg: '#F0FAF7', text: '#1A1A2E' },
@@ -67,6 +75,7 @@ export const THEME_PRESETS = [
   {
     id: 'blue-light',
     name: 'Azul Claro',
+    tokens: 'blue-light',
     accent: '#0984E3',
     mode: 'light',
     colors: { bg: '#F0F6FD', text: '#1A1A2E' },
@@ -74,6 +83,7 @@ export const THEME_PRESETS = [
   {
     id: 'gold-light',
     name: 'Dorado Claro',
+    tokens: 'gold-light',
     accent: '#F39C12',
     mode: 'light',
     colors: { bg: '#FDFAF0', text: '#1A1A2E' },
