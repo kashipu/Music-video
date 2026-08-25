@@ -44,8 +44,10 @@ onMounted(async () => {
     status.value = data.payment_status
     daysRemaining.value = data.days_remaining
     monthlyPriceCents.value = data.monthly_price_cents
-    // ponytail: si el endpoint no existe todavía (Fase B), no bloqueamos por defecto.
-  } catch { /* deja status en 'active': fail-open mientras no exista GET /api/admin/billing */ }
+  } catch {
+    // Fail-open deliberado: un error de red no debe bloquear el panel del bar.
+    // El bloqueo definitivo lo dará el backend cuando exista el gate (E1 del plan).
+  }
 })
 </script>
 

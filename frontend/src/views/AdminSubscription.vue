@@ -19,21 +19,6 @@ const errorMsg = ref('')
 const billing = ref(null)
 const processingReturn = ref(!!route.query.id)
 
-// ponytail: mock temporal para revisar el diseño sin backend (Fase C se hizo antes que Fase B).
-// Retirar este fallback cuando existan GET /api/admin/billing y /billing/checkout.
-const MOCK_BILLING = {
-  payment_status: 'active',
-  paid_until: new Date(Date.now() + 12 * 86400000).toISOString().slice(0, 10),
-  period_start: new Date(Date.now() - 18 * 86400000).toISOString().slice(0, 10),
-  days_remaining: 12,
-  monthly_price_cents: 8000000,
-  history: [
-    { id: 4, kind: 'payment', source: 'wompi', status: 'declined', amount_cents: 8000000, period_start: '2026-08-24', period_end: '2026-09-24', created_at: '2026-08-23T18:00:00' },
-    { id: 3, kind: 'payment', source: 'wompi', status: 'approved', amount_cents: 8000000, period_start: '2026-07-24', period_end: '2026-08-24', created_at: '2026-07-24T10:00:00' },
-    { id: 2, kind: 'trial', source: 'self-signup', status: 'approved', days: 15, period_start: '2026-07-09', period_end: '2026-07-24', created_at: '2026-07-09T09:00:00' },
-  ],
-}
-
 const currencyFormatter = new Intl.NumberFormat('es-CO', {
   style: 'currency',
   currency: 'COP',
@@ -80,10 +65,13 @@ async function fetchBilling() {
   errorMsg.value = ''
   try {
     const res = await fetch(`${API}/api/admin/billing`, { headers: auth.adminHeaders() })
-    if (!res.ok) throw new Error('billing endpoint not ready')
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.detail || 'No se pudo cargar tu suscripción')
+    }
     billing.value = await res.json()
-  } catch {
-    billing.value = MOCK_BILLING
+  } catch (e) {
+    errorMsg.value = e.message || 'No se pudo cargar tu suscripción'
   } finally {
     loading.value = false
   }
@@ -206,6 +194,8 @@ onMounted(async () => {
           </div>
         </div>
       </template>
+
+      <p v-else class="error-msg" role="alert">{{ errorMsg || 'No se pudo cargar tu suscripción' }}</p>
     </main>
   </div>
 </template>

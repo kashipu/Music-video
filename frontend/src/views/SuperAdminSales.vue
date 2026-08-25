@@ -45,32 +45,20 @@ function formatMonth(monthStr) {
   return d.toLocaleDateString('es-CO', { month: 'short', year: 'numeric' })
 }
 
-// ponytail: mock temporal para revisar el diseño sin backend (Fase D se hizo antes que Fase B).
-// Retirar cuando exista GET /api/superadmin/billing/summary.
-const MOCK_SUMMARY = {
-  months: [
-    { month: '2026-08', total_cents: 24000000, count: 3 },
-    { month: '2026-07', total_cents: 16000000, count: 2 },
-    { month: '2026-06', total_cents: 8000000, count: 1 },
-  ],
-  movements: [
-    { id: 5, venue_id: 3, venue_name: 'La Terraza', kind: 'payment', source: 'wompi', status: 'approved', amount_cents: 8000000, period_start: '2026-07-24', period_end: '2026-08-24', created_at: '2026-08-24T09:00:00' },
-    { id: 4, venue_id: 2, venue_name: 'Bar Central', kind: 'payment', source: 'manual', status: 'approved', amount_cents: 8000000, period_start: '2026-07-20', period_end: '2026-08-20', created_at: '2026-08-20T14:30:00' },
-    { id: 3, venue_id: 1, venue_name: 'El Rincón', kind: 'trial', source: 'self-signup', status: 'approved', days: 15, period_start: '2026-08-01', period_end: '2026-08-16', created_at: '2026-08-01T10:00:00' },
-  ],
-}
-
 async function fetchSummary() {
   loading.value = true
   try {
     const res = await fetch(`${API}/api/superadmin/billing/summary`, { headers: headers() })
-    if (!res.ok) throw new Error('summary endpoint not ready')
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.detail || 'No se pudo cargar el resumen de ventas')
+    }
     const data = await res.json()
     monthlyRevenue.value = data.months || []
     recentMovements.value = data.movements || []
-  } catch {
-    monthlyRevenue.value = MOCK_SUMMARY.months
-    recentMovements.value = MOCK_SUMMARY.movements
+  } catch (e) {
+    errorMsg.value = e.message || 'No se pudo cargar el resumen de ventas'
+    setTimeout(() => { errorMsg.value = '' }, 5000)
   } finally {
     loading.value = false
   }
@@ -79,14 +67,12 @@ async function fetchSummary() {
 async function fetchSettings() {
   try {
     const res = await fetch(`${API}/api/superadmin/settings`, { headers: headers() })
-    if (!res.ok) throw new Error('settings endpoint not ready')
+    if (!res.ok) return
     settings.value = await res.json()
-  } catch {
-    settings.value = { trial_days: 15, grace_period_days: 5, monthly_price_cents: 8000000 }
-  }
-  priceCOP.value = String((settings.value.monthly_price_cents || 0) / 100)
-  trialDays.value = settings.value.trial_days
-  graceDays.value = settings.value.grace_period_days
+    priceCOP.value = String((settings.value.monthly_price_cents || 0) / 100)
+    trialDays.value = settings.value.trial_days
+    graceDays.value = settings.value.grace_period_days
+  } catch { /* mantiene defaults hasta el próximo fetch */ }
 }
 
 async function saveSettings() {
