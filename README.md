@@ -46,11 +46,11 @@ Plataforma SaaS multi-tenant para bares que permite a los clientes encolar canci
 - Ve **usuarios registrados** con nombre y telefono
 - Activa, desactiva o elimina bares
 
-### Alta y facturación de bares
+### Registro autogestionado, suscripciones y facturación Wompi
 - Los dueños de bar pueden crear su cuenta en `/admin/signup`, con correo y contraseña o Google Sign-In.
 - El alta exige términos y privacidad; con las claves configuradas valida Turnstile, crea un período de prueba y envía la verificación por correo mediante Brevo.
-- El administrador puede recuperar su contraseña, completar el onboarding obligatorio y consultar/pagar su suscripción en `/:venueSlug/admin/suscripcion`.
-- Los pagos se inician en Wompi; el webhook firmado actualiza el historial y el período pagado. El superadmin consulta ventas y movimientos en `SuperAdminSales.vue`.
+- El administrador puede recuperar su contraseña, completar el onboarding obligatorio y administrar su suscripción en `AdminSubscription.vue` (`/:venueSlug/admin/suscripcion`).
+- Los pagos se inician en Wompi; el webhook firmado confirma el pago, actualiza el historial y extiende el período pagado. El superadmin consulta ventas y movimientos en `SuperAdminSales.vue` (`/superadmin/ventas`).
 
 ## Funcionalidades v1.0.2
 
@@ -124,6 +124,7 @@ Todos los bares comparten la misma base de datos SQLite, aislados por `venue_id`
 | Backend | Python 3.11+ / FastAPI |
 | Frontend | Vue.js 3 + Pinia + Vite |
 | Landing | Astro (sitio estático en `landing/`) |
+| Facturación | Wompi: checkout, webhook firmado, trial y suscripciones |
 | Base de datos | SQLite (WAL mode) |
 | Tiempo real | WebSockets nativo |
 | Contenedores | Docker + Docker Compose |
@@ -131,6 +132,12 @@ Todos los bares comparten la misma base de datos SQLite, aislados por `venue_id`
 | Reproduccion | YouTube IFrame Player API |
 | QR | api.qrserver.com |
 | Analytics | Google Tag Manager + GA4 |
+
+### Servicios desplegados
+
+`docker-compose.yml` construye y despliega tres servicios: `backend` (FastAPI),
+`frontend` (Vue 3 servido por nginx) y `landing` (Astro estático, desde
+`landing/Dockerfile`). La landing no forma parte del bundle Vue.
 
 ## Estructura del Proyecto
 
@@ -163,7 +170,7 @@ Music-video/
 │       ├── models/
 │       │   └── schemas.py
 │       └── db/
-│           └── migrations/      # SQL migrations (001-023)
+│           └── migrations/      # 23 archivos SQL (001-023)
 ├── frontend/
 │   ├── Dockerfile
 │   ├── index.html               # GTM container

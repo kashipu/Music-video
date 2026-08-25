@@ -271,7 +271,7 @@ Cuando la canción del usuario comienza a reproducirse, recibe una notificación
 | `banner_changed` | Actualiza el banner del venue |
 | `qr_visibility_changed` | Actualiza la visibilidad del QR en pantalla |
 
-**PENDIENTE:** `song_skipped` se registra como evento de analytics, pero el backend no lo emite por WebSocket; no debe consumirse como evento de tiempo real.
+Los saltos de canción se registran para analytics, pero no se comunican como evento WebSocket; el cliente no debe esperar una notificación específica para ese caso.
 
 ---
 
@@ -376,10 +376,11 @@ Si el usuario intenta encolar una canción que ya pidió en las últimas 2 horas
 
 ## Flujo del Dueño del Bar
 
-1. Entra a `/admin/signup` y crea la cuenta con correo y contraseña, o con Google Sign-In. El registro exige Turnstile y aceptación de términos y privacidad.
-2. El backend crea el administrador y su trial, y envía un enlace de verificación por Brevo cuando `BREVO_API_KEY` está configurada. La vista de verificación está en `/admin/verify-email`.
-3. Si pierde acceso, solicita el enlace en `/admin/forgot-password` y define la nueva contraseña en `/admin/reset-password`.
-4. Tras iniciar sesión, el guard del router bloquea las rutas de administración hasta completar `/admin/onboarding`; luego puede usar `/:venueSlug/admin`.
-5. Consulta estado e historial de la suscripción y abre el checkout de Wompi en `/:venueSlug/admin/suscripcion`. El webhook de Wompi registra el pago aprobado.
+1. **Registro:** entra a `/admin/signup` (`AdminSignup.vue`) y crea la cuenta con correo y contraseña, o con Google Sign-In. El registro exige Turnstile y aceptación de términos y privacidad.
+2. **Verificación:** el backend crea el administrador y su trial, y envía un enlace por Brevo cuando `BREVO_API_KEY` está configurada. El enlace abre `/admin/verify-email` (`VerifyEmail.vue`).
+3. **Recuperación:** desde el login solicita el enlace en `/admin/forgot-password` (`ForgotPassword.vue`) y establece la nueva contraseña en `/admin/reset-password` (`ResetPassword.vue`).
+4. **Ingreso y onboarding:** el administrador inicia en `/admin` o `/:venueSlug/admin/login` (`AdminLogin.vue`). Si `onboarding_completed_at` es nulo, el guard redirige obligatoriamente a `/admin/onboarding` (`AdminOnboarding.vue`) antes de permitir el panel.
+5. **Operación del bar:** completado el onboarding, usa `/:venueSlug/admin` (`AdminDashboard.vue`) para administrar su venue.
+6. **Suscripción y pago:** en `/:venueSlug/admin/suscripcion` (`AdminSubscription.vue`) consulta trial, estado e historial, y abre el checkout de Wompi. El webhook firmado confirma el pago; el superadmin consulta los movimientos en `/superadmin/ventas` (`SuperAdminSales.vue`).
 
 Las rutas están definidas en `frontend/src/router/index.js:80-129`; el guard de onboarding está en `frontend/src/router/index.js:182-190`. La verificación de email y el onboarding son rutas separadas: el guard obligatorio actualmente aplica al onboarding, no a la verificación de correo.
