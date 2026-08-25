@@ -659,7 +659,8 @@ function logout() {
       <div class="header-brand">
         <button class="menu-btn" @click="sidebarOpen = !sidebarOpen">&#9776;</button>
         <img v-if="auth.adminInfo?.logo_url" :src="auth.adminInfo.logo_url?.startsWith('/') ? API + auth.adminInfo.logo_url : auth.adminInfo.logo_url" class="header-logo" :class="{ 'logo-adaptive': isSvgLogo(auth.adminInfo.logo_url) }" />
-        <h1>{{ auth.adminInfo?.venue_name || venueSlug }}</h1>
+        <!-- El logo ya lleva el nombre del bar: repetirlo al lado es redundante -->
+        <h1 v-if="!auth.adminInfo?.logo_url">{{ auth.adminInfo?.venue_name || venueSlug }}</h1>
       </div>
       <div style="display:flex;gap:8px;align-items:center;">
         <button class="theme-toggle" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button>
