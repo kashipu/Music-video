@@ -207,15 +207,11 @@ a { color: var(--primary); text-decoration: none; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
 /* ===== LOGO DEL BAR =====
-   Solo los SVG (monocromos en negro) se invierten a blanco sobre fondo oscuro.
-   La clase la pone isSvgLogo() en utils/logo.js; un PNG/JPG a color nunca la
-   recibe porque invertirlo lo dejaría en negativo. */
-[data-theme="dark"] .logo-adaptive {
-  filter: invert(1);
-}
-
-/* El kiosk siempre va sobre negro, sin importar el tema del bar */
-.venue-brand-logo.logo-adaptive {
+   Los logos monocromos oscuros se invierten a blanco sobre fondo oscuro; los
+   que tienen color quedan intactos (invertirlos los dejaría en negativo). La
+   clase la decide VenueLogo.vue mirando los píxeles, no la extensión. */
+[data-theme="dark"] .logo-adaptive,
+.logo-adaptive.logo-on-dark {
   filter: invert(1);
 }
 

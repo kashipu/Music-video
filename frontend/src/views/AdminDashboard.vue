@@ -8,7 +8,7 @@ import { useToast, safeFetch } from '../composables/useToast.js'
 import { formatDuration, thumbFallback } from '../utils/youtube.js'
 import { trackAdminAction } from '../utils/analytics.js'
 import SubscriptionGate from '../components/SubscriptionGate.vue'
-import { isSvgLogo } from '../utils/logo.js'
+import VenueLogo from '../components/VenueLogo.vue'
 
 const toast = useToast()
 
@@ -658,7 +658,7 @@ function logout() {
     <header class="admin-header">
       <div class="header-brand">
         <button class="menu-btn" @click="sidebarOpen = !sidebarOpen">&#9776;</button>
-        <img v-if="auth.adminInfo?.logo_url" :src="auth.adminInfo.logo_url?.startsWith('/') ? API + auth.adminInfo.logo_url : auth.adminInfo.logo_url" class="header-logo" :class="{ 'logo-adaptive': isSvgLogo(auth.adminInfo.logo_url) }" />
+        <VenueLogo v-if="auth.adminInfo?.logo_url" :src="auth.adminInfo.logo_url" class="header-logo" />
         <!-- El logo ya lleva el nombre del bar: repetirlo al lado es redundante -->
         <h1 v-if="!auth.adminInfo?.logo_url">{{ auth.adminInfo?.venue_name || venueSlug }}</h1>
       </div>
@@ -682,7 +682,7 @@ function logout() {
 
         <!-- Bar Info Card -->
         <div class="card sidebar-info">
-          <img v-if="auth.adminInfo?.logo_url" :src="auth.adminInfo.logo_url?.startsWith('/') ? API + auth.adminInfo.logo_url : auth.adminInfo.logo_url" class="sidebar-logo" :class="{ 'logo-adaptive': isSvgLogo(auth.adminInfo.logo_url) }" />
+          <VenueLogo v-if="auth.adminInfo?.logo_url" :src="auth.adminInfo.logo_url" class="sidebar-logo" />
           <h2 class="bar-name">{{ auth.adminInfo?.venue_name }}</h2>
           <div class="info-stats">
             <div class="info-stat">
