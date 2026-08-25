@@ -204,6 +204,11 @@ test(queue): agregar tests para rate limiting
 - Composables prefijados con `use` (`useQueue.js`)
 - Props declaradas con `defineProps` en JavaScript; el frontend no usa TypeScript
 
+### Documentación
+
+`docs/` documenta el estado real del sistema y sus decisiones vigentes. Los planes,
+el backlog y el estado del trabajo viven en Linear.
+
 ---
 
 ## Pull Requests

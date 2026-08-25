@@ -55,6 +55,18 @@ Un solo nodo (`srv1137924`): **2 vCPU / 8 GB**, compartido con todos los demas
 proyectos de Dokploy (entre ellos WordPress + MySQL de la-paz-si-pasa). El
 backend en 354 MB con 1500 WS no es un problema de memoria.
 
+## Medición de almacenamiento y tráfico por venue
+
+Medición histórica del 2026-08-21 con el esquema real: un venue sembrado durante
+30 noches (40 usuarios/noche, 90 pedidos/noche, 68 reproducciones/noche y 260
+eventos de analítica/noche) ocupó 4,27 MB. Tras la limpieza de cola y registros a
+los 7 días, el crecimiento permanente estimado es de **~3,5 MB por venue al mes**.
+
+Con una cola llena (una canción sonando y 12 pendientes), el polling del cliente
+midió 4.842 B por ciclo sin compresión: **~2 MB por usuario en una noche de tres
+horas** y **~2,7 GB de salida por venue al mes** bajo ese escenario. El vídeo y las
+miniaturas de YouTube no atraviesan el backend.
+
 ---
 
 ## Techo 1: `worker_connections` de nginx (RESUELTO Y MEDIDO)

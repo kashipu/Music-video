@@ -134,6 +134,30 @@ Inspirada en el ambiente nocturno de bares: Obsidian profundo, contrastes precis
 
 ---
 
+### 2.6 Sistema de diseño de la aplicación
+
+Esta sección documenta la aplicación Vue, no la landing. Se mantiene aquí porque los
+tokens son el puente visual entre ambas superficies; no es un plan de trabajo.
+
+La aplicación usa tokens CSS para superficies (`--bg`, `--bg-card`,
+`--bg-elevated`), texto (`--text`, `--text-muted`), marca (`--primary`,
+`--primary-dark`, `--primary-soft`, `--text-on-primary`), bordes y sombras, estados
+semánticos (`--success`, `--warning`, `--danger`) y geometría
+(`--radius`, `--radius-sm`, `--radius-lg`). Los tokens separan la identidad del bar
+de los significados operativos: los estados y la geometría permanecen consistentes
+en toda la app.
+
+Un venue puede seleccionar un preset de tema o personalizar `accent`, `bg`, `text`
+y `mode`. No puede alterar los tokens semánticos ni los radios: un tema no debe
+cambiar el significado de éxito, advertencia o error, ni romper la geometría común.
+
+Se extrae un componente o composable cuando tiene estado o lógica propios, o cuando
+su interfaz se usa en más de una vista. Antes de extraer, se revisan `components/`,
+`composables/` y `stores/`; todo componente reutilizable debe tener un consumidor
+real.
+
+---
+
 ## 3. Estructura y Wireframe de la Landing Page
 
 La página se organiza en **9 secciones estratégicas**, optimizadas para el embudo de conversión B2B:

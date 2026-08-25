@@ -236,6 +236,33 @@ Fallback sonando → Admin toca "Pausar Fallback"
 
 **Verificar**: ningún error silencioso, ningún estado mentiroso, ninguna acción sin feedback.
 
+### Casos manuales de sincronización y feedback
+
+| Caso | Pasos | Resultado esperado |
+|---|---|---|
+| BH-01 | Cola vacía → inicia fallback → esperar 30 s → comparar Admin, Kiosk y Customer. | Las tres vistas muestran el mismo título. |
+| BH-02 | Fallback sonando → usuario agrega una canción → Admin pulsa «Siguiente». | Kiosk corta el fallback e inicia inmediatamente la canción del usuario; las tres vistas la muestran sonando. |
+| BH-03 | Fallback sonando y cola vacía → Admin pulsa «Siguiente». | Inicia otra canción aleatoria del fallback y las tres vistas actualizan el título. |
+| BH-04 | Una canción de usuario sonando y cola vacía → Admin pulsa «Siguiente». | Se marca como reproducida, se libera su slot e inicia el fallback. |
+| BH-05 | Fallback sonando → usuario agrega una canción → no hacer skip y esperar el final. | Al terminar el fallback inicia la canción del usuario; no aparece como sonando antes. |
+| BH-06 | Admin pausa; después reanudar desde Kiosk. | Admin, Kiosk y Customer reflejan el mismo estado. |
+| BH-07 | En fallback solo, fallback con una canción pendiente, canción de usuario con cola vacía, canción de usuario con dos pendientes y cualquier estado pausado: pulsar «Siguiente» y «Pausar/Reanudar». | Los mismos controles funcionan según BR-12b en todos los estados. |
+| BH-40 | Recorrer los ocho estados de BR-19. | El Admin muestra exactamente un badge, correcto y actualizado. |
+| BH-41 | Ejecutar cada acción de Admin con éxito, con backend caído y con respuesta 4xx. | Hay toast específico de éxito o error, termina el loading y se revierte cualquier UI optimista fallida. |
+| BH-42 | Pulsar «Expulsar» y «Vaciar cola»; cancelar el diálogo. | Se pide confirmación y cancelar no envía la petición. |
+| BH-43 | Con Admin abierto, detener el backend, esperar 2 s y restaurarlo. | El indicador pasa de «Conectado» a «Reconectando…» y vuelve con los toasts de transición. |
+| BH-44 | Con Customer registrado, detener el backend, esperar 2 s y restaurarlo. | Aparece el banner «Sin conexión — reintentando…» tras 2 s y desaparece al reconectar. |
+| BH-45 | Tres usuarios con canciones; la canción #2 sube a #1 al terminar o saltar la #1. | El dueño recibe una vez el toast «Tu canción es la siguiente». |
+| BH-46 | Una canción en posición #4; eliminar las dos anteriores. | Al quedar #2, el dueño recibe «Subiste a #2»; no se notifican bajadas. |
+| BH-47 | Usuario con límite lleno; su canción termina o falla. | Recibe «Slot liberado — puedes pedir otra canción» y aumenta visiblemente `songs_remaining`. |
+
+### Técnica para pruebas E2E del Kiosk
+
+Antes de abrir el Kiosk, el test debe inyectar un stub de `window.YT` con
+`page.addInitScript`. El stub simula `ready`, cambios de estado y errores del
+reproductor, y bloquea la carga de `youtube.com/iframe_api`; así se prueban las
+transiciones sin depender de red ni de YouTube.
+
 ### F13: Logica unificada de fallback y cola (regla de negocio principal)
 
 ```

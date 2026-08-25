@@ -216,6 +216,10 @@ Dado que `ConnectionManager` y `_fallback_now_playing` son volátiles en memoria
   3. En estado `suspended`, los clientes no pueden pedir canciones, pero los administradores pueden ingresar a pagar.
   4. La integración con Wompi genera firmas criptográficas en el backend y procesa eventos de pago mediante webhooks HMAC-SHA256, extendiendo automáticamente `paid_until` en bloques de 30 días.
 
+### ADR-007: Landing estática con Astro
+- **Decisión:** La landing se construye con Astro; su contenido se entrega como HTML estático y las interacciones puntuales usan JavaScript sin framework.
+- **Motivación:** La landing anterior era una SPA React 18 + Vite cuyo HTML inicial sólo contenía `<div id="root">`; el `<h1>` se renderizaba en el cliente. Un parche de texto oculto intentaba compensarlo y suponía un riesgo de SEO. Astro permite que el contenido y los metadatos estén disponibles directamente en el HTML servido.
+
 ---
 
 ## 6. Matriz de Seguridad y Políticas de Protección
