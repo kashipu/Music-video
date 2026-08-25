@@ -4,6 +4,16 @@
 **Relacionadas:** WIL-156 (temas normalizados — ya mergeada) · WIL-83 (primitivos nuevos — pendiente)
 **Alcance:** solo `frontend/`. Aditivo: no se toca ni un archivo de `src/`.
 
+## Reparto (sub-issues de WIL-158)
+
+| Issue | Fases | Agente | Depende de |
+|---|---|---|---|
+| [WIL-167](https://linear.app/william-moreno/issue/WIL-167) — Storybook base: instalación, temas globales y scripts | 1, 2, 5 | **Codex** `gpt-5.6-terra` `[MEDIA]` | — |
+| [WIL-168](https://linear.app/william-moreno/issue/WIL-168) — Stories de los primitivos de UI existentes | 3 | **Codex** `gpt-5.6-terra` `[MEDIA]` | WIL-167 |
+| [WIL-169](https://linear.app/william-moreno/issue/WIL-169) — Foundations + auditoría de tokens en los 12 temas | 4 | **Antigravity** Gemini 3.7 Flash `[MEDIA]` | WIL-167 (solo la página; la auditoría arranca antes) |
+
+La **auditoría** de WIL-169 se separó del resto porque no necesita Storybook levantado — se hace leyendo los 12 CSS — así que corre en paralelo con WIL-167 en vez de esperarla.
+
 ---
 
 ## 0. Estado real del repo (verificado)
@@ -24,7 +34,7 @@ Consecuencia: WIL-156 ya está hecha, así que **la dependencia está desbloquea
 
 ---
 
-## Fase 1 — Instalación (30 min)
+## Fase 1 — Instalación (30 min) · WIL-167 · Codex
 
 ```bash
 cd frontend
@@ -42,7 +52,7 @@ Decisiones tomadas de antemano para no improvisar durante el init:
 
 ---
 
-## Fase 2 — Estilos globales y toolbar de temas (1 h)
+## Fase 2 — Estilos globales y toolbar de temas (1 h) · WIL-167 · Codex
 
 Todo vive en **`.storybook/preview.js`**, un solo archivo:
 
@@ -99,7 +109,7 @@ Notas:
 
 ---
 
-## Fase 3 — Stories de los primitivos que ya existen (2 h)
+## Fase 3 — Stories de los primitivos que ya existen (2 h) · WIL-168 · Codex
 
 Convención: `src/components/ui/<Comp>.stories.js`, junto al componente (no una carpeta `stories/` paralela que se desincroniza).
 
@@ -117,7 +127,7 @@ Regla: **una story = un estado que alguien va a mirar**. Nada de generar la matr
 
 ---
 
-## Fase 4 — Página de foundations (1 h)
+## Fase 4 — Página de foundations (1 h) · WIL-169 · Antigravity
 
 `src/foundations.stories.js` — una sola story que renderiza tres grillas leyendo `var(--token)`:
 
@@ -133,7 +143,7 @@ Valor real de esta página: se cambia el tema en el toolbar y se ven los 12 tema
 
 ---
 
-## Fase 5 — Scripts y cierre (30 min)
+## Fase 5 — Scripts y cierre (30 min) · WIL-167 · Codex
 
 ```json
 "storybook": "storybook dev -p 6006",
@@ -159,4 +169,10 @@ Valor real de esta página: se cambia el tema en el toolbar y se ven los 12 tema
 
 ## Esfuerzo
 
-~5 h en total, en un solo PR contra `main`. Fases 1-3 son el mínimo entregable si hay que cortar (Storybook levanta y los primitivos están documentados); 4 y 5 son el acabado.
+~5 h en total. Fases 1-3 son el mínimo entregable si hay que cortar (Storybook levanta y los primitivos están documentados); 4 y 5 son el acabado.
+
+Todo va sobre la rama `graficowm/wil-158-montar-storybook` y sale como **un solo PR** contra `main` — las tres sub-issues son reparto de trabajo entre agentes, no tres PRs. Nada se mergea a `main` sin verificación humana.
+
+## Ampliación de la auditoría (WIL-169)
+
+Además de la página, agy reporta por tema: tokens definidos en `default.css` que faltan en ese tema, nombres de token inconsistentes entre temas, y contrastes bajo AA 4.5:1 (`--color-text` y `--color-text-muted` sobre `--color-background`/`--color-surface`; `--color-primary-foreground` sobre `--color-primary`). Los hallazgos **no se arreglan ahí**: cada arreglo sale como issue aparte, para no mezclar una tarea de documentación con cambios de tema.
