@@ -3,4 +3,3 @@ Allow: /
 Disallow: /demo/
 
 Sitemap: https://repitela.com/sitemap-index.xml
-Sitemap: https://repitela.com/sitemap.xml
