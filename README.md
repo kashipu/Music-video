@@ -9,7 +9,7 @@ Plataforma SaaS multi-tenant para bares que permite a los clientes encolar canci
 2. Se registra con **numero de celular** y nombre
 3. Busca una cancion o pega un **link de YouTube**
 4. **Confirma** y la cancion entra a la cola
-5. Puede pedir hasta **5 canciones cada 30 minutos** (configurable por bar)
+5. Puede pedir hasta **5 canciones cada 30 minutos** en el despliegue Docker (configurable por bar)
 6. Ve en que posicion esta su cancion y recibe notificacion cuando suena
 7. Puede cancelar canciones pendientes
 
@@ -45,6 +45,12 @@ Plataforma SaaS multi-tenant para bares que permite a los clientes encolar canci
 - Gestiona **administradores** por bar
 - Ve **usuarios registrados** con nombre y telefono
 - Activa, desactiva o elimina bares
+
+### Alta y facturación de bares
+- Los dueños de bar pueden crear su cuenta en `/admin/signup`, con correo y contraseña o Google Sign-In.
+- El alta exige términos y privacidad; con las claves configuradas valida Turnstile, crea un período de prueba y envía la verificación por correo mediante Brevo.
+- El administrador puede recuperar su contraseña, completar el onboarding obligatorio y consultar/pagar su suscripción en `/:venueSlug/admin/suscripcion`.
+- Los pagos se inician en Wompi; el webhook firmado actualiza el historial y el período pagado. El superadmin consulta ventas y movimientos en `SuperAdminSales.vue`.
 
 ## Funcionalidades v1.0.2
 
@@ -105,6 +111,7 @@ Super Admin (/superadmin)
 
 Rutas globales:
   /admin          (login admin universal)
+  /admin/signup   (alta autogestionada de dueño de bar)
   /superadmin     (gestion de la plataforma)
 ```
 
@@ -116,6 +123,7 @@ Todos los bares comparten la misma base de datos SQLite, aislados por `venue_id`
 |------------|-----------|
 | Backend | Python 3.11+ / FastAPI |
 | Frontend | Vue.js 3 + Pinia + Vite |
+| Landing | Astro (sitio estático en `landing/`) |
 | Base de datos | SQLite (WAL mode) |
 | Tiempo real | WebSockets nativo |
 | Contenedores | Docker + Docker Compose |
@@ -155,7 +163,7 @@ Music-video/
 │       ├── models/
 │       │   └── schemas.py
 │       └── db/
-│           └── migrations/      # SQL migrations (001-007)
+│           └── migrations/      # SQL migrations (001-023)
 ├── frontend/
 │   ├── Dockerfile
 │   ├── index.html               # GTM container
@@ -172,17 +180,21 @@ Music-video/
 │       │   ├── youtube.js
 │       │   └── analytics.js     # GTM dataLayer helper
 │       ├── views/
-│       │   ├── QRLanding.vue          # + venue logo/name/theme
-│       │   ├── CustomerDashboard.vue  # + loading states
-│       │   ├── AdminLogin.vue         # + global login (sin slug)
-│       │   ├── AdminDashboard.vue     # + per-button loading + QR toggle + fallback skip
-│       │   ├── Kiosk.vue              # + progress bar + controls + QR + error detection + pre-buffer
-│       │   ├── SuperAdminLogin.vue    # + error handling
-│       │   ├── SuperAdminPanel.vue
-│       │   └── SuperAdminVenueDetail.vue
-│       └── components/
-│           ├── SongSubmit.vue         # + analytics tracking
-│           └── SongPreview.vue        # + loading state
+│       │   ├── QRLanding.vue, CustomerDashboard.vue, Kiosk.vue
+│       │   ├── AdminLogin.vue, AdminSignup.vue, VerifyEmail.vue
+│       │   ├── ForgotPassword.vue, ResetPassword.vue, AdminOnboarding.vue
+│       │   ├── AdminDashboard.vue, AdminSubscription.vue
+│       │   ├── PrivacyPolicy.vue
+│       │   ├── SuperAdminLogin.vue, SuperAdminPanel.vue, SuperAdminSales.vue
+│       │   ├── SuperAdminCreateVenue.vue, SuperAdminUsers.vue, SuperAdminVenueDetail.vue
+│       │   └── venue/                 # Vistas anidadas de detalle del bar
+│       ├── components/
+│           ├── ui/                    # Componentes de interfaz reutilizables
+│           └── SongSubmit.vue
+│       └── constants/themePresets.js  # Presets de tema
+├── landing/                           # Landing Astro estática
+│   ├── src/pages/
+│   └── package.json
 └── docs/
     ├── ANALYTICS.md             # Plan de medicion completo
     ├── gtm-container.json       # Contenedor GTM importable
@@ -222,7 +234,7 @@ docker compose up --build
 
 ## Base de Datos
 
-SQLite con WAL mode. 11 tablas:
+SQLite con WAL mode. 17 tablas:
 
 | Tabla | Descripcion |
 |-------|-------------|
@@ -238,6 +250,11 @@ SQLite con WAL mode. 11 tablas:
 | `fallback_songs` | Playlist de respaldo por venue |
 | `venue_daily_pins` | PINs diarios por venue |
 | `analytics_events` | Eventos de analytics granulares |
+| `email_tokens` | Tokens de verificación y recuperación de cuenta admin |
+| `platform_settings` | Configuración global de trial, gracia y precio |
+| `blocked_videos` | Videos bloqueados tras fallos de reproducción |
+| `venue_billing_events` | Historial de trial, pagos y ajustes de facturación |
+| `_migrations` | Registro de migraciones SQL aplicadas |
 
 ## Variables de Entorno
 
@@ -256,6 +273,9 @@ WINDOW_MINUTES=30
 VITE_API_URL=http://localhost:8000
 VITE_WS_URL=ws://localhost:8000
 ```
+
+`VITE_API_URL` y `VITE_WS_URL` se usan para desarrollo local. En la imagen
+Docker del frontend no se definen: nginx proxea `/api` y `/ws` al backend.
 
 ## Licencia
 

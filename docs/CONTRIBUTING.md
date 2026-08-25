@@ -68,6 +68,7 @@ Music-video/
 │   │   ├── stores/    # Pinia stores
 │   │   └── utils/     # Utilidades
 │   └── package.json
+├── landing/           # Landing estática (Astro)
 ├── docs/              # Documentación
 └── docker-compose.yml
 ```
@@ -126,25 +127,36 @@ npm run format
 npm run build
 ```
 
+> **Limitación conocida:** `npm run lint` invoca ESLint, pero hoy no existe
+> `frontend/eslint.config.js`; el comando no realiza lint efectivo. Hay un
+> issue separado para resolverlo.
+
 ---
 
 ## Convenciones
 
 ### Branches
 
+> **`main` despliega automáticamente a producción en Dokploy.** No es una
+> rama de integración: todo cambio que llegue debe estar revisado, probado y
+> ser apto para producción.
+
+Crear ramas cortas desde `main`, una por issue de Linear; abrir el PR contra
+`main` y hacer *squash merge*. No existe rama `develop`.
+
 ```
-main                    # Producción, siempre estable
-develop                 # Integración de features
-feature/nombre-corto    # Features nuevas
-fix/descripcion-bug     # Corrección de bugs
-docs/que-se-documenta   # Documentación
+main                         # Producción; despliegue automático
+frontend/WIL-123-descripcion  # Cambios de frontend
+fix/WIL-123-descripcion       # Correcciones
+docs/WIL-123-descripcion      # Documentación
+kashipu/WIL-123-descripcion   # Trabajo transversal o de ese ámbito
 ```
 
 **Ejemplos:**
 ```
-feature/admin-analytics
-fix/rate-limit-off-by-one
-docs/api-websocket-events
+frontend/WIL-123-admin-analytics
+fix/WIL-124-rate-limit-off-by-one
+docs/WIL-125-api-websocket-events
 ```
 
 ### Commits
@@ -190,7 +202,7 @@ test(queue): agregar tests para rate limiting
 - `<script setup>` en todos los componentes
 - Componentes en PascalCase (`SongCard.vue`)
 - Composables prefijados con `use` (`useQueue.js`)
-- Props tipadas con `defineProps` + TypeScript
+- Props declaradas con `defineProps` en JavaScript; el frontend no usa TypeScript
 
 ---
 
