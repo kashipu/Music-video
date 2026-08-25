@@ -100,7 +100,7 @@ const shareUrl = encodeURIComponent(canonical);
 
   <Navbar />
 
-  <main class="min-h-screen pb-20">
+  <main id="blog-article-root" data-post-slug={post.id} data-post-title={post.data.title} data-reading-time={minutes} class="min-h-screen pb-20">
     <div class="relative w-full min-h-[180px] aspect-[21/9] max-h-[220px] sm:max-h-[320px] overflow-hidden">
       <Image
         src={post.data.heroImage}
@@ -161,6 +161,8 @@ const shareUrl = encodeURIComponent(canonical);
             <button
               type="button"
               data-open-lead="blog_post"
+              data-blog-cta="demo_modal"
+              data-track-location="blog_sidebar"
               class="inline-flex items-center justify-center gap-2 h-10 w-full bg-gradient-to-r from-primary to-orange-500 hover:opacity-90 text-white font-bold text-sm rounded-xl shadow-glow-primary transition-all hover:shadow-lg"
             >
               <Icon name="sparkles" class="w-3.5 h-3.5" />
@@ -175,6 +177,7 @@ const shareUrl = encodeURIComponent(canonical);
                 href={`https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`}
                 target="_blank"
                 rel="noopener noreferrer"
+                data-share="facebook"
                 aria-label="Compartir en Facebook"
                 class="w-9 h-9 rounded-full bg-white/10 border border-white/15 flex items-center justify-center hover:bg-white/20 transition-colors text-zinc-200"
               >
@@ -184,6 +187,7 @@ const shareUrl = encodeURIComponent(canonical);
                 href={`https://twitter.com/intent/tweet?text=${shareText}&url=${shareUrl}`}
                 target="_blank"
                 rel="noopener noreferrer"
+                data-share="x"
                 aria-label="Compartir en X"
                 class="w-9 h-9 rounded-full bg-white/10 border border-white/15 flex items-center justify-center hover:bg-white/20 transition-colors text-zinc-200"
               >
@@ -193,6 +197,7 @@ const shareUrl = encodeURIComponent(canonical);
                 href={`https://wa.me/?text=${shareText}%20${shareUrl}`}
                 target="_blank"
                 rel="noopener noreferrer"
+                data-share="whatsapp"
                 aria-label="Compartir por WhatsApp"
                 class="w-9 h-9 rounded-full bg-white/10 border border-white/15 flex items-center justify-center hover:bg-white/20 transition-colors text-zinc-200"
               >
@@ -202,6 +207,7 @@ const shareUrl = encodeURIComponent(canonical);
                 type="button"
                 id="copy-link"
                 data-url={canonical}
+                data-share="copy_link"
                 aria-label="Copiar enlace"
                 class="w-9 h-9 rounded-full bg-white/10 border border-white/15 flex items-center justify-center hover:bg-white/20 transition-colors text-zinc-200"
               >
@@ -218,6 +224,63 @@ const shareUrl = encodeURIComponent(canonical);
   <FloatingWhatsApp />
 
   <script>
+    import { track } from "@/lib/analytics";
+
+    const root = document.getElementById("blog-article-root");
+    const slug = root?.dataset.postSlug ?? "";
+    const title = root?.dataset.postTitle ?? "";
+
+    if (root) {
+      track("repitela_blog_post_viewed", {
+        post_slug: slug,
+        post_title: title,
+        reading_time_min: Number(root.dataset.readingTime || 0),
+      });
+    }
+
+    const article = document.querySelector("article.prose-blog");
+    if (article) {
+      let sent50 = false;
+      let sent90 = false;
+      let ticking = false;
+
+      const onScroll = () => {
+        if (ticking) return;
+        ticking = true;
+        window.requestAnimationFrame(() => {
+          const rect = article.getBoundingClientRect();
+          const articleTop = rect.top + window.scrollY;
+          const progress = rect.height > 0
+            ? Math.min(100, Math.max(0, ((window.scrollY + window.innerHeight - articleTop) / rect.height) * 100))
+            : 0;
+          if (!sent50 && progress >= 50) {
+            sent50 = true;
+            track("repitela_blog_read_progress", { post_slug: slug, post_title: title, percent: 50 });
+          }
+          if (!sent90 && progress >= 90) {
+            sent90 = true;
+            track("repitela_blog_read_progress", { post_slug: slug, post_title: title, percent: 90 });
+            window.removeEventListener("scroll", onScroll);
+          }
+          ticking = false;
+        });
+      };
+
+      window.addEventListener("scroll", onScroll, { passive: true });
+      onScroll();
+    }
+
+    document.querySelectorAll<HTMLElement>("[data-share]").forEach((el) => {
+      el.addEventListener("click", () => track("repitela_blog_share_clicked", {
+        post_slug: slug, post_title: title, share_platform: el.dataset.share || "unknown",
+      }));
+    });
+    document.querySelectorAll<HTMLElement>("[data-blog-cta]").forEach((el) => {
+      el.addEventListener("click", () => track("repitela_blog_cta_clicked", {
+        post_slug: slug, post_title: title, cta_type: el.dataset.blogCta || "unknown", location: el.dataset.trackLocation || "blog",
+      }));
+    });
+
     const btn = document.getElementById("copy-link");
     btn?.addEventListener("click", async () => {
       const url = btn.dataset.url;
