@@ -20,8 +20,14 @@ export function useTheme() {
   }
 
   function toggleMode() {
+    const next = currentMode.value === 'dark' ? 'light' : 'dark'
+    // Un tema por tokens define ambos modos: solo se alterna data-theme.
+    if (lastVenueConfig?.tokens) {
+      applyMode(next)
+      return
+    }
     clearVenueTheme()
-    applyMode(currentMode.value === 'dark' ? 'light' : 'dark')
+    applyMode(next)
     // Mantiene el acento del bar en ambos modos, pero el fondo/texto del preset
     // solo aplican en SU modo: re-aplicarlos al alternar dejaba la página con los
     // colores del modo original ("cambio a claro y no cambia nada").
@@ -60,6 +66,15 @@ export function useTheme() {
     lastVenueConfig = theme
 
     if (theme.mode) applyMode(theme.mode)
+
+    // Tema con paleta completa en CSS (src/themes/*.css): basta el atributo,
+    // el archivo define todos los tokens para claro y oscuro. Nada inline,
+    // porque un style inline le ganaría al CSS del tema.
+    if (theme.tokens) {
+      document.documentElement.setAttribute('data-venue-theme', theme.tokens)
+      return
+    }
+
     if (theme.accent) applyAccent(theme.accent)
     applySurfaces(theme)
   }
@@ -81,6 +96,7 @@ export function useTheme() {
       '--bg', '--bg-card', '--bg-elevated', '--border', '--border-soft', '--text', '--text-muted',
     ]
     props.forEach(p => document.documentElement.style.removeProperty(p))
+    document.documentElement.removeAttribute('data-venue-theme')
   }
 
   // Initialize

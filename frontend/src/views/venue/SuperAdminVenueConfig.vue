@@ -71,7 +71,10 @@ async function saveVenue() {
       qr_url: editQrUrl.value || null,
       theme: (() => {
         const p = THEME_PRESETS.find(t => t.id === selectedPreset.value) || THEME_PRESETS[0]
-        return { preset: p.id, accent: p.accent, mode: p.mode, bg: p.colors.bg, text: p.colors.text }
+        const theme = { preset: p.id, accent: p.accent, mode: p.mode, bg: p.colors.bg, text: p.colors.text }
+        // Temas con paleta en CSS: el resto de campos queda como respaldo visual
+        if (p.tokens) theme.tokens = p.tokens
+        return theme
       })(),
     }
     const res = await fetch(`${API}/api/superadmin/venues/${venueId}`, {

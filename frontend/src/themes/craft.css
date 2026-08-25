@@ -1,0 +1,147 @@
+/* ==========================================================================
+   TEMA ARTESANAL (cervecero)
+   Paleta: marrón #3B2418 · manteca #D2B56F · blanco #FFF8E9 · negro #111111
+           verde militar #4B5D3A
+   Se activa por bar con data-venue-theme="craft" (ver useTheme.js).
+   ========================================================================== */
+
+/* TEMA CLARO */
+[data-venue-theme="craft"],
+[data-venue-theme="craft"][data-theme="light"] {
+  color-scheme: light;
+
+  /* Fondos y superficies */
+  --color-background: #d2b56f;       /* Fondo general */
+  --color-surface: #f7ebcb;          /* Tarjetas y secciones */
+  --color-surface-elevated: #fff8e9; /* Modales y menús */
+  --color-border: #9c814a;           /* Bordes y divisores */
+
+  /* Textos */
+  --color-text: #111111;             /* Texto principal */
+  --color-text-muted: #493a2f;       /* Texto secundario */
+
+  /* Acciones de marca */
+  --color-primary: #3b2418;          /* Botón principal */
+  --color-on-primary: #ffffff;
+  --color-primary-hover: #2c1a12;
+
+  --color-secondary: #4b5d3a;        /* Botón secundario */
+  --color-on-secondary: #ffffff;
+  --color-secondary-hover: #39472c;
+
+  --color-accent: #fff8e9;           /* Destacados suaves */
+  --color-on-accent: #3b2418;
+
+  /* Estados semánticos */
+  --color-success: #4b5d3a;
+  --color-on-success: #ffffff;
+
+  --color-warning: #7a5a10;
+  --color-on-warning: #ffffff;
+
+  --color-error: #a13d32;
+  --color-on-error: #ffffff;
+
+  --color-info: #43758c;
+  --color-on-info: #ffffff;
+
+  /* Interacción */
+  --color-link: #3b2418;
+  --color-focus: #4b5d3a;
+  --color-disabled: #a8915b;
+
+  /* Fondos suaves de estado (derivados de los tokens de arriba) */
+  --primary-soft: rgba(59, 36, 24, 0.12);
+  --secondary-soft: rgba(75, 93, 58, 0.12);
+  --accent-soft: rgba(59, 36, 24, 0.08);
+  --success-soft: rgba(75, 93, 58, 0.12);
+  --warning-soft: rgba(122, 90, 16, 0.12);
+  --danger-soft: rgba(161, 61, 50, 0.12);
+  --border-soft: rgba(17, 17, 17, 0.12);
+  --shadow: rgba(59, 36, 24, 0.12);
+  --shadow-glow-primary: 0 0 30px rgba(59, 36, 24, 0.18);
+}
+
+/* TEMA OSCURO */
+[data-venue-theme="craft"][data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Fondos y superficies */
+  --color-background: #111111;       /* Fondo general */
+  --color-surface: #1b1815;          /* Tarjetas y secciones */
+  --color-surface-elevated: #252019; /* Modales y menús */
+  --color-border: #544838;           /* Bordes y divisores */
+
+  /* Textos */
+  --color-text: #fff8e9;             /* Texto principal */
+  --color-text-muted: #c3b8a6;       /* Texto secundario */
+
+  /* Acciones de marca */
+  --color-primary: #d2b56f;          /* Botón principal */
+  --color-on-primary: #111111;
+  --color-primary-hover: #e0be63;
+
+  --color-secondary: #8fa06b;        /* Botón secundario */
+  --color-on-secondary: #111111;
+  --color-secondary-hover: #a3b77a;
+
+  --color-accent: #3b2418;           /* Destacados cálidos */
+  --color-on-accent: #fff8e9;
+
+  /* Estados semánticos */
+  --color-success: #8fa06b;
+  --color-on-success: #111111;
+
+  --color-warning: #e0be63;
+  --color-on-warning: #111111;
+
+  --color-error: #f0a08f;
+  --color-on-error: #111111;
+
+  --color-info: #7fa9bc;
+  --color-on-info: #111111;
+
+  /* Interacción */
+  --color-link: #d2b56f;
+  --color-focus: #d2b56f;
+  --color-disabled: #544838;
+
+  /* Fondos suaves de estado (derivados de los tokens de arriba) */
+  --primary-soft: rgba(210, 181, 111, 0.15);
+  --secondary-soft: rgba(143, 160, 107, 0.15);
+  --accent-soft: rgba(210, 181, 111, 0.10);
+  --success-soft: rgba(143, 160, 107, 0.15);
+  --warning-soft: rgba(224, 190, 99, 0.15);
+  --danger-soft: rgba(240, 160, 143, 0.15);
+  --border-soft: rgba(255, 248, 233, 0.12);
+  --shadow: rgba(0, 0, 0, 0.5);
+  --shadow-glow-primary: 0 0 30px rgba(210, 181, 111, 0.25), 0 0 60px rgba(210, 181, 111, 0.1);
+}
+
+/* --------------------------------------------------------------------------
+   MAPEO a los nombres que consumen los componentes (--bg, --primary, ...).
+   Los tokens --color-* de arriba son la fuente de verdad; esto solo los
+   conecta con las ~900 referencias que ya existen en la app, en vez de
+   renombrarlas todas.
+   -------------------------------------------------------------------------- */
+[data-venue-theme="craft"] {
+  --bg: var(--color-background);
+  --bg-card: var(--color-surface);
+  --bg-elevated: var(--color-surface-elevated);
+  --border: var(--color-border);
+
+  --text: var(--color-text);
+  --text-muted: var(--color-text-muted);
+
+  --primary: var(--color-primary);
+  --primary-dark: var(--color-primary-hover);
+  --primary-foreground: var(--color-on-primary);
+  --text-on-primary: var(--color-on-primary);
+
+  --secondary: var(--color-secondary);
+  --accent: var(--color-info);
+
+  --success: var(--color-success);
+  --warning: var(--color-warning);
+  --danger: var(--color-error);
+}
