@@ -37,6 +37,8 @@ export default defineConfig({
   ],
   server: {
     port: 5173,
+    // Permite probar Wompi en dev a través de un túnel (webhook + redirect https).
+    allowedHosts: ['.trycloudflare.com'],
     proxy: {
       '/api': {
         target: 'http://localhost:8000',

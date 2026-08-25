@@ -7,6 +7,7 @@ import { useTheme } from '../composables/useTheme.js'
 import { useToast, safeFetch } from '../composables/useToast.js'
 import { formatDuration, thumbFallback } from '../utils/youtube.js'
 import { trackAdminAction } from '../utils/analytics.js'
+import SubscriptionGate from '../components/SubscriptionGate.vue'
 
 const toast = useToast()
 
@@ -645,6 +646,8 @@ function logout() {
 
 <template>
   <div class="admin">
+    <SubscriptionGate />
+
     <!-- Toast -->
     <Transition name="fade">
       <div v-if="adminToast" class="toast">{{ adminToast }}</div>
@@ -704,6 +707,9 @@ function logout() {
             <a :href="`/${venueSlug}/usuario`" target="_blank" class="action-btn action-usuario">
               <span>&#128241;</span> Vista Usuario
             </a>
+            <RouterLink :to="{ name: 'admin-subscription', params: { venueSlug } }" class="action-btn action-subscription">
+              <span>&#128179;</span> Mi suscripción
+            </RouterLink>
           </div>
         </div>
 
@@ -1215,6 +1221,7 @@ function logout() {
 .action-registro:hover { border-color: var(--success); color: var(--success); }
 .action-video:hover { border-color: var(--warning); color: var(--warning); }
 .action-usuario:hover { border-color: var(--secondary); color: var(--secondary); }
+.action-subscription:hover { border-color: var(--primary); color: var(--primary); }
 
 /* QR */
 .qr-card { text-align: center; }

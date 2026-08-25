@@ -36,6 +36,9 @@ async def billing_db(monkeypatch):
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             CHECK ((source = 'manual') = (created_by_id IS NOT NULL))
         );
+        CREATE UNIQUE INDEX idx_billing_events_provider_ref
+        ON venue_billing_events(source, provider_ref)
+        WHERE provider_ref IS NOT NULL;
         """
     )
     today = date.today()

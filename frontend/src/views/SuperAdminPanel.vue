@@ -73,6 +73,7 @@ function forceLogout() { localStorage.removeItem('bq_super_token'); localStorage
     <header class="sa-header">
       <div><h1>Repitela</h1><span class="sa-badge">Administración</span></div>
       <div class="header-actions">
+        <RouterLink class="btn-admins" :to="{ name: 'superadmin-sales' }">Ventas</RouterLink>
         <RouterLink class="btn-admins" :to="{ name: 'superadmin-admins' }">Usuarios</RouterLink>
         <button class="theme-toggle" aria-label="Cambiar tema" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button>
         <UiButton variant="danger" class="btn-logout" @click="forceLogout">Salir</UiButton>
@@ -106,7 +107,7 @@ function forceLogout() { localStorage.removeItem('bq_super_token'); localStorage
       <div class="filter-pills" aria-label="Filtrar bares por estado">
         <button :class="{ selected: filter === 'active' }" :aria-pressed="filter === 'active'" @click="filter = filter === 'active' ? 'all' : 'active'">Activos</button>
         <button :class="{ selected: filter === 'trial' }" :aria-pressed="filter === 'trial'" @click="filter = filter === 'trial' ? 'all' : 'trial'">En prueba</button>
-        <button :class="{ selected: filter === 'overdue' }" :aria-pressed="filter === 'overdue'" @click="filter = filter === 'overdue' ? 'all' : 'overdue'">En Mora</button>
+        <button :class="{ selected: filter === 'overdue' }" :aria-pressed="filter === 'overdue'" @click="filter = filter === 'overdue' ? 'all' : 'overdue'">Vencidos</button>
         <button :class="{ selected: filter === 'upcoming' }" :aria-pressed="filter === 'upcoming'" @click="filter = filter === 'upcoming' ? 'all' : 'upcoming'">Próximos a vencer</button>
         <button :class="{ selected: filter === 'paid-today' }" :aria-pressed="filter === 'paid-today'" @click="filter = filter === 'paid-today' ? 'all' : 'paid-today'">Pagos hoy</button>
       </div>
@@ -119,7 +120,7 @@ function forceLogout() { localStorage.removeItem('bq_super_token'); localStorage
             <RouterLink class="venue-name" :to="{ name: 'superadmin-venue', params: { venueId: venue.id } }">{{ venue.name }}</RouterLink>
             <div class="card-badges">
               <span v-if="venue.queue_count > 0 || venue.active_sessions > 0" class="activity-dot" role="img" aria-label="Actividad actual" title="Actividad actual"></span>
-              <span v-if="venue.payment_status === 'overdue'" class="payment-badge payment-overdue">Mora</span>
+              <span v-if="venue.payment_status === 'overdue'" class="payment-badge payment-overdue">Vencido</span>
               <span v-else-if="venue.on_trial" class="payment-badge payment-trial">Prueba</span>
               <span v-else-if="isUpcoming(venue.paid_until)" class="payment-badge payment-upcoming">Vencimiento</span>
               <span v-else class="payment-badge payment-paid">Pago</span>

@@ -43,6 +43,12 @@ const routes = [
     ],
   },
   {
+    path: '/superadmin/ventas',
+    name: 'superadmin-sales',
+    component: () => import('../views/SuperAdminSales.vue'),
+    meta: { requiresSuperAdmin: true },
+  },
+  {
     path: '/superadmin/admins',
     name: 'superadmin-admins',
     component: () => import('../views/SuperAdminUsers.vue'),
@@ -114,6 +120,12 @@ const routes = [
     path: '/:venueSlug/admin',
     name: 'admin',
     component: () => import('../views/AdminDashboard.vue'),
+    meta: { requiresAdmin: true },
+  },
+  {
+    path: '/:venueSlug/admin/suscripcion',
+    name: 'admin-subscription',
+    component: () => import('../views/AdminSubscription.vue'),
     meta: { requiresAdmin: true },
   },
   {

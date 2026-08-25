@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     jwt_expiration_hours: int = 24
     jwt_admin_expiration_hours: int = 8
 
+    wompi_public_key: str = ""
+    wompi_integrity_secret: str = ""
+    wompi_events_secret: str = ""
+
     session_inactivity_minutes: int = 120  # expire after 2h of inactivity
     session_max_hours: int = 24            # hard max session duration
 

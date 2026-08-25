@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from app.config import settings
 from app.database import get_db
 from app.models.schemas import AdminLoginRequest
+from app.routers.superadmin import compute_payment_status
 from app.services import admin_signup_service, auth_service
 
 router = APIRouter(prefix="/api/admin", tags=["admin-auth"])
@@ -105,9 +106,14 @@ async def admin_login(req: AdminLoginRequest, _: None = Depends(limit_auth_attem
         raise HTTPException(status_code=401, detail="Usuario o contrasena incorrectos")
 
     db = await get_db()
-    venue_check = await db.execute_fetchall("SELECT id, slug, active FROM venues WHERE id = ?", (admin["venue_id"],))
+    venue_check = await db.execute_fetchall(
+        "SELECT id, slug, active, paid_until FROM venues WHERE id = ?", (admin["venue_id"],)
+    )
     if venue_check and not venue_check[0][2]:
-        raise HTTPException(status_code=403, detail="Este bar esta inactivo. Contacta al administrador.")
+        # active=FALSE por deuda (payment_status='suspended') deja entrar para que
+        # pueda pagar; active=FALSE por bloqueo administrativo del superadmin no.
+        if await compute_payment_status(venue_check[0][3]) != "suspended":
+            raise HTTPException(status_code=403, detail="Este bar esta inactivo. Contacta al administrador.")
     if req.venue_slug:
         venue_rows = await db.execute_fetchall("SELECT id, slug FROM venues WHERE slug = ?", (req.venue_slug,))
         if not venue_rows:
