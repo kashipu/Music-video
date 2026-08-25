@@ -14,6 +14,10 @@ services:
       - DATABASE_PATH=/data/barqueue.db
       - YOUTUBE_API_KEY=${YOUTUBE_API_KEY:-}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      # Kill-switches reversibles (WIL-151). Ausente o true = encendido; poner
+      # en false apaga la feature sin borrar keys ni codigo.
+      - GOOGLE_SIGNUP=${GOOGLE_SIGNUP:-true}
+      - PAGOS=${PAGOS:-true}
       # Sin BREVO_API_KEY no se envia correo: el link de verificacion se loguea
       # y la cuenta igual sirve (el login no exige email_verified).
       - BREVO_API_KEY=${BREVO_API_KEY:-}
