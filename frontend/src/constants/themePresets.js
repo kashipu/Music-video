@@ -35,6 +35,14 @@ export const THEME_PRESETS = [
     colors: { bg: '#1A170F', text: '#EAEAEA' },
   },
   {
+    id: 'craft-dark',
+    name: 'Artesanal Oscuro',
+    accent: '#D2B56F',
+    mode: 'dark',
+    // Marrón profundo: las cards/bordes derivados caen en tonos #3B2418
+    colors: { bg: '#1C120A', text: '#FFFFFF' },
+  },
+  {
     id: 'purple-light',
     name: 'Morado Claro',
     accent: '#6C5CE7',
@@ -68,5 +76,13 @@ export const THEME_PRESETS = [
     accent: '#F39C12',
     mode: 'light',
     colors: { bg: '#FDFAF0', text: '#1A1A2E' },
+  },
+  {
+    id: 'craft-light',
+    name: 'Artesanal Claro',
+    accent: '#D2B56F',
+    mode: 'light',
+    // Crema tintado con manteca; texto en el negro de la paleta
+    colors: { bg: '#FAF4E6', text: '#111111' },
   },
 ]
