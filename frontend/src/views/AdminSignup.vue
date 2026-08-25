@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import AuthSplitLayout from '../components/AuthSplitLayout.vue'
 import Button from '../components/ui/Button.vue'
 import Input from '../components/ui/Input.vue'
@@ -308,6 +308,10 @@ onBeforeUnmount(() => {
         Regístrate con Google
       </Button>
       <p class="google-consent">Al registrarte con Google, aceptas nuestros <a href="/privacidad" target="_blank" rel="noopener noreferrer">términos y política de tratamiento de datos</a>.</p>
+      <p class="login-prompt">
+        ¿Ya tienes cuenta?
+        <RouterLink :to="{ name: 'admin-login-global' }" class="login-link">Inicia sesión</RouterLink>
+      </p>
     </form>
   </AuthSplitLayout>
 </template>
@@ -449,6 +453,24 @@ onBeforeUnmount(() => {
 .google-consent a {
   color: var(--primary);
   text-decoration: none;
+}
+
+.login-prompt {
+  margin: 4px 0 0;
+  font-size: 14px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.login-link {
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: none;
+  margin-left: 4px;
+}
+
+.login-link:hover {
+  text-decoration: underline;
 }
 
 .google-consent a:hover {

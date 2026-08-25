@@ -1,5 +1,6 @@
 <script setup>
 import { ref } from 'vue'
+import { RouterLink } from 'vue-router'
 import AuthSplitLayout from '../components/AuthSplitLayout.vue'
 import Button from '../components/ui/Button.vue'
 import Input from '../components/ui/Input.vue'
@@ -20,6 +21,6 @@ async function submit() {
 }
 </script>
 
-<template><AuthSplitLayout><section class="short-form"><h1>Recupera tu contrasena</h1><p>Te enviaremos instrucciones para restablecerla.</p><form @submit.prevent="submit"><Input v-model="email" type="email" required autocomplete="email" placeholder="tu@correo.com" /><p v-if="message" class="success-msg">{{ message }}</p><p v-if="error" class="error-msg">{{ error }}</p><Button :disabled="loading">{{ loading ? 'Enviando...' : 'Enviar instrucciones' }}</Button></form></section></AuthSplitLayout></template>
+<template><AuthSplitLayout><section class="short-form"><h1>Recupera tu contrasena</h1><p>Te enviaremos instrucciones para restablecerla.</p><form @submit.prevent="submit"><Input v-model="email" type="email" required autocomplete="email" placeholder="tu@correo.com" /><p v-if="message" class="success-msg">{{ message }}</p><p v-if="error" class="error-msg">{{ error }}</p><Button :disabled="loading">{{ loading ? 'Enviando...' : 'Enviar instrucciones' }}</Button></form><p class="login-prompt"><RouterLink :to="{ name: 'admin-login-global' }" class="login-link">Volver a iniciar sesión</RouterLink></p></section></AuthSplitLayout></template>
 
-<style scoped>.short-form { text-align: center; }.short-form > p { color: var(--text-muted); margin: 12px 0 24px; }.short-form form { display: flex; flex-direction: column; gap: 16px; }.error-msg { color: var(--danger); }.success-msg { color: var(--success); }</style>
+<style scoped>.short-form { text-align: center; }.short-form > p { color: var(--text-muted); margin: 12px 0 24px; }.short-form form { display: flex; flex-direction: column; gap: 16px; }.error-msg { color: var(--danger); }.success-msg { color: var(--success); }.login-prompt { margin: 20px 0 0 !important; font-size: 14px; }.login-link { color: var(--primary); font-weight: 600; text-decoration: none; }.login-link:hover { text-decoration: underline; }</style>
