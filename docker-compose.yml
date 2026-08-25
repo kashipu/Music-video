@@ -25,6 +25,11 @@ services:
       # Hostnames que Cloudflare puede reportar en siteverify. Nunca localhost en prod.
       - TURNSTILE_HOSTNAMES=${TURNSTILE_HOSTNAMES:-app.repitela.com}
       - CORS_ORIGINS=${CORS_ORIGINS:-*}
+      # Llaves de Wompi (sandbox pub_test_* o produccion pub_prod_*). Sin ellas
+      # el checkout responde 503 y el webhook no procesa eventos.
+      - WOMPI_PUBLIC_KEY=${WOMPI_PUBLIC_KEY:-}
+      - WOMPI_INTEGRITY_SECRET=${WOMPI_INTEGRITY_SECRET:-}
+      - WOMPI_EVENTS_SECRET=${WOMPI_EVENTS_SECRET:-}
       - MAX_SONGS_PER_WINDOW=${MAX_SONGS_PER_WINDOW:-5}
       - WINDOW_MINUTES=${WINDOW_MINUTES:-30}
     restart: unless-stopped

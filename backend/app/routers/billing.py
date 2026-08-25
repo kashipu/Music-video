@@ -1,15 +1,19 @@
 import hashlib
+import hmac
+import json
+import sqlite3
 import time
 from datetime import date
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 
 from app.config import settings
 from app.database import get_db
 from app.routers.superadmin import compute_payment_status, get_platform_settings
-from app.services import auth_service
+from app.services import auth_service, billing_service
 
 router = APIRouter(prefix="/api/admin", tags=["billing"])
+webhook_router = APIRouter(prefix="/api/billing", tags=["billing"])
 
 # ponytail: plan único; multi-plan = tabla plans + plan_id en checkout/webhook
 PLAN_DAYS = 30
@@ -96,3 +100,77 @@ async def get_checkout(admin: dict = Depends(get_current_admin)):
         "reference": reference,
         "signature": signature,
     }
+
+
+def _resolve(data: dict, path: str):
+    """Resuelve 'transaction.id' sobre el objeto data del evento."""
+    value = data
+    for part in path.split("."):
+        if not isinstance(value, dict):
+            return ""
+        value = value.get(part, "")
+    return value
+
+
+def _valid_webhook_signature(body: dict) -> bool:
+    signature = body.get("signature") or {}
+    checksum = signature.get("checksum") or ""
+    properties = signature.get("properties") or []
+    timestamp = body.get("timestamp")
+    if not checksum or not properties or timestamp is None:
+        return False
+    concatenated = "".join(str(_resolve(body.get("data") or {}, p)) for p in properties)
+    expected = hashlib.sha256(
+        f"{concatenated}{timestamp}{settings.wompi_events_secret}".encode()
+    ).hexdigest()
+    return hmac.compare_digest(expected.lower(), str(checksum).lower())
+
+
+@webhook_router.post("/wompi/webhook")
+async def wompi_webhook(request: Request):
+    if not settings.wompi_events_secret:
+        raise HTTPException(status_code=503, detail="Wompi no esta configurado")
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="JSON invalido")
+
+    if not _valid_webhook_signature(body):
+        raise HTTPException(status_code=403, detail="Firma invalida")
+
+    # Cualquier otro evento se acepta sin procesar (Wompi reintenta si no es 200).
+    if body.get("event") != "transaction.updated":
+        return {"ok": True}
+
+    txn = (body.get("data") or {}).get("transaction") or {}
+    reference = str(txn.get("reference") or "")
+    parts = reference.split("-")
+    if len(parts) != 3 or parts[0] != "repitela" or not parts[1].isdigit():
+        return {"ok": True, "ignored": "referencia ajena"}
+    venue_id = int(parts[1])
+
+    txn_status = txn.get("status")
+    if txn_status == "PENDING":
+        return {"ok": True, "ignored": "pendiente"}
+    # APPROVED extiende; DECLINED/VOIDED/ERROR quedan en el historial sin extender.
+    event_status = "approved" if txn_status == "APPROVED" else "declined"
+
+    try:
+        await billing_service.record_event(
+            venue_id,
+            "payment",
+            days=PLAN_DAYS,
+            amount_cents=txn.get("amount_in_cents"),
+            source="wompi",
+            provider_ref=str(txn.get("id") or ""),
+            raw_payload=json.dumps(body),
+            status=event_status,
+        )
+    except sqlite3.IntegrityError:
+        # Índice único (source, provider_ref): reintento de Wompi ya procesado.
+        return {"ok": True, "ignored": "duplicado"}
+    except ValueError as exc:
+        if str(exc) == "VENUE_NOT_FOUND":
+            return {"ok": True, "ignored": "bar no existe"}
+        raise
+    return {"ok": True}

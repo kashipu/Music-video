@@ -92,6 +92,7 @@ app.include_router(playback.router)
 app.include_router(websocket.router)
 app.include_router(superadmin.router)
 app.include_router(billing.router)
+app.include_router(billing.webhook_router)
 if settings.app_env == "test":
     app.include_router(test.router)
 

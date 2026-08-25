@@ -48,17 +48,20 @@ async def record_event(
                 pass
         period_end = period_start + timedelta(days=days)
 
-        if kind == "payment":
-            await db.execute(
-                "UPDATE venues SET paid_until = ?, active = TRUE, "
-                "payment_notes = COALESCE(?, payment_notes) WHERE id = ?",
-                (period_end.isoformat(), notes, venue_id),
-            )
-        else:
-            await db.execute(
-                "UPDATE venues SET paid_until = ? WHERE id = ?",
-                (period_end.isoformat(), venue_id),
-            )
+        # Solo un evento aprobado mueve el vencimiento: un pago rechazado o
+        # pendiente queda en el historial sin regalar días.
+        if status == "approved":
+            if kind == "payment":
+                await db.execute(
+                    "UPDATE venues SET paid_until = ?, active = TRUE, "
+                    "payment_notes = COALESCE(?, payment_notes) WHERE id = ?",
+                    (period_end.isoformat(), notes, venue_id),
+                )
+            else:
+                await db.execute(
+                    "UPDATE venues SET paid_until = ? WHERE id = ?",
+                    (period_end.isoformat(), venue_id),
+                )
         await db.execute(
             "INSERT INTO venue_billing_events "
             "(venue_id, kind, source, created_by_id, created_by_username, amount_cents, days, "
