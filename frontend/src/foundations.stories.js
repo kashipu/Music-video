@@ -37,6 +37,9 @@ const TYPOGRAPHY_SCALES = [
 
 export default {
   title: 'Foundations',
+  // Barra/pagina a ancho completo: el padding de .sb-main-padded le
+  // inventa un margen que en la app no existe.
+  parameters: { layout: 'fullscreen' },
 }
 
 export const Foundations = {

@@ -1,7 +1,12 @@
 import ToastContainer from './ToastContainer.vue'
 import { useToast } from '../composables/useToast.js'
 
-export default { title: 'Components/ToastContainer', component: ToastContainer }
+export default {
+  title: 'Components/ToastContainer', component: ToastContainer,
+  // Barra/pagina a ancho completo: el padding de .sb-main-padded le
+  // inventa un margen que en la app no existe.
+  parameters: { layout: 'fullscreen' },
+}
 export const SuccessToast = {
   render: () => ({
     components: { ToastContainer },

@@ -32,7 +32,11 @@ defineEmits(['toggle-sidebar', 'logout'])
   border-bottom: 1px solid var(--border);
 }
 .header-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.header-logo { max-width: 120px; max-height: 36px; width: auto; height: auto; object-fit: contain; }
+.header-logo {
+  /* width:100% y no auto: un SVG con solo viewBox no tiene tamano intrinseco,
+     y como item flex colapsa a 0. El max-width lo acota y contain no deforma. */
+  width: 100%; max-width: 120px; max-height: 36px; height: auto; object-fit: contain;
+}
 .admin-header h1 { font-size: 18px; text-transform: capitalize; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .menu-btn {
   display: none; width: 40px; height: 40px; border-radius: 8px;

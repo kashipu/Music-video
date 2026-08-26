@@ -50,7 +50,12 @@ function loginStory(compact = false) {
   })
 }
 
-export default { title: 'Plantillas' }
+export default {
+  title: 'Plantillas',
+  // Barra/pagina a ancho completo: el padding de .sb-main-padded le
+  // inventa un margen que en la app no existe.
+  parameters: { layout: 'fullscreen' },
+}
 
 export const Login = { render: loginStory() }
 
