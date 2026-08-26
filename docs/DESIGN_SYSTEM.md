@@ -370,6 +370,25 @@ Ubicada en `Foundations > Foundations` ([`frontend/src/foundations.stories.js`](
 - Incluye indicadores `MISSING TOKEN` en caso de que algún preset omita una variable obligatoria.
 - Muestra la escala tipográfica y los radios de borde computados.
 
+### Trampas conocidas de Storybook
+
+Cuatro errores reales que costaron horas al montarlo. Los cuatro **pasaron `npm run build`, `npm run build-storybook` y los tests en verde**: compilar no es renderizar, y la única forma de detectarlos fue abrir las stories en el navegador y leer la consola.
+
+| Síntoma | Causa | Solución |
+|---|---|---|
+| Un componente revienta al montar, con el build en verde | `setup` declarado como **clave del objeto `preview`**. En Vue 3 es un **export de `@storybook/vue3`**, así que se ignora y Pinia/router nunca se instalan | `import { setup } from '@storybook/vue3'` y llamarlo a nivel de módulo |
+| `<RouterLink :to="{ name }">` tira `No match` | El router de memoria tenía solo un catch-all sin nombres | `src/router/index.js` exporta su array `routes` y `preview.js` monta el router con **las rutas reales** |
+| El toolbar dice `light` pero la página se ve `dark` | Los componentes que llaman `useTheme()` **reescriben `data-theme` al montar** desde su propio ref | El decorator usa `useTheme().applyMode(mode)`, que mueve el ref y el atributo juntos — no `setAttribute` |
+| `globals.mode` llega `undefined` sin `?globals=` en la URL | `defaultValue` dentro de `globalTypes` está **removido desde Storybook 8** y se ignora sin warning | `initialGlobals: { venueTheme: 'default', mode: 'dark' }` en el `preview` |
+
+Dos de los cuatro son cambios de API entre mayores de Storybook que **fallan en silencio**. Ante cualquier cosa que "debería andar" en `preview.js`, verificar contra la documentación de la versión instalada antes que releer el código.
+
+### Convenciones de las stories
+
+- Una story es **un estado que alguien va a mirar**, no la matriz completa de props.
+- Barras, layouts y páginas llevan `parameters: { layout: 'fullscreen' }`: el padding por defecto de `.sb-main-padded` les inventa un margen que en la app no existe.
+- Los cambios en `.storybook/preview.js` no siempre entran por HMR. Si algo no se actualiza, recargar con **hard reload**.
+
 ---
 
 ## 7. Decisiones de Contraste y Accesibilidad
