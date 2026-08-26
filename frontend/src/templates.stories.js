@@ -1,6 +1,7 @@
 import { computed, provide, ref } from 'vue'
 import { THEME_PRESETS } from './constants/themePresets.js'
 import logoColorPositivo from './assets/logo-color-positivo.svg'
+import logoVenue from './assets/logo-negativo.svg'
 import logoColorNegativo from './assets/logo-color-negativo.svg'
 import AuthSplitLayout from './components/AuthSplitLayout.vue'
 import AuthLoginForm from './components/AuthLoginForm.vue'
@@ -92,10 +93,11 @@ export const PanelDelBar = {
 }
 
 export const PanelAdmin = {
-  render: (_, { globals }) => ({
+  render: () => ({
     components: { AdminHeader, AdminSidebar, NowPlaying, QueueList },
     setup: () => ({
-      logo: logoFor(globals.mode),
+      // Monocromo oscuro: VenueLogo lo invierte solo en tema oscuro.
+      logo: logoVenue,
       nowPlaying,
       queue,
     }),

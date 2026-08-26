@@ -1,9 +1,7 @@
 import AdminSidebar from './AdminSidebar.vue'
-import logoNegativo from '../assets/logo-color-negativo.svg'
-import logoPositivo from '../assets/logo-color-positivo.svg'
-
-// "negativo" es la variante para fondo oscuro.
-const logoFor = (mode) => (mode === 'dark' ? logoNegativo : logoPositivo)
+// Monocromo oscuro a proposito: VenueLogo lo detecta y lo invierte solo en
+// tema oscuro, asi que sirve en los dos modos sin depender del toolbar.
+import logo from '../assets/logo-negativo.svg'
 
 export default {
   title: 'Components/AdminSidebar', component: AdminSidebar,
@@ -13,14 +11,5 @@ export default {
 }
 
 const args = { venueName: 'Repítela', activeUsers: 18, queuedCount: 7, venueSlug: 'repitela' }
-const story = (open) => ({
-  parameters: { viewport: { defaultViewport: 'mobile1' } },
-  render: (_, { globals }) => ({
-    components: { AdminSidebar },
-    setup: () => ({ args: { ...args, open, logoUrl: logoFor(globals.mode) } }),
-    template: '<AdminSidebar v-bind="args" />',
-  }),
-})
-
-export const Abierto = story(true)
-export const Cerrado = story(false)
+export const Abierto = { args: { ...args, logoUrl: logo, open: true }, parameters: { viewport: { defaultViewport: 'mobile1' } } }
+export const Cerrado = { args: { ...args, logoUrl: logo, open: false }, parameters: { viewport: { defaultViewport: 'mobile1' } } }
