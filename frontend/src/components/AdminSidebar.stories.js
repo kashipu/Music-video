@@ -1,7 +1,11 @@
 import AdminSidebar from './AdminSidebar.vue'
-// Monocromo oscuro a proposito: VenueLogo lo detecta y lo invierte solo en
-// tema oscuro, asi que sirve en los dos modos sin depender del toolbar.
-import logo from '../assets/logo-negativo.svg'
+import logoSobreOscuro from '../assets/logo-color-negativo.svg'
+import logoSobreClaro from '../assets/logo-color-positivo.svg'
+
+// Las variantes a color conservan el rojo del isotipo, pero no se auto-invierten:
+// hay que elegir la del fondo. El ?? 'dark' evita que un global ausente la de
+// vuelta en silencio, que ya paso dos veces.
+const logoFor = (mode) => (mode === 'dark' ? logoSobreOscuro : logoSobreClaro)
 
 export default {
   title: 'Components/AdminSidebar', component: AdminSidebar,
@@ -11,5 +15,14 @@ export default {
 }
 
 const args = { venueName: 'Repítela', activeUsers: 18, queuedCount: 7, venueSlug: 'repitela' }
-export const Abierto = { args: { ...args, logoUrl: logo, open: true }, parameters: { viewport: { defaultViewport: 'mobile1' } } }
-export const Cerrado = { args: { ...args, logoUrl: logo, open: false }, parameters: { viewport: { defaultViewport: 'mobile1' } } }
+const story = (open) => ({
+  parameters: { viewport: { defaultViewport: 'mobile1' } },
+  render: (_, { globals }) => ({
+    components: { AdminSidebar },
+    setup: () => ({ args: { ...args, open, logoUrl: logoFor(globals.mode ?? 'dark') } }),
+    template: '<AdminSidebar v-bind="args" />',
+  }),
+})
+
+export const Abierto = story(true)
+export const Cerrado = story(false)

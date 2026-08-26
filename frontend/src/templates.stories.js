@@ -1,8 +1,11 @@
 import { computed, provide, ref } from 'vue'
 import { THEME_PRESETS } from './constants/themePresets.js'
 import logoColorPositivo from './assets/logo-color-positivo.svg'
-import logoVenue from './assets/logo-negativo.svg'
 import logoColorNegativo from './assets/logo-color-negativo.svg'
+
+// "negativo" es la variante para fondo oscuro. El ?? 'dark' en los llamadores
+// evita que un global ausente la de vuelta en silencio.
+const logoFor = (mode) => (mode === 'dark' ? logoColorNegativo : logoColorPositivo)
 import AuthSplitLayout from './components/AuthSplitLayout.vue'
 import AuthLoginForm from './components/AuthLoginForm.vue'
 import NowPlaying from './components/NowPlaying.vue'
@@ -93,11 +96,10 @@ export const PanelDelBar = {
 }
 
 export const PanelAdmin = {
-  render: () => ({
+  render: (_, { globals }) => ({
     components: { AdminHeader, AdminSidebar, NowPlaying, QueueList },
     setup: () => ({
-      // Monocromo oscuro: VenueLogo lo invierte solo en tema oscuro.
-      logo: logoVenue,
+      logo: logoFor(globals.mode ?? 'dark'),
       nowPlaying,
       queue,
     }),
@@ -178,7 +180,6 @@ export const PanelSuperAdmin = {
 // quedarian con el modo global (toggle inutil y logo blanco sobre blanco).
 // Por eso la celda arma el fondo a mano y pasa el logo explicito.
 const CELDA_FONDO = 'background-color:var(--color-background);background-image:radial-gradient(ellipse 80% 50% at 50% 85%, var(--warning-soft) 0%, var(--primary-soft) 55%, transparent 75%),radial-gradient(circle at 50% 95%, var(--primary-soft) 0%, transparent 60%);background-repeat:no-repeat'
-const logoFor = (mode) => (mode === 'dark' ? logoColorNegativo : logoColorPositivo)
 
 export const TodosLosTemas = {
   render: () => ({
