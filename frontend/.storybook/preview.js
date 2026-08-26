@@ -3,19 +3,21 @@ import { setup } from '@storybook/vue3'
 import { THEME_PRESETS } from '../src/constants/themePresets.js'
 import { createPinia } from 'pinia'
 import { createMemoryHistory, createRouter } from 'vue-router'
+import { routes } from '../src/router/index.js'
 
 import.meta.glob('../src/themes/*.css', { eager: true })
 
 const modes = [...new Set(THEME_PRESETS.map(({ mode }) => mode))]
 const venueThemes = Object.fromEntries(THEME_PRESETS.map(({ id, name }) => [id, name]))
-const router = createRouter({
-  history: createMemoryHistory(),
-  routes: [{ path: '/:pathMatch(.*)*', component: { template: '<div />' } }],
-})
-
+// Pinia y el router se crean POR APP: Storybook monta una app nueva por story.
 setup((app) => {
   app.use(createPinia())
-  app.use(router)
+  app.use(createRouter({
+    history: createMemoryHistory(),
+    // Las rutas reales de la app: sin ellas un <RouterLink :to="{ name }">
+    // no resuelve y el componente revienta al montar.
+    routes,
+  }))
 })
 
 /** @type { import('@storybook/vue3-vite').Preview } */

@@ -5,7 +5,7 @@ import { useAuthStore } from '../stores/auth.js'
 import { useQueueStore } from '../stores/queue.js'
 import { useWebSocket } from '../composables/useWebSocket.js'
 import { useToast } from '../composables/useToast.js'
-import { formatDuration } from '../utils/youtube.js'
+import NowPlaying from '../components/NowPlaying.vue'
 import { useTheme } from '../composables/useTheme.js'
 import SongSubmit from '../components/SongSubmit.vue'
 import SongPreview from '../components/SongPreview.vue'
@@ -299,22 +299,7 @@ async function cancelSong(songId) {
       </div>
 
       <!-- 1. NOW PLAYING BANNER -->
-      <div class="np-banner" :class="{ 'np-mine': isMyNowPlaying }" v-if="queueStore.nowPlaying">
-        <img :src="`https://i.ytimg.com/vi/${queueStore.nowPlaying.youtube_id}/mqdefault.jpg`" class="np-thumb" />
-        <div class="np-info">
-          <div class="np-label-row">
-            <span class="np-dot"></span>
-            <p class="np-label" v-if="isMyNowPlaying">TU CANCION SUENA</p>
-            <p class="np-label" v-else>SONANDO AHORA</p>
-          </div>
-          <p class="np-title">{{ queueStore.nowPlaying.title }}</p>
-          <p class="np-meta">por {{ queueStore.nowPlaying.added_by }}</p>
-        </div>
-      </div>
-      <div v-else class="np-banner np-empty">
-        <span class="np-empty-icon">&#127925;</span>
-        <p class="np-empty-text">Nada sonando aun — sé el primero!</p>
-      </div>
+      <NowPlaying :song="queueStore.nowPlaying" :mine="isMyNowPlaying" />
 
       <!-- 2. SUBMIT SONG -->
       <SongPreview
@@ -424,56 +409,6 @@ async function cancelSong(songId) {
 .greeting-name { font-size: 22px; font-weight: 800; color: var(--text); line-height: 1.2; }
 .greeting-name strong { color: var(--primary); }
 .greeting-sub { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
-
-/* ── Now Playing Banner ── */
-.np-banner {
-  margin-top: 16px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--radius);
-  display: flex; align-items: center; gap: 14px;
-  overflow: hidden; position: relative;
-  box-shadow: 0 2px 8px var(--shadow);
-  padding: .8rem;
-}
-.np-mine {
-  border-color: var(--success);
-  background: linear-gradient(135deg, color-mix(in srgb, var(--success) 8%, var(--bg-card)), var(--bg-card));
-}
-.np-thumb {
-  width: 90px; height: 68px;
-  object-fit: cover; flex-shrink: 0;
-  border-radius: 0;
-}
-.np-info { flex: 1; min-width: 0; padding: 12px 14px 12px 0; }
-.np-label-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-.np-dot {
-  width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
-  background: var(--primary); animation: pulse 2s infinite;
-}
-.np-mine .np-dot { background: var(--success); }
-.np-label {
-  font-size: 10px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 0.8px;
-  color: var(--text-muted);
-}
-.np-mine .np-label { color: var(--success); }
-.np-title {
-  font-size: 14px; font-weight: 700; line-height: 1.3;
-  display: -webkit-box; -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical; overflow: hidden;
-}
-.np-meta { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
-@keyframes pulse {
-  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 var(--primary-soft); }
-  50% { opacity: 0.6; box-shadow: 0 0 0 5px rgba(0,0,0,0); }
-}
-.np-empty {
-  flex-direction: column; justify-content: center; align-items: center;
-  padding: 28px; gap: 8px; border-style: dashed;
-}
-.np-empty-icon { font-size: 28px; opacity: 0.4; }
-.np-empty-text { color: var(--text-muted); font-size: 14px; text-align: center; }
 
 /* ── Sections ── */
 .section { margin-top: 14px; }

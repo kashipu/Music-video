@@ -9,6 +9,7 @@ import { formatDuration, thumbFallback } from '../utils/youtube.js'
 import { trackAdminAction } from '../utils/analytics.js'
 import AdminHeader from '../components/AdminHeader.vue'
 import AdminSidebar from '../components/AdminSidebar.vue'
+import NowPlaying from '../components/NowPlaying.vue'
 import SubscriptionGate from '../components/SubscriptionGate.vue'
 
 const toast = useToast()
@@ -767,29 +768,13 @@ function logout() {
         </div>
 
         <!-- Now Playing (unified: user song or fallback) -->
-        <div class="card np-card" :class="{ 'np-fallback': !nowPlaying || nowPlaying.is_fallback }"
-             v-if="nowPlaying || fallbackSongs.length">
-          <!-- User song -->
-          <div class="np-left" v-if="nowPlaying && !nowPlaying.is_fallback">
-            <img :src="`https://i.ytimg.com/vi/${nowPlaying.youtube_id}/mqdefault.jpg`" class="np-thumb" />
-            <div class="np-info">
-              <p class="section-title">SONANDO AHORA</p>
-              <p class="np-title">{{ nowPlaying.title }}</p>
-              <p class="np-meta">{{ nowPlaying.user_name }} &middot; #{{ nowPlaying.table_number }}</p>
-            </div>
-          </div>
-          <!-- Fallback (with or without specific song info) -->
-          <div class="np-left" v-else>
-            <span class="np-fallback-icon" v-if="playbackStatus === 'playing'">&#9835;</span>
-            <span class="np-fallback-icon" v-else>&#9646;&#9646;</span>
-            <div class="np-info">
-              <p class="section-title">{{ playbackStatus === 'playing' ? 'PLAYLIST DE RESPALDO' : 'PAUSADO' }}</p>
-              <p class="np-title">{{ nowPlaying?.title || 'Sonando automaticamente' }}</p>
-              <p class="np-meta" v-if="queue.length">{{ queue.length }} {{ queue.length === 1 ? 'cancion en cola' : 'canciones en cola' }}</p>
-            </div>
-          </div>
-          <!-- Universal controls -->
-          <div class="np-controls">
+        <NowPlaying
+          :song="nowPlaying"
+          :fallback="!nowPlaying && fallbackSongs.length > 0"
+          :playback-status="playbackStatus"
+          :queue-length="queue.length"
+        >
+          <template #controls>
             <button v-if="playbackStatus === 'playing'" class="ctrl-labeled ctrl-pause" @click="pausePlayback" :disabled="loadingPause">
               <span class="ctrl-icon">&#10074;&#10074;</span><span class="ctrl-text">{{ loadingPause ? '...' : 'Pausar' }}</span>
             </button>
@@ -799,16 +784,15 @@ function logout() {
             <button class="ctrl-labeled ctrl-skip" @click="nextSong" :disabled="loadingSkip || loadingFallbackSkip">
               <span class="ctrl-icon">&#9197;</span><span class="ctrl-text">{{ (loadingSkip || loadingFallbackSkip) ? '...' : 'Siguiente' }}</span>
             </button>
-          </div>
-        </div>
-        <!-- Empty state: nothing playing and no fallback configured -->
-        <div v-else class="card np-empty">
-          <p class="np-empty-text" v-if="!queue.length">Sin reproduccion &mdash; agrega una cancion</p>
-          <div v-else class="np-start">
-            <p class="np-empty-text">{{ queue.length }} {{ queue.length === 1 ? 'cancion en cola' : 'canciones en cola' }}</p>
-            <button class="ctrl-btn-lg ctrl-play" @click="startPlayback" :disabled="loadingStart">{{ loadingStart ? 'Iniciando...' : '&#9654; REPRODUCIR' }}</button>
-          </div>
-        </div>
+          </template>
+          <template #empty>
+            <p class="empty-text" v-if="!queue.length">Sin reproduccion &mdash; agrega una cancion</p>
+            <div v-else class="np-start">
+              <p class="empty-text">{{ queue.length }} {{ queue.length === 1 ? 'cancion en cola' : 'canciones en cola' }}</p>
+              <button class="ctrl-btn-lg ctrl-play" @click="startPlayback" :disabled="loadingStart">{{ loadingStart ? 'Iniciando...' : '&#9654; REPRODUCIR' }}</button>
+            </div>
+          </template>
+        </NowPlaying>
 
         <!-- Volume -->
         <div class="card volume-card">
@@ -1231,22 +1215,6 @@ function logout() {
 .ws-bad .ws-dot-bad { background: var(--danger); animation: pulse-dot 1s infinite; }
 @keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-/* Now Playing */
-.np-card {
-  display: flex; justify-content: space-between; align-items: center;
-  gap: 12px; border-left: 4px solid var(--primary);
-}
-.np-left { display: flex; gap: 12px; align-items: center; flex: 1; min-width: 0; }
-.np-thumb { width: 72px; height: 54px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
-.np-title { font-weight: 700; font-size: 15px; }
-.np-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-.np-controls { display: flex; gap: 8px; flex-shrink: 0; }
-.np-fallback { border-left-color: var(--warning); }
-.np-fallback-paused { border-left-color: var(--border); opacity: 0.8; }
-.np-fallback-icon { font-size: 32px; flex-shrink: 0; }
-.np-empty { text-align: center; padding: 24px; }
-.np-empty-text { color: var(--text-muted); font-size: 14px; }
-.np-start { display: flex; flex-direction: column; align-items: center; gap: 16px; }
 .ctrl-btn-lg {
   display: flex; align-items: center; gap: 8px;
   padding: 14px 32px; border-radius: 12px;
@@ -1501,10 +1469,6 @@ function logout() {
     background: rgba(0,0,0,0.5);
   }
   .tables-list { max-height: none; }
-  .np-card { flex-direction: column; align-items: stretch; }
-  .np-left { flex-direction: column; gap: 8px; }
-  .np-thumb { width: 100%; height: auto; max-height: 200px; }
-  .np-controls { justify-content: center; flex-wrap: wrap; }
   .ctrl-labeled { flex: 1; min-width: 0; }
   .stats-bar { flex-wrap: wrap; }
   .stat-pill { font-size: 12px; padding: 5px 10px; }
