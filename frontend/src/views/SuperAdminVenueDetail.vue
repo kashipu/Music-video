@@ -1,9 +1,8 @@
 <script setup>
 import { onMounted, provide, readonly, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useTheme } from '../composables/useTheme.js'
+import ThemeToggle from '../components/ui/ThemeToggle.vue'
 
-const { currentMode, toggleMode } = useTheme()
 const route = useRoute()
 const router = useRouter()
 const API = import.meta.env.VITE_API_URL || ''
@@ -37,14 +36,7 @@ onMounted(fetchDetail)
           {{ detail.venue.active ? 'Activo' : 'Inactivo' }}
         </span>
       </div>
-      <button
-        class="theme-toggle"
-        :title="currentMode === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
-        :aria-label="currentMode === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
-        @click="toggleMode"
-      >
-        {{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}
-      </button>
+      <ThemeToggle />
     </header>
 
     <nav class="vd-tabs" aria-label="Secciones del bar">

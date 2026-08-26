@@ -3,15 +3,14 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
 import { useConfigStore } from '../stores/config.js'
-import { useTheme } from '../composables/useTheme.js'
 import Badge from '../components/ui/Badge.vue'
 import UiButton from '../components/ui/Button.vue'
+import ThemeToggle from '../components/ui/ThemeToggle.vue'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const config = useConfigStore()
-const { currentMode, toggleMode } = useTheme()
 const API = import.meta.env.VITE_API_URL || ''
 const venueSlug = route.params.venueSlug
 
@@ -127,7 +126,7 @@ onMounted(async () => {
         <button class="back-btn" aria-label="Volver" @click="router.push({ name: 'admin', params: { venueSlug } })">&#8592;</button>
         <h1>Mi suscripción</h1>
       </div>
-      <button class="theme-toggle" aria-label="Cambiar tema" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button>
+      <ThemeToggle />
     </header>
 
     <main class="as-content">

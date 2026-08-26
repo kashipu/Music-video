@@ -1,13 +1,12 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useTheme } from '../composables/useTheme.js'
 import UiButton from '../components/ui/Button.vue'
 import UiInput from '../components/ui/Input.vue'
 import Badge from '../components/ui/Badge.vue'
+import ThemeToggle from '../components/ui/ThemeToggle.vue'
 
 const router = useRouter()
-const { currentMode, toggleMode } = useTheme()
 const API = import.meta.env.VITE_API_URL || ''
 
 const loading = ref(true)
@@ -120,7 +119,7 @@ onMounted(() => {
         <button class="back-btn" aria-label="Volver" @click="router.push({ name: 'superadmin' })">&#8592;</button>
         <h1>Ventas y facturación</h1>
       </div>
-      <button class="theme-toggle" aria-label="Cambiar tema" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button>
+      <ThemeToggle />
     </header>
 
     <main class="sales-content">

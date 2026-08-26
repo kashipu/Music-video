@@ -1,12 +1,10 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useTheme } from '../composables/useTheme.js'
-import UiButton from '../components/ui/Button.vue'
 import UiInput from '../components/ui/Input.vue'
+import SuperAdminHeader from '../components/SuperAdminHeader.vue'
 
 const router = useRouter()
-const { currentMode, toggleMode } = useTheme()
 const API = import.meta.env.VITE_API_URL || ''
 const venues = ref([])
 const kpis = ref({})
@@ -70,15 +68,7 @@ function forceLogout() { localStorage.removeItem('bq_super_token'); localStorage
 
 <template>
   <div class="sa">
-    <header class="sa-header">
-      <div><h1>Repitela</h1><span class="sa-badge">Administración</span></div>
-      <div class="header-actions">
-        <RouterLink class="btn-admins" :to="{ name: 'superadmin-sales' }">Ventas</RouterLink>
-        <RouterLink class="btn-admins" :to="{ name: 'superadmin-admins' }">Usuarios</RouterLink>
-        <button class="theme-toggle" aria-label="Cambiar tema" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button>
-        <UiButton variant="danger" class="btn-logout" @click="forceLogout">Salir</UiButton>
-      </div>
-    </header>
+    <SuperAdminHeader title="Repitela" badge="Administración" @logout="forceLogout" />
     <main class="sa-content">
       <section class="indicators" aria-label="Indicadores de la plataforma">
         <div class="period-tabs" role="tablist" aria-label="Periodo de indicadores">
@@ -141,7 +131,6 @@ function forceLogout() { localStorage.removeItem('bq_super_token'); localStorage
 /* =========================================
    CSS GENERAL
    ========================================= */
-.sa-header { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px; padding:10px 12px; background:var(--bg-card); border-bottom:1px solid var(--border); }.sa-header h1 { display:inline; font-size:18px; }.sa-badge { margin-left:10px; padding:2px 10px; border:1px solid var(--warning); border-radius:999px; background:var(--warning-soft); color:var(--warning); font-size:11px; font-weight:700; }.header-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }.btn-logout { width:auto; padding:6px 14px; font-size:13px; }.btn-admins { padding:6px 14px; border-radius:var(--radius-sm); background:var(--bg-elevated); border:1px solid var(--border); color:var(--text); font-size:13px; font-weight:600; text-decoration:none; }
 .sa-content { max-width:1100px; margin:auto; padding:16px 12px; }.indicators { margin:-16px -12px 20px; padding:14px 12px; background:var(--bg-card); border-bottom:1px solid var(--border); }.indicators h2,.list-header h2 { margin:0; font-size:18px; }.period-tabs { display:flex; gap:4px; margin-bottom:12px; }.period-tabs button { padding:6px 12px; border:0; border-radius:var(--radius); background:transparent; color:var(--text-muted); font:inherit; font-size:13px; cursor:pointer; }.period-tabs button.selected,.period-tabs button:hover { background:var(--primary); color:var(--text-on-primary); }.indicator-list { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px; }.indicator-list article { display:flex; flex-direction:column; min-width:0; padding:12px; border:1px solid var(--border-soft); border-radius:var(--radius); background:var(--bg-card); color:var(--text-muted); }.indicator-list strong { color:var(--text); font-size:24px; line-height:1; }.indicator-list span { margin-top:6px; font-size:13px; overflow-wrap:anywhere; }
 .search-box { margin-bottom:12px; }.filter-pills { display:flex; gap:8px; margin-bottom:20px; overflow-x:auto; padding-bottom:2px; }.filter-pills button { flex:none; padding:7px 12px; border:1px solid var(--border-soft); border-radius:999px; background:var(--bg-card); color:var(--text-muted); font:inherit; font-size:13px; cursor:pointer; }.filter-pills button.selected,.filter-pills button:hover { border-color:var(--primary); background:var(--primary); color:var(--text-on-primary); }
 .list-header { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px; }.create-button,.detail-button { width:auto; white-space:nowrap; }.create-button { text-decoration:none; }
@@ -150,5 +139,5 @@ function forceLogout() { localStorage.removeItem('bq_super_token'); localStorage
 /* =========================================
    BREAKPOINT 640px
    ========================================= */
-@media (min-width:640px) { .sa-header { padding:12px 24px; }.sa-content { padding:24px; }.indicators { margin:-24px -24px 24px; padding:16px 24px; }.indicator-list { grid-template-columns:repeat(5, minmax(0, 1fr)); }.venue-grid { grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); } }
+@media (min-width:640px) { .sa-content { padding:24px; }.indicators { margin:-24px -24px 24px; padding:16px 24px; }.indicator-list { grid-template-columns:repeat(5, minmax(0, 1fr)); }.venue-grid { grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); } }
 </style>

@@ -2,11 +2,10 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useConfirmModal } from '../composables/useConfirmModal.js'
-import { useTheme } from '../composables/useTheme.js'
 import UiButton from '../components/ui/Button.vue'
 import UiInput from '../components/ui/Input.vue'
+import ThemeToggle from '../components/ui/ThemeToggle.vue'
 
-const { currentMode, toggleMode } = useTheme()
 const { confirm } = useConfirmModal()
 const router = useRouter()
 const API = import.meta.env.VITE_API_URL || ''
@@ -259,14 +258,7 @@ onMounted(() => {
         <UiButton variant="secondary" class="back-btn" aria-label="Volver" @click="goBack">&#8592; Volver</UiButton>
         <h1>Usuarios</h1>
       </div>
-      <button
-        class="theme-toggle"
-        @click="toggleMode"
-        :title="currentMode === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
-        :aria-label="currentMode === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
-      >
-        {{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}
-      </button>
+      <ThemeToggle />
     </header>
 
     <main class="sau-content">

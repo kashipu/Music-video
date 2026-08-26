@@ -7,15 +7,16 @@ import { useTheme } from '../composables/useTheme.js'
 import { useToast, safeFetch } from '../composables/useToast.js'
 import { formatDuration, thumbFallback } from '../utils/youtube.js'
 import { trackAdminAction } from '../utils/analytics.js'
+import AdminHeader from '../components/AdminHeader.vue'
+import AdminSidebar from '../components/AdminSidebar.vue'
 import SubscriptionGate from '../components/SubscriptionGate.vue'
-import VenueLogo from '../components/VenueLogo.vue'
 
 const toast = useToast()
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
-const { currentMode, toggleMode, applyVenueTheme } = useTheme()
+const { applyVenueTheme } = useTheme()
 
 const API = import.meta.env.VITE_API_URL || ''
 const venueSlug = route.params.venueSlug || auth.adminInfo?.venue_slug || 'default'
@@ -655,18 +656,12 @@ function logout() {
     </Transition>
 
     <!-- HEADER -->
-    <header class="admin-header">
-      <div class="header-brand">
-        <button class="menu-btn" @click="sidebarOpen = !sidebarOpen">&#9776;</button>
-        <VenueLogo v-if="auth.adminInfo?.logo_url" :src="auth.adminInfo.logo_url" class="header-logo" />
-        <!-- El logo ya lleva el nombre del bar: repetirlo al lado es redundante -->
-        <h1 v-if="!auth.adminInfo?.logo_url">{{ auth.adminInfo?.venue_name || venueSlug }}</h1>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <button class="theme-toggle" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button>
-        <button class="btn-logout" @click="logout">Salir</button>
-      </div>
-    </header>
+    <AdminHeader
+      :venue-name="auth.adminInfo?.venue_name || venueSlug"
+      :logo-url="auth.adminInfo?.logo_url"
+      @toggle-sidebar="sidebarOpen = !sidebarOpen"
+      @logout="logout"
+    />
 
     <!-- MOBILE SIDEBAR OVERLAY -->
     <Transition name="drawer">
@@ -677,43 +672,15 @@ function logout() {
     <div class="admin-layout">
 
       <!-- ===== LEFT: BAR INFO ===== -->
-      <aside class="sidebar" :class="{ open: sidebarOpen }">
-        <button class="sidebar-close" @click="sidebarOpen = false">&#10005;</button>
-
-        <!-- Bar Info Card -->
-        <div class="card sidebar-info">
-          <VenueLogo v-if="auth.adminInfo?.logo_url" :src="auth.adminInfo.logo_url" class="sidebar-logo" />
-          <h2 class="bar-name">{{ auth.adminInfo?.venue_name }}</h2>
-          <div class="info-stats">
-            <div class="info-stat">
-              <span class="info-val">{{ tables.length }}</span>
-              <span class="info-label">Usuarios activos</span>
-            </div>
-            <div class="info-stat">
-              <span class="info-val">{{ queue.length }}</span>
-              <span class="info-label">En cola</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Quick Actions -->
-        <div class="card">
-          <p class="section-title">ABRIR VISTAS</p>
-          <div class="quick-actions">
-            <a :href="`/${venueSlug}/registro`" target="_blank" class="action-btn action-registro">
-              <span>&#128221;</span> Registro (QR)
-            </a>
-            <a :href="`/${venueSlug}/video`" target="_blank" class="action-btn action-video">
-              <span>&#127909;</span> Pantalla Video
-            </a>
-            <a :href="`/${venueSlug}/usuario`" target="_blank" class="action-btn action-usuario">
-              <span>&#128241;</span> Vista Usuario
-            </a>
-            <RouterLink :to="{ name: 'admin-subscription', params: { venueSlug } }" class="action-btn action-subscription">
-              <span>&#128179;</span> Mi suscripción
-            </RouterLink>
-          </div>
-        </div>
+      <AdminSidebar
+        :venue-name="auth.adminInfo?.venue_name"
+        :logo-url="auth.adminInfo?.logo_url"
+        :active-users="tables.length"
+        :queued-count="queue.length"
+        :venue-slug="venueSlug"
+        :open="sidebarOpen"
+        @close="sidebarOpen = false"
+      >
 
         <!-- QR Code -->
         <div class="card qr-card">
@@ -768,7 +735,7 @@ function logout() {
             </div>
           </div>
         </div>
-      </aside>
+      </AdminSidebar>
 
       <!-- ===== RIGHT COLUMN ===== -->
       <main class="music-col">
@@ -1157,35 +1124,7 @@ function logout() {
   overflow-x: hidden;
 }
 
-/* ===== HEADER ===== */
-.admin-header {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 10px 20px; background: var(--bg-card);
-  border-bottom: 1px solid var(--border);
-}
-.header-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.header-logo { max-width: 120px; max-height: 36px; width: auto; height: auto; object-fit: contain; }
-.admin-header h1 { font-size: 18px; text-transform: capitalize; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.menu-btn {
-  display: none; width: 40px; height: 40px; border-radius: 8px;
-  background: var(--bg-elevated); border: 1px solid var(--border);
-  color: var(--text); font-size: 20px; flex-shrink: 0;
-  align-items: center; justify-content: center;
-}
-.sidebar-close {
-  display: none; position: absolute; top: 12px; right: 12px;
-  width: 36px; height: 36px; border-radius: 8px;
-  background: var(--bg-elevated); border: 1px solid var(--border);
-  color: var(--text-muted); font-size: 18px;
-  align-items: center; justify-content: center; z-index: 1;
-}
 .sidebar-overlay { display: none; }
-.btn-logout {
-  padding: 6px 14px; border-radius: 6px;
-  background: var(--danger); color: white;
-  font-size: 13px; font-weight: 600; opacity: 0.8;
-}
-.btn-logout:hover { opacity: 1; }
 
 /* ===== TWO COLUMN LAYOUT ===== */
 .admin-layout {
@@ -1194,36 +1133,6 @@ function logout() {
   margin: 0 auto; padding: 16px;
   min-width: 0;
 }
-
-/* ===== SIDEBAR ===== */
-.sidebar {
-  display: flex; flex-direction: column; gap: 14px;
-  position: -webkit-sticky; position: sticky; top: 16px; align-self: start;
-  max-height: calc(100vh - 80px); overflow-y: auto;
-  min-width: 0;
-}
-.sidebar-info { text-align: center; }
-.sidebar-logo { max-width: 160px; max-height: 80px; width: auto; height: auto; object-fit: contain; margin: 0 auto 8px; }
-.bar-name { font-size: 22px; margin-bottom: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.info-stats { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; }
-.info-stat { text-align: center; min-width: 0; }
-.info-val { font-size: 28px; font-weight: 700; display: block; }
-.info-label { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
-
-/* Quick Actions */
-.quick-actions { display: flex; flex-direction: column; gap: 6px; }
-.action-btn {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 14px; border-radius: var(--radius-sm);
-  background: var(--bg-elevated); border: 1px solid var(--border);
-  color: var(--text); font-weight: 600; font-size: 13px;
-  text-decoration: none; transition: all 0.15s;
-}
-.action-btn:hover { border-color: var(--primary); color: var(--primary); }
-.action-registro:hover { border-color: var(--success); color: var(--success); }
-.action-video:hover { border-color: var(--warning); color: var(--warning); }
-.action-usuario:hover { border-color: var(--secondary); color: var(--secondary); }
-.action-subscription:hover { border-color: var(--primary); color: var(--primary); }
 
 /* QR */
 .qr-card { text-align: center; }
@@ -1586,17 +1495,7 @@ function logout() {
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 900px) {
-  .menu-btn { display: flex; }
-  .sidebar-close { display: flex; }
   .admin-layout { grid-template-columns: 1fr; padding: 12px; gap: 12px; }
-  .sidebar {
-    display: none; position: fixed; top: 0; left: 0; bottom: 0;
-    width: 320px; max-width: 85vw; z-index: 100;
-    background: var(--bg); padding: 16px; padding-top: 56px; padding-bottom: 200px;
-    overflow-y: auto; max-height: 100vh;
-    box-shadow: 4px 0 20px rgba(0,0,0,0.3);
-  }
-  .sidebar.open { display: flex; }
   .sidebar-overlay {
     display: block; position: fixed; inset: 0; z-index: 99;
     background: rgba(0,0,0,0.5);
@@ -1621,13 +1520,6 @@ function logout() {
   .fb-toggle { flex: 1; text-align: center; }
   .add-row { flex-wrap: wrap; }
   .add-row .input-field { width: 100%; }
-  .admin-header { padding: 10px 12px; }
-  .admin-header h1 { font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .header-brand { min-width: 0; flex: 1; }
-  .info-stats { gap: 12px; }
-  .info-val { font-size: 22px; }
-  .quick-actions { gap: 4px; }
-  .action-btn { padding: 8px 12px; font-size: 12px; }
   .qr-img { width: 150px; height: 150px; }
   .table-item { padding: 6px; }
   .table-btns { flex-wrap: wrap; }

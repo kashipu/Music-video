@@ -9,13 +9,14 @@ import { formatDuration } from '../utils/youtube.js'
 import { useTheme } from '../composables/useTheme.js'
 import SongSubmit from '../components/SongSubmit.vue'
 import SongPreview from '../components/SongPreview.vue'
+import ThemeToggle from '../components/ui/ThemeToggle.vue'
 import { trackSongConfirmed, trackSongCancelled, trackSessionKicked, trackSessionExpired, setAnalyticsContext } from '../utils/analytics.js'
 
 const t = useToast()
 
 const route = useRoute()
 const router = useRouter()
-const { currentMode, toggleMode, applyVenueTheme } = useTheme()
+const { applyVenueTheme } = useTheme()
 const auth = useAuthStore()
 const queueStore = useQueueStore()
 
@@ -285,7 +286,7 @@ async function cancelSong(songId) {
         <span class="venue-name">{{ auth.session?.venue_name || venueSlug.replace(/-/g, ' ') }}</span>
       </div>
       <div class="header-right">
-        <button class="theme-toggle" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button>
+        <ThemeToggle />
         <button class="logout-btn" @click="handleLogout">Salir</button>
       </div>
     </header>

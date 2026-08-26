@@ -4,9 +4,10 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
 import { useTheme } from '../composables/useTheme.js'
 import { trackUserRegistered, trackSessionStarted, setAnalyticsContext } from '../utils/analytics.js'
+import ThemeToggle from '../components/ui/ThemeToggle.vue'
 import VenueLogo from '../components/VenueLogo.vue'
 
-const { currentMode, toggleMode, applyVenueTheme } = useTheme()
+const { applyVenueTheme } = useTheme()
 
 const route = useRoute()
 const router = useRouter()
@@ -72,7 +73,7 @@ async function handleRegister() {
 
 <template>
   <div class="landing">
-    <button class="theme-toggle" style="position:fixed;top:16px;right:16px;" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button>
+    <ThemeToggle style="position:fixed;top:16px;right:16px;" />
     <div class="container">
       <div class="landing-header">
         <VenueLogo v-if="venueLogo" :src="venueLogo" class="venue-logo" />

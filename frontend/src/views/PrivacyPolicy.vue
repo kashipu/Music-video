@@ -3,9 +3,10 @@ import { useRouter } from 'vue-router'
 import { useTheme } from '../composables/useTheme.js'
 import logoPositive from '../assets/logo-color-positivo.svg'
 import logoNegative from '../assets/logo-color-negativo.svg'
+import ThemeToggle from '../components/ui/ThemeToggle.vue'
 
 const router = useRouter()
-const { currentMode, toggleMode } = useTheme()
+const { currentMode } = useTheme()
 
 function goBack() {
   if (window.history.length > 1) {
@@ -24,9 +25,7 @@ function goBack() {
           <img :src="currentMode === 'dark' ? logoNegative : logoPositive" alt="Repítela" class="privacy-logo" />
         </router-link>
         <div class="header-actions">
-          <button class="theme-toggle" :aria-label="`Cambiar a tema ${currentMode === 'dark' ? 'claro' : 'oscuro'}`" @click="toggleMode">
-            {{ currentMode === 'dark' ? '☀' : '☾' }}
-          </button>
+          <ThemeToggle />
         </div>
       </div>
     </header>
