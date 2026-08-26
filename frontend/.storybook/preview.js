@@ -1,4 +1,5 @@
 import '../src/style.css'
+import { setup } from '@storybook/vue3'
 import { THEME_PRESETS } from '../src/constants/themePresets.js'
 import { createPinia } from 'pinia'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -12,12 +13,13 @@ const router = createRouter({
   routes: [{ path: '/:pathMatch(.*)*', component: { template: '<div />' } }],
 })
 
+setup((app) => {
+  app.use(createPinia())
+  app.use(router)
+})
+
 /** @type { import('@storybook/vue3-vite').Preview } */
 const preview = {
-  setup(app) {
-    app.use(createPinia())
-    app.use(router)
-  },
   globalTypes: {
     venueTheme: {
       defaultValue: 'default',
