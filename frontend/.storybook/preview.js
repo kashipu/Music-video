@@ -23,13 +23,14 @@ setup((app) => {
 
 /** @type { import('@storybook/vue3-vite').Preview } */
 const preview = {
+  // initialGlobals y no defaultValue: defaultValue dentro de globalTypes esta
+  // removido desde Storybook 8, y sin el globals.mode llega undefined.
+  initialGlobals: { venueTheme: 'default', mode: 'dark' },
   globalTypes: {
     venueTheme: {
-      defaultValue: 'default',
       toolbar: { items: [{ value: 'default', title: 'Default' }, ...Object.entries(venueThemes).map(([value, title]) => ({ value, title }))] },
     },
     mode: {
-      defaultValue: 'dark',
       toolbar: { items: modes },
     },
   },
