@@ -1,13 +1,23 @@
 import '../src/style.css'
 import { THEME_PRESETS } from '../src/constants/themePresets.js'
+import { createPinia } from 'pinia'
+import { createMemoryHistory, createRouter } from 'vue-router'
 
 import.meta.glob('../src/themes/*.css', { eager: true })
 
 const modes = [...new Set(THEME_PRESETS.map(({ mode }) => mode))]
 const venueThemes = Object.fromEntries(THEME_PRESETS.map(({ id, name }) => [id, name]))
+const router = createRouter({
+  history: createMemoryHistory(),
+  routes: [{ path: '/:pathMatch(.*)*', component: { template: '<div />' } }],
+})
 
 /** @type { import('@storybook/vue3-vite').Preview } */
 const preview = {
+  setup(app) {
+    app.use(createPinia())
+    app.use(router)
+  },
   globalTypes: {
     venueTheme: {
       defaultValue: 'default',
