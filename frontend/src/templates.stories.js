@@ -92,10 +92,10 @@ export const PanelDelBar = {
 }
 
 export const PanelAdmin = {
-  render: () => ({
+  render: (_, { globals }) => ({
     components: { AdminHeader, AdminSidebar, NowPlaying, QueueList },
     setup: () => ({
-      logo: logoColorNegativo,
+      logo: logoFor(globals.mode),
       nowPlaying,
       queue,
     }),

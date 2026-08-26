@@ -1,5 +1,9 @@
 import AdminSidebar from './AdminSidebar.vue'
-import logo from '../assets/logo-color-negativo.svg'
+import logoNegativo from '../assets/logo-color-negativo.svg'
+import logoPositivo from '../assets/logo-color-positivo.svg'
+
+// "negativo" es la variante para fondo oscuro.
+const logoFor = (mode) => (mode === 'dark' ? logoNegativo : logoPositivo)
 
 export default {
   title: 'Components/AdminSidebar', component: AdminSidebar,
@@ -8,7 +12,15 @@ export default {
   parameters: { layout: 'fullscreen' },
 }
 
-const args = { venueName: 'Repítela', logoUrl: logo, activeUsers: 18, queuedCount: 7, venueSlug: 'repitela' }
+const args = { venueName: 'Repítela', activeUsers: 18, queuedCount: 7, venueSlug: 'repitela' }
+const story = (open) => ({
+  parameters: { viewport: { defaultViewport: 'mobile1' } },
+  render: (_, { globals }) => ({
+    components: { AdminSidebar },
+    setup: () => ({ args: { ...args, open, logoUrl: logoFor(globals.mode) } }),
+    template: '<AdminSidebar v-bind="args" />',
+  }),
+})
 
-export const Abierto = { args: { ...args, open: true }, parameters: { viewport: { defaultViewport: 'mobile1' } } }
-export const Cerrado = { args: { ...args, open: false }, parameters: { viewport: { defaultViewport: 'mobile1' } } }
+export const Abierto = story(true)
+export const Cerrado = story(false)
