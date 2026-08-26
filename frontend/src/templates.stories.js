@@ -1,5 +1,7 @@
 import { provide, ref } from 'vue'
 import { THEME_PRESETS } from './constants/themePresets.js'
+import logoColorPositivo from './assets/logo-color-positivo.svg'
+import logoColorNegativo from './assets/logo-color-negativo.svg'
 import AuthSplitLayout from './components/AuthSplitLayout.vue'
 import AuthLoginForm from './components/AuthLoginForm.vue'
 import NowPlaying from './components/NowPlaying.vue'
@@ -80,23 +82,46 @@ export const PanelDelBar = {
   }),
 }
 
+// AuthSplitLayout y el logo por defecto de AuthLoginForm leen useTheme(), que
+// mira <html>: en una grilla donde cada celda tiene su propio data-theme se
+// quedarian con el modo global (toggle inutil y logo blanco sobre blanco).
+// Por eso la celda arma el fondo a mano y pasa el logo explicito.
+const CELDA_FONDO = 'background-color:var(--color-background);background-image:radial-gradient(ellipse 80% 50% at 50% 85%, var(--warning-soft) 0%, var(--primary-soft) 55%, transparent 75%),radial-gradient(circle at 50% 95%, var(--primary-soft) 0%, transparent 60%);background-repeat:no-repeat'
+const logoFor = (mode) => (mode === 'dark' ? logoColorNegativo : logoColorPositivo)
+
 export const TodosLosTemas = {
-  render: (_, { globals }) => ({
-    components: { AuthSplitLayout, AuthLoginForm },
-    setup: () => ({ themes: THEME_PRESETS, mode: globals.mode, username: ref('admin'), password: ref(''), submit: () => {} }),
+  render: () => ({
+    components: { AuthLoginForm },
+    setup: () => ({
+      // Cada celda va en SU modo, no en el del toolbar: craft-dark y craft-light
+      // comparten tokens ('craft') y solo los separa data-theme.
+      grupos: [
+        { titulo: 'Temas oscuros', mode: 'dark', logo: logoFor('dark'), themes: THEME_PRESETS.filter((t) => t.mode === 'dark') },
+        { titulo: 'Temas claros', mode: 'light', logo: logoFor('light'), themes: THEME_PRESETS.filter((t) => t.mode === 'light') },
+      ],
+      fondo: CELDA_FONDO,
+      username: ref('admin'),
+      password: ref(''),
+      submit: () => {},
+    }),
     template: `
       <main style="padding:24px;background:var(--bg);color:var(--text)">
-        <p style="margin:0 0 16px;color:var(--text-muted);font-size:13px">Los 12 temas de bar. El tema default de Repítela no entra en la grilla: <code>default.css</code> declara sus alias en <code>:root</code>, así que no se puede scopear a un contenedor — miralo en la story <b>Login</b> con el toolbar en Default.</p>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
-          <section v-for="theme in themes" :key="theme.id" :data-venue-theme="theme.tokens" :data-theme="mode" style="overflow:hidden;border:1px solid var(--border);border-radius:var(--radius);background:var(--color-background);color:var(--color-text)">
-            <h2 style="padding:12px 16px;font-size:14px;background:var(--color-surface);border-bottom:1px solid var(--color-border)">{{ theme.name }}</h2>
-            <AuthSplitLayout style="min-height:auto;padding:16px 12px;align-items:flex-start">
-              <AuthLoginForm v-model:username="username" v-model:password="password" title="Repítela" subtitle="Ingresa para administrar tu bar" @submit="submit">
-                <template #footer><a href="#">¿Olvidaste tu contraseña?</a></template>
-              </AuthLoginForm>
-            </AuthSplitLayout>
-          </section>
-        </div>
+        <p style="margin:0 0 20px;color:var(--text-muted);font-size:13px">Los 12 temas de bar, cada uno en el modo para el que fue diseñado. El tema default de Repítela no entra en la grilla: <code>default.css</code> declara sus alias en <code>:root</code>, así que no se puede scopear a un contenedor — miralo en la story <b>Login</b> con el toolbar en Default.</p>
+        <section v-for="grupo in grupos" :key="grupo.titulo" style="margin-bottom:32px">
+          <h2 style="font-size:15px;font-weight:700;margin:0 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border)">{{ grupo.titulo }} <span style="color:var(--text-muted);font-weight:400">({{ grupo.themes.length }})</span></h2>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
+            <article v-for="theme in grupo.themes" :key="theme.id" :data-venue-theme="theme.tokens" :data-theme="grupo.mode" style="overflow:hidden;border:1px solid var(--color-border);border-radius:var(--radius);background:var(--color-background);color:var(--color-text)">
+              <h3 style="padding:12px 16px;font-size:14px;font-weight:600;background:var(--color-surface);border-bottom:1px solid var(--color-border)">{{ theme.name }}</h3>
+              <div :style="fondo" style="padding:20px 16px">
+                <div class="card" style="padding:24px 20px;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-lg)">
+                  <AuthLoginForm v-model:username="username" v-model:password="password" title="Repítela" subtitle="Ingresa para administrar tu bar" :logo-url="grupo.logo" @submit="submit">
+                    <template #footer><a href="#">¿Olvidaste tu contraseña?</a></template>
+                  </AuthLoginForm>
+                </div>
+              </div>
+            </article>
+          </div>
+        </section>
       </main>
     `,
   }),
