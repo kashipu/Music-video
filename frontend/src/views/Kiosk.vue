@@ -8,6 +8,7 @@ import VenueLogo from '../components/VenueLogo.vue'
 import KioskAudioBlocked from '../components/KioskAudioBlocked.vue'
 import KioskFallback from '../components/KioskFallback.vue'
 import KioskSongOverlay from '../components/KioskSongOverlay.vue'
+import KioskBottomBar from '../components/KioskBottomBar.vue'
 
 const route = useRoute()
 const venueSlug = route.params.venueSlug
@@ -807,17 +808,7 @@ onUnmounted(() => {
         </Transition>
 
         <!-- Persistent bottom bar -->
-        <div v-if="song" class="bottom-bar" :class="{ 'bottom-fallback': playingFallback }">
-          <div class="bottom-left">
-            <span class="bottom-dot" :class="{ 'dot-fallback': playingFallback }"></span>
-            <span v-if="playingFallback" class="bottom-badge">PLAYLIST</span>
-            <span class="bottom-title">{{ song.title }}</span>
-          </div>
-          <div class="bottom-right">
-            <span v-if="queue.length || pendingUserSong" class="bottom-next">Siguiente: {{ queue[0]?.title || pendingUserSong?.title }}</span>
-            <span v-else-if="playingFallback" class="bottom-next">{{ fallbackPlayed.size }}/{{ fallbackSongs.length }} reproducidas</span>
-          </div>
-        </div>
+        <KioskBottomBar v-if="song" :song="song" :playing-fallback="playingFallback" :queue="queue" :pending-user-song="pendingUserSong" :fallback-played="fallbackPlayed" :fallback-songs="fallbackSongs" />
 
         <!-- Scrolling banner -->
         <div v-if="bannerText" class="banner-marquee">
