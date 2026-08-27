@@ -29,7 +29,9 @@ function shortDate(date) {
 </template>
 
 <style scoped>
+/* Panel destacado: borde sólido y radio amplio para separarlo de la grilla. */
 .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; }
+/* Título compacto para el resumen de actividad. */
 .section-title { margin: 0 0 12px; color: var(--text-muted); font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
 .activity-best { margin-bottom: 12px; color: var(--text-muted); font-size: 13px; }
 .activity-best strong, .activity-day strong { color: var(--text); }
