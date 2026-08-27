@@ -5,6 +5,11 @@ import { useConfirmModal } from '../../composables/useConfirmModal.js'
 import VenueLimitsForm from '../../components/VenueLimitsForm.vue'
 import { THEME_PRESETS } from '../../constants/themePresets.js'
 import { formatDuration, thumbFallback } from '../../utils/youtube.js'
+import Button from '../../components/ui/Button.vue'
+import Input from '../../components/ui/Input.vue'
+import FormField from '../../components/ui/FormField.vue'
+import FormError from '../../components/ui/FormError.vue'
+import PasswordInput from '../../components/ui/PasswordInput.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -25,7 +30,6 @@ const configSaveMsg = ref('')
 const configError = ref('')
 const selectedPreset = ref('purple-night')
 const newAdmin = ref({ username: '', password: '' })
-const showPass = ref(false)
 const playlist = ref([])
 const playlistUrl = ref('')
 const addSongUrl = ref('')
@@ -292,16 +296,14 @@ async function toggleVenue() {
       <div class="card">
         <p class="section-title">CONFIGURACIÓN DEL BAR</p>
         <div class="form-stack">
-          <div class="form-group">
-            <label for="venue-name-input">Nombre</label>
-            <input id="venue-name-input" v-model="editName" class="input-field" />
-          </div>
-          <div class="form-group">
-            <label>Logos del bar</label>
+          <FormField label="Nombre" v-slot="{ id }">
+            <Input :id="id" v-model="editName" />
+          </FormField>
+          <FormField label="Logos del bar" hint="PNG, JPG o SVG. Máx. 2 MB por archivo. Si falta una variante, se usa la disponible.">
             <div class="logo-upload">
               <img v-if="editLogoUrlLight" :src="editLogoUrlLight.startsWith('/') ? API + editLogoUrlLight : editLogoUrlLight" class="logo-preview" alt="Vista previa para tema claro" />
               <div class="logo-actions">
-                <label class="btn btn-secondary logo-btn">
+                <label class="logo-btn">
                   {{ uploadingLogo === 'light' ? 'Subiendo...' : 'Subir para tema claro' }}
                   <input type="file" accept=".png,.jpg,.jpeg,.svg" hidden :disabled="!!uploadingLogo" aria-label="Subir logo para tema claro" @change="uploadLogo($event, 'light')" />
                 </label>
@@ -311,21 +313,18 @@ async function toggleVenue() {
             <div class="logo-upload">
               <img v-if="editLogoUrlDark" :src="editLogoUrlDark.startsWith('/') ? API + editLogoUrlDark : editLogoUrlDark" class="logo-preview" alt="Vista previa para tema oscuro" />
               <div class="logo-actions">
-                <label class="btn btn-secondary logo-btn">
+                <label class="logo-btn">
                   {{ uploadingLogo === 'dark' ? 'Subiendo...' : 'Subir para tema oscuro' }}
                   <input type="file" accept=".png,.jpg,.jpeg,.svg" hidden :disabled="!!uploadingLogo" aria-label="Subir logo para tema oscuro" @change="uploadLogo($event, 'dark')" />
                 </label>
                 <p class="logo-hint">Se muestra sobre fondos oscuros.</p>
               </div>
             </div>
-            <p class="logo-hint">PNG, JPG o SVG. Máx. 2 MB por archivo. Si falta una variante, se usa la disponible.</p>
-          </div>
-          <div class="form-group">
-            <label for="venue-qr-input">URL del QR (dejar vacío para automática)</label>
-            <input id="venue-qr-input" v-model="editQrUrl" class="input-field" :placeholder="fullUrl(`/${detail.venue.slug}/registro`)" />
-          </div>
-          <div class="form-group">
-            <label>Tema del bar</label>
+          </FormField>
+          <FormField label="URL del QR (dejar vacío para automática)" v-slot="{ id }">
+            <Input :id="id" v-model="editQrUrl" :placeholder="fullUrl(`/${detail.venue.slug}/registro`)" />
+          </FormField>
+          <FormField label="Tema del bar">
             <div class="preset-grid">
               <div
                 v-for="preset in THEME_PRESETS"
@@ -348,11 +347,11 @@ async function toggleVenue() {
                 <span class="preset-mode">{{ preset.mode === 'dark' ? '&#9790;' : '&#9728;' }}</span>
               </div>
             </div>
-          </div>
+          </FormField>
           <div class="form-row">
-            <button class="btn btn-primary" :disabled="saving" @click="saveVenue">
+            <Button :disabled="saving" @click="saveVenue">
               {{ saving ? 'Guardando...' : 'Guardar cambios' }}
-            </button>
+            </Button>
             <span v-if="saveMsg" class="save-msg">{{ saveMsg }}</span>
           </div>
         </div>
@@ -365,11 +364,11 @@ async function toggleVenue() {
           v-model:max-songs="editConfig.max_songs_per_window"
           v-model:window-minutes="editConfig.window_minutes"
         />
-        <p v-if="configError" class="config-error">{{ configError }}</p>
+        <FormError :message="configError" />
         <div class="form-row limits-actions">
-          <button class="btn btn-primary" :disabled="savingConfig" @click="saveConfig">
+          <Button :disabled="savingConfig" @click="saveConfig">
             {{ savingConfig ? 'Guardando...' : 'Guardar límites' }}
-          </button>
+          </Button>
           <span v-if="configSaveMsg" class="save-msg">{{ configSaveMsg }}</span>
         </div>
       </div>
@@ -394,12 +393,9 @@ async function toggleVenue() {
           <p v-if="!detail.admins?.length" class="text-muted">Sin administradores asignados.</p>
         </div>
         <div class="add-row">
-          <input v-model="newAdmin.username" class="input-field" placeholder="Usuario..." aria-label="Usuario nuevo administrador" />
-          <div class="pass-wrap">
-            <input v-model="newAdmin.password" :type="showPass ? 'text' : 'password'" class="input-field" placeholder="Contraseña..." aria-label="Contraseña nuevo administrador" />
-            <button type="button" class="eye-btn" :aria-label="showPass ? 'Ocultar contraseña' : 'Ver contraseña'" @click="showPass = !showPass">{{ showPass ? '&#128065;' : '&#128064;' }}</button>
-          </div>
-          <button class="btn btn-primary add-btn" @click="addAdmin">Agregar</button>
+          <Input v-model="newAdmin.username" placeholder="Usuario..." aria-label="Usuario nuevo administrador" />
+          <PasswordInput v-model="newAdmin.password" placeholder="Contraseña..." aria-label="Contraseña nuevo administrador" />
+          <Button class="add-btn" @click="addAdmin">Agregar</Button>
         </div>
       </div>
 
@@ -410,14 +406,14 @@ async function toggleVenue() {
         </div>
         <p class="hint">Estas canciones suenan automáticamente cuando no hay pedidos de las mesas.</p>
         <div class="pl-input-row">
-          <input v-model="playlistUrl" class="input-field" placeholder="URL de playlist de YouTube..." aria-label="URL de playlist de YouTube" />
-          <button class="btn btn-primary" :disabled="playlistLoading" @click="importPlaylist">
+          <Input v-model="playlistUrl" placeholder="URL de playlist de YouTube..." aria-label="URL de playlist de YouTube" />
+          <Button :disabled="playlistLoading" @click="importPlaylist">
             {{ playlistLoading ? 'Importando...' : 'Importar playlist' }}
-          </button>
+          </Button>
         </div>
         <div class="pl-input-row">
-          <input v-model="addSongUrl" class="input-field" placeholder="URL de canción individual..." aria-label="URL de canción individual de YouTube" />
-          <button class="btn btn-primary add-single-btn" :disabled="playlistLoading" aria-label="Agregar canción individual" @click="addFallbackSong">+</button>
+          <Input v-model="addSongUrl" placeholder="URL de canción individual..." aria-label="URL de canción individual de YouTube" />
+          <Button class="add-single-btn" :disabled="playlistLoading" aria-label="Agregar canción individual" @click="addFallbackSong">+</Button>
         </div>
         <p v-if="playlistMsg" class="pl-msg">{{ playlistMsg }}</p>
         <div class="pl-list">
@@ -482,18 +478,6 @@ async function toggleVenue() {
   gap: 12px;
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.form-group label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-muted);
-}
-
 .logo-upload {
   display: flex;
   align-items: center;
@@ -517,10 +501,24 @@ async function toggleVenue() {
 }
 
 .logo-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 8px 16px;
   font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--radius-sm, 8px);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text);
   width: auto;
   cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.logo-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
 .logo-hint {
@@ -600,13 +598,6 @@ async function toggleVenue() {
   font-weight: 600;
 }
 
-.config-error {
-  margin-top: 8px;
-  font-size: 12px;
-  color: var(--danger);
-  font-weight: 500;
-}
-
 .danger-card {
   border-color: var(--danger-soft);
 }
@@ -677,34 +668,6 @@ async function toggleVenue() {
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-
-.pass-wrap {
-  position: relative;
-  width: 100%;
-}
-
-.pass-wrap .input-field {
-  width: 100%;
-  padding-right: 36px;
-}
-
-.eye-btn {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  font-size: 16px;
-  cursor: pointer;
-  opacity: 0.6;
-  color: var(--text-muted);
-}
-
-.eye-btn:hover {
-  opacity: 1;
-  color: var(--text);
 }
 
 .v-btn {
@@ -855,6 +818,11 @@ async function toggleVenue() {
     align-items: center;
   }
 
+  .add-row :deep(.input-field),
+  .add-row :deep(.password-field) {
+    flex: 1;
+  }
+
   .add-btn {
     width: auto;
     white-space: nowrap;
@@ -865,11 +833,11 @@ async function toggleVenue() {
     align-items: center;
   }
 
-  .pl-input-row .input-field {
+  .pl-input-row :deep(.input-field) {
     flex: 1;
   }
 
-  .pl-input-row .btn {
+  .pl-input-row :deep(button) {
     width: auto;
     white-space: nowrap;
   }
