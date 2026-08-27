@@ -5,6 +5,7 @@ import { useWebSocket } from '../composables/useWebSocket.js'
 import { useTheme } from '../composables/useTheme.js'
 import { trackSongPlayed, trackSongEnded, trackSongError, trackFallbackActivated } from '../utils/analytics.js'
 import VenueLogo from '../components/VenueLogo.vue'
+import KioskAudioBlocked from '../components/KioskAudioBlocked.vue'
 
 const route = useRoute()
 const venueSlug = route.params.venueSlug
@@ -744,13 +745,7 @@ onUnmounted(() => {
         </div>
 
         <!-- Audio blocked by browser -->
-        <div v-if="audioBlocked" class="audio-blocked-overlay" @click="unlockAudio">
-          <div class="audio-blocked-content">
-            <div class="audio-blocked-icon">&#128264;</div>
-            <p class="audio-blocked-text">El navegador bloqueo el audio</p>
-            <button class="audio-blocked-btn" @click.stop="unlockAudio">ACTIVAR SONIDO</button>
-          </div>
-        </div>
+        <KioskAudioBlocked v-if="audioBlocked" @unlock="unlockAudio" />
 
         <!-- Fallback: no songs playing -->
         <div v-if="!song && !playingFallback" class="fallback-overlay">
