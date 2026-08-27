@@ -181,7 +181,7 @@ def decode_token(token: str) -> dict:
 async def verify_admin(username: str, password: str) -> dict | None:
     db = await get_db()
     rows = await db.execute_fetchall(
-        "SELECT a.id, a.username, a.password_hash, a.venue_id, v.name, v.slug, v.logo_url, v.qr_url, v.config, a.onboarding_completed_at, "
+        "SELECT a.id, a.username, a.password_hash, a.venue_id, v.name, v.slug, v.logo_url, v.logo_url_light, v.logo_url_dark, v.qr_url, v.config, a.onboarding_completed_at, "
         # El signup ya pidio estos datos; los devolvemos para precargar el onboarding.
         "a.phone, a.address, a.city, a.country, v.address "
         "FROM admins a JOIN venues v ON a.venue_id = v.id "
@@ -204,13 +204,15 @@ async def verify_admin(username: str, password: str) -> dict | None:
         "venue_name": admin[4],
         "venue_slug": admin[5],
         "logo_url": admin[6],
-        "qr_url": admin[7],
-        "config": admin[8],
-        "onboarding_completed_at": admin[9],
-        "phone": admin[10],
-        "city": admin[12],
-        "country": admin[13],
-        "venue_address": admin[14] or admin[11],
+        "logo_url_light": admin[7],
+        "logo_url_dark": admin[8],
+        "qr_url": admin[9],
+        "config": admin[10],
+        "onboarding_completed_at": admin[11],
+        "phone": admin[12],
+        "city": admin[14],
+        "country": admin[15],
+        "venue_address": admin[16] or admin[13],
     }
 
 

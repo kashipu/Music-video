@@ -67,7 +67,7 @@ async def get_now_playing(venue_id: int) -> dict:
 
     # Check playback status
     venue_rows = await db.execute_fetchall(
-        "SELECT config, name, logo_url FROM venues WHERE id = ?", (venue_id,)
+        "SELECT config, name, logo_url, logo_url_light, logo_url_dark FROM venues WHERE id = ?", (venue_id,)
     )
     playback_status = "playing"
     volume = 80
@@ -97,6 +97,8 @@ async def get_now_playing(venue_id: int) -> dict:
 
     venue_name = venue_rows[0][1] if venue_rows else ""
     venue_logo = venue_rows[0][2] if venue_rows else None
+    venue_logo_light = venue_rows[0][3] if venue_rows else None
+    venue_logo_dark = venue_rows[0][4] if venue_rows else None
 
     result = {
         "song": song,
@@ -108,6 +110,8 @@ async def get_now_playing(venue_id: int) -> dict:
         "qr_size": qr_size,
         "venue_name": venue_name,
         "venue_logo": venue_logo,
+        "venue_logo_light": venue_logo_light,
+        "venue_logo_dark": venue_logo_dark,
         "fallback_active": fallback_active,
         "next_in_queue": next_song,
     }

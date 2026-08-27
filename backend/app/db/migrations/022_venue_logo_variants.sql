@@ -1,0 +1,2 @@
+ALTER TABLE venues ADD COLUMN logo_url_light TEXT DEFAULT NULL;
+ALTER TABLE venues ADD COLUMN logo_url_dark TEXT DEFAULT NULL;

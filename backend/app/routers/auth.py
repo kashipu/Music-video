@@ -148,7 +148,7 @@ async def venue_info(venue_slug: str = Query(...)):
     """Public endpoint to check venue status and PIN requirement."""
     db = await get_db()
     rows = await db.execute_fetchall(
-        "SELECT id, name, active, logo_url, config FROM venues WHERE slug = ?", (venue_slug,)
+        "SELECT id, name, active, logo_url, logo_url_light, logo_url_dark, config FROM venues WHERE slug = ?", (venue_slug,)
     )
     if not rows:
         raise HTTPException(status_code=404, detail="Bar no encontrado")
@@ -158,10 +158,10 @@ async def venue_info(venue_slug: str = Query(...)):
 
     # Parse theme from config
     theme = None
-    if rows[0][4]:
+    if rows[0][6]:
         try:
             import json
-            cfg = json.loads(rows[0][4])
+            cfg = json.loads(rows[0][6])
             theme = cfg.get("theme")
         except (json.JSONDecodeError, TypeError):
             pass
@@ -170,6 +170,8 @@ async def venue_info(venue_slug: str = Query(...)):
         "venue_name": rows[0][1],
         "active": bool(rows[0][2]),
         "logo_url": rows[0][3],
+        "logo_url_light": rows[0][4],
+        "logo_url_dark": rows[0][5],
         "pin_required": pin_required,
         "theme": theme,
     }
