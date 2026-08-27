@@ -80,7 +80,9 @@ async function fetchDailyAnalytics() {
 <style scoped>
 .vd-layout { display: flex; flex-direction: column; gap: 16px; max-width: 1100px; margin: 0 auto; padding: 16px; }
 .vd-row { display: flex; flex-direction: column; gap: 16px; }
+/* Panel destacado: borde sólido y radio amplio para separarlo de la grilla. */
 .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; }
+/* Título compacto para el resumen del bar. */
 .section-title { margin: 0 0 12px; color: var(--text-muted); font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
 .stat-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .sg { min-width: 0; padding: 12px; border-radius: var(--radius-sm); background: var(--bg-elevated); text-align: center; }
