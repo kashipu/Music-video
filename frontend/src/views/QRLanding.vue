@@ -6,6 +6,8 @@ import { useTheme } from '../composables/useTheme.js'
 import { trackUserRegistered, trackSessionStarted, setAnalyticsContext } from '../utils/analytics.js'
 import ThemeToggle from '../components/ui/ThemeToggle.vue'
 import VenueLogo from '../components/VenueLogo.vue'
+import FormField from '../components/ui/FormField.vue'
+import FormError from '../components/ui/FormError.vue'
 
 const { applyVenueTheme } = useTheme()
 
@@ -88,30 +90,30 @@ async function handleRegister() {
       </div>
 
       <form class="register-form" @submit.prevent="handleRegister">
-        <div class="form-group">
-          <label>Tu numero de celular</label>
+        <FormField label="Tu número de celular" v-slot="{ id }">
           <input
+            :id="id"
             v-model="phone"
             type="tel"
             class="input-field"
             placeholder="+57 300 123 4567"
             inputmode="tel"
           />
-        </div>
+        </FormField>
 
-        <div class="form-group">
-          <label>Tu nombre (opcional)</label>
+        <FormField label="Tu nombre (opcional)" v-slot="{ id }">
           <input
+            :id="id"
             v-model="displayName"
             type="text"
             class="input-field"
             placeholder="Como te llamas?"
           />
-        </div>
+        </FormField>
 
-        <div v-if="pinRequired" class="form-group">
-          <label>Codigo PIN (visible en la pantalla del bar)</label>
+        <FormField v-if="pinRequired" label="Código PIN (visible en la pantalla del bar)" v-slot="{ id }">
           <input
+            :id="id"
             v-model="pin"
             type="text"
             class="input-field pin-input"
@@ -120,14 +122,14 @@ async function handleRegister() {
             maxlength="4"
             autocomplete="off"
           />
-        </div>
+        </FormField>
 
         <label class="consent-label">
           <input v-model="dataConsent" type="checkbox" />
           <span>Acepto el uso de mis datos para mejorar la experiencia musical del bar.</span>
         </label>
 
-        <p v-if="error" class="error-msg">{{ error }}</p>
+        <FormError :message="error" />
 
         <button type="submit" class="btn btn-primary" :disabled="loading">
           {{ loading ? 'Entrando...' : 'ENTRAR' }}
@@ -186,16 +188,6 @@ async function handleRegister() {
   flex-direction: column;
   gap: 16px;
 }
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.form-group label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-muted);
-}
 .consent-label {
   display: flex;
   align-items: flex-start;
@@ -214,10 +206,5 @@ async function handleRegister() {
   font-weight: 700;
   letter-spacing: 8px;
   max-width: 160px;
-}
-.error-msg {
-  color: var(--danger);
-  font-size: 14px;
-  text-align: center;
 }
 </style>
