@@ -13,7 +13,8 @@ import NowPlaying from '../components/NowPlaying.vue'
 import SubscriptionGate from '../components/SubscriptionGate.vue'
 import AdminBrandingPanel from '../components/AdminBrandingPanel.vue'
 import AdminAnalyticsPanel from '../components/AdminAnalyticsPanel.vue'
-import { getAnalytics } from '../services/admin.js'
+import AdminSongSearch from '../components/AdminSongSearch.vue'
+import { getAnalytics, getLibrary, addQueueSong } from '../services/admin.js'
 
 const toast = useToast()
 
@@ -44,7 +45,6 @@ const volumeBeforeMute = ref(80)
 const tables = ref([])
 const analytics = ref(null)
 const library = ref([])
-const librarySearch = ref('')
 const analyticsPeriod = ref('week')
 const fallbackSongs = ref([])
 const fallbackPaused = ref(false)
@@ -53,7 +53,6 @@ const bannerActive = ref(false)
 const showBrand = ref(true)
 const rightTab = ref('music')
 const selectedTable = ref(null)
-const addMode = ref('search')
 // Per-button loading states
 const loadingSkip = ref(false)
 const loadingPause = ref(false)
@@ -78,10 +77,6 @@ const loadingDeleteFallback = ref({})
 const loadingAddToFallback = ref({})
 const queueLimit = ref(15)
 const playedLimit = ref(15)
-const ytSearch = ref('')
-const ytResults = ref([])
-const ytSearching = ref(false)
-let ytSearchTimeout = null
 const dragIdx = ref(null)
 const dropIdx = ref(null)
 let ignoreNextReorder = false
@@ -264,10 +259,9 @@ async function fetchFallbackPlaylist() {
   if (res.ok) { const data = await res.json(); fallbackSongs.value = data.songs }
 }
 
-async function fetchLibrary() {
-  const q = librarySearch.value ? `&search=${encodeURIComponent(librarySearch.value)}` : ''
-  const res = await fetch(`${API}/api/admin/library?${q}`, { headers: auth.adminHeaders() })
-  if (res.ok) { const data = await res.json(); library.value = data.songs }
+async function fetchLibrary(search = '') {
+  const data = await getLibrary(search, auth.adminHeaders())
+  if (data) library.value = data.songs
 }
 
 // ===== PLAYBACK =====
@@ -497,18 +491,16 @@ async function addFromLibrary(youtubeId) {
   loadingAddFromLib.value = { ...loadingAddFromLib.value, [youtubeId]: true }
   addError.value = ''
   try {
-    const res = await fetch(`${API}/api/admin/queue/songs`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...auth.adminHeaders() },
-      body: JSON.stringify({ youtube_url: `https://www.youtube.com/watch?v=${youtubeId}` }),
-    })
-    if (!res.ok) {
-      const err = await res.json()
-      addError.value = err.detail || 'Error al agregar'
+    const data = await addQueueSong(youtubeId, auth.adminHeaders())
+    if (!data) {
+      addError.value = 'Error al agregar'
       setTimeout(() => { addError.value = '' }, 3000)
     } else {
       await fetchQueue()
     }
+  } catch {
+    addError.value = 'Error al agregar'
+    setTimeout(() => { addError.value = '' }, 3000)
   } finally { loadingAddFromLib.value = { ...loadingAddFromLib.value, [youtubeId]: false } }
 }
 async function requeueSong(youtubeId) {
@@ -549,22 +541,6 @@ async function resetTableLimit(tableNumber) {
     await fetchTables()
     if (r.ok) trackAdminAction('reset_limit', { table_number: tableNumber })
   } finally { loadingResetLimit.value = { ...loadingResetLimit.value, [tableNumber]: false } }
-}
-
-function onYtSearch() {
-  if (ytSearchTimeout) clearTimeout(ytSearchTimeout)
-  if (ytSearch.value.length < 2) { ytResults.value = []; return }
-  ytSearchTimeout = setTimeout(doYtSearch, 400)
-}
-
-async function doYtSearch() {
-  if (ytSearch.value.length < 2) return
-  ytSearching.value = true
-  try {
-    const res = await fetch(`${API}/api/queue/search?q=${encodeURIComponent(ytSearch.value)}`)
-    if (res.ok) { const data = await res.json(); ytResults.value = data.results }
-  } catch { /* */ }
-  finally { ytSearching.value = false }
 }
 
 function downloadQR() {
@@ -821,45 +797,13 @@ function logout() {
         <AdminBrandingPanel :show-brand="showBrand" :loading-brand="loadingBrand" :show-qr="showQr" :loading-qr="loadingQr" :qr-size="qrSize" :loading-qr-size="loadingQrSize" v-model:banner-text="bannerText" :banner-active="bannerActive" :loading-banner="loadingBanner" @toggle-brand="toggleBrand" @toggle-qr="toggleQr" @set-qr-size="setQrSize" @activate-banner="activateBanner" @deactivate-banner="deactivateBanner" />
 
         <!-- Add Song -->
-        <div class="card add-card">
-          <div class="add-tabs">
-            <button class="add-tab" :class="{ active: addMode === 'search' }" @click="addMode = 'search'">Buscar</button>
-            <button class="add-tab" :class="{ active: addMode === 'library' }" @click="addMode = 'library'; if (!library.length) fetchLibrary()">Biblioteca</button>
-          </div>
-
-          <!-- Search YouTube -->
-          <div v-if="addMode === 'search'">
-            <input v-model="ytSearch" class="input-field" placeholder="Buscar en YouTube..." @input="onYtSearch" @keydown.enter.prevent="doYtSearch" />
-            <p v-if="ytSearching" class="search-status">Buscando...</p>
-            <div class="library-list" v-if="ytResults.length">
-              <div v-for="r in ytResults" :key="r.youtube_id" class="lib-item">
-                <img :src="r.thumbnail_url" class="lib-thumb" @error="thumbFallback" />
-                <div class="lib-info">
-                  <p class="lib-title">{{ r.title }}</p>
-                  <p class="lib-artist">{{ r.duration }}</p>
-                </div>
-                <button class="ctrl-add-sm" :disabled="loadingAddFromLib[r.youtube_id]" @click.stop="addFromLibrary(r.youtube_id)">{{ loadingAddFromLib[r.youtube_id] ? '...' : '+' }}</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Library -->
-          <div v-if="addMode === 'library'" class="library">
-            <input v-model="librarySearch" class="input-field" placeholder="Buscar en biblioteca..." @input="fetchLibrary" />
-            <div class="library-list">
-              <div v-for="song in library" :key="song.youtube_id" class="lib-item">
-                <img :src="song.thumbnail_url" class="lib-thumb" @error="thumbFallback" />
-                <div class="lib-info">
-                  <p class="lib-title">{{ song.title }}</p>
-                  <p class="lib-artist">{{ song.artist }} &middot; {{ formatDuration(song.duration_sec) }}</p>
-                </div>
-                <button class="ctrl-add-sm" @click="addFromLibrary(song.youtube_id)" :disabled="loadingAddFromLib[song.youtube_id]">{{ loadingAddFromLib[song.youtube_id] ? '...' : '+' }}</button>
-              </div>
-              <p v-if="!library.length" class="text-muted">Sin canciones guardadas</p>
-            </div>
-          </div>
-          <p v-if="addError" class="add-error">{{ addError }}</p>
-        </div>
+        <AdminSongSearch
+          :library="library"
+          :loading-add="loadingAddFromLib"
+          :add-error="addError"
+          @add-song="addFromLibrary"
+          @fetch-library="fetchLibrary"
+        />
 
         <!-- Queue -->
         <div class="card">
@@ -1202,38 +1146,6 @@ function logout() {
   box-shadow: 0 1px 4px rgba(0,0,0,0.3);
 }
 
-/* Add Song */
-.add-card { padding: 14px; }
-.add-tabs {
-  display: flex; gap: 4px; background: var(--bg-elevated);
-  border-radius: 8px; padding: 3px; margin-bottom: 10px;
-}
-.add-tab {
-  flex: 1; padding: 6px; border-radius: 6px; background: transparent;
-  color: var(--text-muted); font-size: 12px; font-weight: 600;
-  text-align: center; transition: all 0.15s;
-}
-.add-tab.active { background: var(--primary); color: var(--text-on-primary); }
-.search-status { font-size: 13px; color: var(--text-muted); text-align: center; padding: 12px 0; }
-.add-error { color: var(--danger); font-size: 13px; margin-top: 8px; font-weight: 500; }
-.add-row { display: flex; gap: 8px; }
-.add-row .input-field { flex: 1; }
-.ctrl-add {
-  width: 44px; min-width: 44px; height: 44px; border-radius: 50%;
-  background: var(--primary); border: 2px solid var(--primary);
-  color: white; font-size: 22px; display: flex; align-items: center; justify-content: center;
-}
-.ctrl-add:disabled { opacity: 0.4; }
-.ctrl-add-sm { width: 32px; height: 32px; min-width: 32px; background: var(--primary); border: 2px solid var(--primary); color: white; font-size: 18px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
-.library { display: flex; flex-direction: column; gap: 10px; }
-.library-list { max-height: 300px; overflow-y: auto; }
-.lib-item { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); }
-.lib-item:last-child { border-bottom: none; }
-.lib-thumb { width: 48px; height: 36px; border-radius: 4px; object-fit: cover; }
-.lib-info { flex: 1; min-width: 0; }
-.lib-title { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lib-artist { font-size: 11px; color: var(--text-muted); }
-
 /* Queue List */
 .q-list { display: flex; flex-direction: column; gap: 6px; }
 .q-item {
@@ -1372,8 +1284,6 @@ function logout() {
   .fb-header { flex-direction: column; align-items: flex-start; gap: 8px; }
   .fb-btns { width: 100%; }
   .fb-toggle { flex: 1; text-align: center; }
-  .add-row { flex-wrap: wrap; }
-  .add-row .input-field { width: 100%; }
   .qr-img { width: 150px; height: 150px; }
   .table-item { padding: 6px; }
   .table-btns { flex-wrap: wrap; }
@@ -1381,10 +1291,6 @@ function logout() {
   .td-header { flex-direction: column; }
   .td-actions { width: 100%; }
   .td-actions .t-btn { flex: 1; text-align: center; }
-  .lib-item { gap: 8px; }
-  .lib-thumb { width: 40px; height: 30px; }
-  .ctrl-add { width: 36px; min-width: 36px; height: 36px; font-size: 18px; }
-  .ctrl-add-sm { width: 28px; height: 28px; min-width: 28px; font-size: 16px; }
 }
 
 @media (max-width: 480px) {
