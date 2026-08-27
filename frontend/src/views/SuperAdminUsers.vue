@@ -467,6 +467,7 @@ onMounted(() => {
   margin: 0 auto;
 }
 
+/* Tarjeta administrativa con borde sólido para agrupar el formulario. */
 .card {
   background: var(--bg-card);
   border: 1px solid var(--border);
