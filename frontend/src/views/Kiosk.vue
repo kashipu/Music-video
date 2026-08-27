@@ -858,61 +858,6 @@ onUnmounted(() => {
   left: -9999px;
 }
 
-/* ===== FALLBACK ===== */
-.fallback-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--kiosk-bg);
-  z-index: 5;
-}
-.fallback-content {
-  text-align: center;
-}
-.fallback-icon {
-  font-size: 80px;
-  margin-bottom: 16px;
-  opacity: 0.3;
-}
-.fallback-text {
-  font-size: 32px;
-  font-weight: 700;
-  opacity: 0.8;
-}
-.fallback-sub {
-  font-size: 18px;
-  color: var(--kiosk-text-dim);
-  margin-top: 8px;
-}
-.fallback-qr {
-  margin-top: 24px;
-}
-.fallback-qr-img {
-  width: 180px;
-  height: 180px;
-  border-radius: 12px;
-  background: #fff;
-  padding: 8px;
-}
-.pin-display {
-  margin-top: 20px;
-  text-align: center;
-}
-.pin-label {
-  font-size: 14px;
-  color: var(--kiosk-text-dim);
-  letter-spacing: 2px;
-  margin-bottom: 8px;
-}
-.pin-value {
-  font-size: 56px;
-  font-weight: 800;
-  letter-spacing: 12px;
-  color: #fff;
-}
-
 /* ===== SONG OVERLAY (fades after 15s) ===== */
 .song-overlay {
   position: absolute;
