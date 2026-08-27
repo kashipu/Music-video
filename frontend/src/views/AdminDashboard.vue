@@ -13,6 +13,7 @@ import AdminVolumeControl from '../components/AdminVolumeControl.vue'
 import AdminStatsBar from '../components/AdminStatsBar.vue'
 import AdminTablesCard from '../components/AdminTablesCard.vue'
 import AdminTablesView from '../components/AdminTablesView.vue'
+import AdminSidebarSummary from '../components/AdminSidebarSummary.vue'
 import { useAdminDashboard } from '../composables/useAdminDashboard.js'
 
 const router = useRouter()
@@ -175,20 +176,7 @@ function logout() {
         />
 
         <!-- Analytics Summary -->
-        <div class="card" v-if="analytics">
-          <p class="section-title">RESUMEN SEMANAL</p>
-          <div class="analytics-mini">
-            <div class="am"><strong>{{ analytics.summary.total_songs_played }}</strong> canciones</div>
-            <div class="am"><strong>{{ analytics.summary.unique_users }}</strong> usuarios</div>
-          </div>
-          <div v-if="analytics.top_songs.length" class="top-mini">
-            <p class="mini-label">Top canciones:</p>
-            <div v-for="s in analytics.top_songs.slice(0, 3)" :key="s.youtube_id" class="top-mini-item">
-              <span class="top-mini-title">{{ s.title }}</span>
-              <span class="top-mini-count">{{ s.times_played }}x</span>
-            </div>
-          </div>
-        </div>
+        <AdminSidebarSummary :analytics="analytics" />
       </AdminSidebar>
 
       <!-- ===== RIGHT COLUMN ===== -->
@@ -393,18 +381,6 @@ function logout() {
   margin: 0 auto; padding: 16px;
   min-width: 0;
 }
-
-/* Analytics mini */
-.analytics-mini { display: flex; gap: 12px; margin-bottom: 10px; }
-.am {
-  flex: 1; text-align: center; padding: 8px;
-  background: var(--bg-elevated); border-radius: 6px; font-size: 12px;
-}
-.top-mini { margin-top: 4px; }
-.mini-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
-.top-mini-item { display: flex; justify-content: space-between; font-size: 12px; padding: 2px 0; }
-.top-mini-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; margin-right: 8px; }
-.top-mini-count { font-weight: 600; color: var(--primary); }
 
 /* ===== MUSIC COLUMN ===== */
 .music-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
