@@ -153,7 +153,7 @@ function goBack() {
         </section>
 
         <div class="footer-actions">
-          <button type="button" class="btn btn-primary back-btn" @click="goBack">
+          <button type="button" class="btn btn-primary footer-back-action" @click="goBack">
             Entendido, volver
           </button>
         </div>
@@ -322,7 +322,7 @@ function goBack() {
   justify-content: flex-end;
 }
 
-.back-btn {
+.footer-back-action {
   max-width: 220px;
 }
 
@@ -337,7 +337,7 @@ function goBack() {
   .policy-title {
     font-size: 22px;
   }
-  .back-btn {
+  .footer-back-action {
     max-width: 100%;
     width: 100%;
   }
