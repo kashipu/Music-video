@@ -5,6 +5,7 @@ import { useConfirmModal } from '../composables/useConfirmModal.js'
 import UiButton from '../components/ui/Button.vue'
 import UiInput from '../components/ui/Input.vue'
 import ThemeToggle from '../components/ui/ThemeToggle.vue'
+import BackButton from '../components/ui/BackButton.vue'
 
 const { confirm } = useConfirmModal()
 const router = useRouter()
@@ -255,7 +256,7 @@ onMounted(() => {
     <!-- Header -->
     <header class="sau-header">
       <div class="sau-header-left">
-        <UiButton variant="secondary" class="back-btn" aria-label="Volver" @click="goBack">&#8592; Volver</UiButton>
+        <BackButton aria-label="Volver" @click="goBack">&#8592; Volver</BackButton>
         <h1>Usuarios</h1>
       </div>
       <ThemeToggle />
@@ -425,23 +426,6 @@ onMounted(() => {
   font-size: 18px;
   font-weight: 700;
   margin: 0;
-}
-
-.back-btn {
-  width: auto;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 6px 12px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.back-btn:hover {
-  background: var(--border);
 }
 
 .theme-toggle {
