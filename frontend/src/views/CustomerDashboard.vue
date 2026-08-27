@@ -10,6 +10,7 @@ import { useTheme } from '../composables/useTheme.js'
 import SongSubmit from '../components/SongSubmit.vue'
 import SongPreview from '../components/SongPreview.vue'
 import ThemeToggle from '../components/ui/ThemeToggle.vue'
+import FormError from '../components/ui/FormError.vue'
 import { trackSongConfirmed, trackSongCancelled, trackSessionKicked, trackSessionExpired, setAnalyticsContext } from '../utils/analytics.js'
 
 const t = useToast()
@@ -265,7 +266,7 @@ async function cancelSong(songId) {
           <div class="error-icon">&#9888;</div>
           <p class="error-title">No se pudo reproducir</p>
           <p class="error-song-name">{{ songError.title }}</p>
-          <p class="error-msg">Este video tiene restricciones de derechos de autor y no puede reproducirse en este momento.</p>
+          <FormError message="Este video tiene restricciones de derechos de autor y no puede reproducirse en este momento." />
           <p class="error-hint">Busca otra version o una cancion diferente. Tu turno fue liberado.</p>
           <button class="error-btn" @click="dismissError">Buscar otra cancion</button>
         </div>
@@ -412,7 +413,7 @@ async function cancelSong(songId) {
 
 /* ── Sections ── */
 .section { margin-top: 14px; }
-.section.card { border: 1px solid var(--border-soft); background: var(--bg-card); }
+/* Título compacto para secciones del tablero del cliente. */
 .section-title {
   font-size: 11px; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.6px; color: var(--text-muted); margin-bottom: 12px;
@@ -498,7 +499,6 @@ async function cancelSong(songId) {
   font-size: 14px; font-weight: 600; color: var(--text-muted); margin-bottom: 14px;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-.error-msg { font-size: 13px; color: var(--text-muted); line-height: 1.5; margin-bottom: 6px; }
 .error-hint { font-size: 13px; color: var(--success); font-weight: 600; margin-bottom: 20px; }
 .error-btn {
   width: 100%; padding: 13px; border: none; border-radius: 10px;

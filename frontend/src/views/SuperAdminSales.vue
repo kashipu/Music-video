@@ -218,6 +218,7 @@ onMounted(() => {
 .sales-content { max-width: 900px; margin: auto; padding: 16px 12px; display: flex; flex-direction: column; gap: 20px; }
 .loading, .empty { color: var(--text-muted); text-align: center; padding: 16px 0; }
 
+/* Título compacto para secciones de analítica densa. */
 .section-title { margin: 0 0 10px; color: var(--text-muted); font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
 
 .revenue-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
