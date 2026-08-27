@@ -12,10 +12,10 @@ const mockVenue = {
   logo_url_light: '',
   logo_url_dark: '',
   qr_url: '',
-  theme: {
-    primary_color: '#6366f1',
-    accent_color: '#818cf8',
-    bg_dark: '#0f172a',
+  config: {
+    theme: {
+      preset: 'purple-night',
+    },
   },
 }
 
@@ -25,3 +25,4 @@ export const Default = {
     venue: mockVenue,
   },
 }
+
