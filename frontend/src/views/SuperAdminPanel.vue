@@ -68,7 +68,7 @@ function forceLogout() { localStorage.removeItem('bq_super_token'); localStorage
 
 <template>
   <div class="sa">
-    <SuperAdminHeader title="Repitela" badge="Administración" @logout="forceLogout" />
+    <SuperAdminHeader badge="Administración" @logout="forceLogout" />
     <main class="sa-content">
       <section class="indicators" aria-label="Indicadores de la plataforma">
         <div class="period-tabs" role="tablist" aria-label="Periodo de indicadores">

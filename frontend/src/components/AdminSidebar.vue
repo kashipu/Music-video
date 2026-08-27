@@ -1,5 +1,6 @@
 <script setup>
 import VenueLogo from './VenueLogo.vue'
+import RepitelaLogo from './RepitelaLogo.vue'
 
 defineProps({
   venueName: { type: String, default: '' },
@@ -22,6 +23,7 @@ defineEmits(['close'])
     <!-- Bar Info Card -->
     <div class="card sidebar-info">
       <VenueLogo v-if="logoUrl || logoUrlLight || logoUrlDark" :src="logoUrl" :src-light="logoUrlLight" :src-dark="logoUrlDark" class="sidebar-logo" />
+      <RepitelaLogo v-else class="sidebar-logo" />
       <h2 class="bar-name">{{ venueName }}</h2>
       <div class="info-stats">
         <div class="info-stat">

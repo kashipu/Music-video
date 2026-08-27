@@ -2,9 +2,7 @@
 import Button from './ui/Button.vue'
 import Input from './ui/Input.vue'
 import VenueLogo from './VenueLogo.vue'
-import { useTheme } from '../composables/useTheme.js'
-import logoPositive from '../assets/logo-color-positivo.svg'
-import logoNegative from '../assets/logo-color-negativo.svg'
+import RepitelaLogo from './RepitelaLogo.vue'
 
 defineProps({
   title: { type: String, required: true },
@@ -22,9 +20,6 @@ defineEmits(['submit', 'google'])
 const username = defineModel('username', { default: '' })
 const password = defineModel('password', { default: '' })
 
-// Este fondo (--bg del form panel) SI cambia con el tema, a diferencia del
-// panel de marca -- por eso el icono sigue el modo claro/oscuro.
-const { currentMode } = useTheme()
 </script>
 
 <template>
@@ -37,12 +32,7 @@ const { currentMode } = useTheme()
       :alt="title"
       class="login-icon venue-logo"
     />
-    <img
-      v-else
-      :src="currentMode === 'dark' ? logoNegative : logoPositive"
-      alt="Repítela"
-      class="login-icon"
-    />
+    <RepitelaLogo v-else class="login-icon" />
     <h1 v-if="title !== 'Repitela' && title !== 'Repítela'">{{ title }}</h1>
     <p>{{ subtitle }}</p>
   </header>

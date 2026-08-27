@@ -7,4 +7,4 @@ export default {
   parameters: { layout: 'fullscreen' },
 }
 
-export const Default = { args: { title: 'Repítela', badge: 'Administración' } }
+export const Default = { args: { badge: 'Administración' } }

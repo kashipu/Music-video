@@ -1,6 +1,7 @@
 <script setup>
 import ThemeToggle from './ui/ThemeToggle.vue'
 import VenueLogo from './VenueLogo.vue'
+import RepitelaLogo from './RepitelaLogo.vue'
 
 defineProps({
   venueName: { type: String, default: '' },
@@ -17,6 +18,7 @@ defineEmits(['toggle-sidebar', 'logout'])
     <div class="header-brand">
       <button class="menu-btn" @click="$emit('toggle-sidebar')">&#9776;</button>
       <VenueLogo v-if="logoUrl || logoUrlLight || logoUrlDark" :src="logoUrl" :src-light="logoUrlLight" :src-dark="logoUrlDark" class="header-logo" />
+      <RepitelaLogo v-else class="header-logo" />
       <!-- El logo ya lleva el nombre del bar: repetirlo al lado es redundante -->
       <h1 v-if="!logoUrl && !logoUrlLight && !logoUrlDark">{{ venueName }}</h1>
     </div>

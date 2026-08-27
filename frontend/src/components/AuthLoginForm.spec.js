@@ -19,6 +19,7 @@ describe('AuthLoginForm', () => {
   })
 
   it('keeps default brand logo intact', () => {
-    expect(content).toContain('currentMode === \'dark\' ? logoNegative : logoPositive')
+    expect(content).toContain("import RepitelaLogo from './RepitelaLogo.vue'")
+    expect(content).toContain('<RepitelaLogo v-else class="login-icon" />')
   })
 })

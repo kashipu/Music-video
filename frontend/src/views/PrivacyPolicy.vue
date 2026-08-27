@@ -1,12 +1,9 @@
 <script setup>
 import { useRouter } from 'vue-router'
-import { useTheme } from '../composables/useTheme.js'
-import logoPositive from '../assets/logo-color-positivo.svg'
-import logoNegative from '../assets/logo-color-negativo.svg'
 import ThemeToggle from '../components/ui/ThemeToggle.vue'
+import RepitelaLogo from '../components/RepitelaLogo.vue'
 
 const router = useRouter()
-const { currentMode } = useTheme()
 
 function goBack() {
   if (window.history.length > 1) {
@@ -22,7 +19,7 @@ function goBack() {
     <header class="privacy-header">
       <div class="privacy-header-content">
         <router-link to="/admin" class="brand-link">
-          <img :src="currentMode === 'dark' ? logoNegative : logoPositive" alt="Repítela" class="privacy-logo" />
+          <RepitelaLogo class="privacy-logo" />
         </router-link>
         <div class="header-actions">
           <ThemeToggle />
