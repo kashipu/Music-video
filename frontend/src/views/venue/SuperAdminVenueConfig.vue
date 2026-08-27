@@ -460,6 +460,7 @@ async function toggleVenue() {
   gap: 16px;
 }
 
+/* Tarjeta de configuración con borde sólido y radio amplio para separar ajustes. */
 .card {
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -467,6 +468,7 @@ async function toggleVenue() {
   padding: 16px;
 }
 
+/* Título compacto para las secciones de configuración. */
 .section-title {
   font-size: 11px;
   font-weight: 700;
