@@ -1,6 +1,6 @@
 import AdminSidebar from './AdminSidebar.vue'
-import logoSobreOscuro from '../assets/logo-color-negativo.svg'
-import logoSobreClaro from '../assets/logo-color-positivo.svg'
+import logoSobreOscuro from '../assets/logo-color-sobre-oscuro.svg'
+import logoSobreClaro from '../assets/logo-color-sobre-claro.svg'
 
 export default {
   title: 'Components/AdminSidebar', component: AdminSidebar,

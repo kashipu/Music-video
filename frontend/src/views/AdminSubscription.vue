@@ -31,7 +31,7 @@ function formatCurrency(cents) {
 function formatDate(dateStr) {
   if (!dateStr) return ''
   // Fecha pura (sin hora) se ancla a medianoche LOCAL; si no, un huso horario
-  // negativo (ej. Colombia UTC-5) la corre un día atrás al formatear.
+  // hacia atrás (ej. Colombia UTC-5) la corre un día atrás al formatear.
   const hasTime = dateStr.includes('T') || dateStr.includes(' ')
   const d = new Date(hasTime ? dateStr.replace(' ', 'T') : `${dateStr}T00:00:00`)
   if (isNaN(d.getTime())) return dateStr

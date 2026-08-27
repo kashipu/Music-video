@@ -412,28 +412,21 @@ Los assets vectoriales oficiales del isotipo + logotipo viven en [`frontend/src/
 
 | Archivo | Relleno Real (`fill`) | Fondo Destino | Tipo | Caso de Uso Principal |
 |---|---|---|---|---|
-| `logo-color-negativo.svg` | Isotipo con gradiente (`#fb1014` → `#fe5d02`) + texto `.cls-2 { fill: #fff; }` | **Fondo Oscuro** | Color | Login y páginas informativas en modo oscuro (`currentMode === 'dark'`). |
-| `logo-color-positivo.svg` | Isotipo con gradiente (`#fb1014` → `#fe5d02`) + texto `#000000` default | **Fondo Claro** | Color | Login y páginas informativas en modo claro (`currentMode === 'light'`). |
-| `logo-positivo.svg` | Todo el vector `.cls-1 { fill: #fff; }` (blanco plano) | **Fondo Oscuro** | Monocromo | Impresión monocromática sobre negro o interfaces de alto contraste oscuro. |
-| `logo-negativo.svg` | Todo el vector `.cls-1 { fill: #080808; }` (negro plano) | **Fondo Claro** | Monocromo | Impresión monocromática sobre blanco o fondos claros. Detectado por `VenueLogo` para inversión. |
-
-> **⚠️ La trampa de los nombres (Crucial):**  
-> En la convención gráfica de estos assets:
-> - **`negativo` es la variante PARA fondo oscuro** (texto blanco).
-> - **`positivo` es la variante PARA fondo claro** (texto oscuro).  
-> Se leen al revés de lo que suele asumirse intuitivamente. Este es el error más frecuente al referenciar los archivos manualmente.
+| `logo-color-sobre-oscuro.svg` | Isotipo con gradiente (`#fb1014` → `#fe5d02`) + texto `.cls-2 { fill: #fff; }` | **Fondo Oscuro** | Color | Login y páginas informativas en modo oscuro (`currentMode === 'dark'`). |
+| `logo-color-sobre-claro.svg` | Isotipo con gradiente (`#fb1014` → `#fe5d02`) + texto `#000000` default | **Fondo Claro** | Color | Login y páginas informativas en modo claro (`currentMode === 'light'`). |
+| `logo-sobre-oscuro.svg` | Todo el vector `.cls-1 { fill: #fff; }` (blanco plano) | **Fondo Oscuro** | Monocromo | Impresión monocromática sobre negro o interfaces de alto contraste oscuro. |
+| `logo-sobre-claro.svg` | Todo el vector `.cls-1 { fill: #080808; }` (negro plano) | **Fondo Claro** | Monocromo | Impresión monocromática sobre blanco o fondos claros. Detectado por `VenueLogo` para inversión. |
 
 ### 8.2 Selección Dinámica en la App
 
-La aplicación cliente/admin resuelve dinámicamente qué variante a color renderizar consultando el modo activo de [`useTheme.js`](../frontend/src/composables/useTheme.js):
+[`RepitelaLogo.vue`](../frontend/src/components/RepitelaLogo.vue) centraliza la selección de la variante a color según el modo activo de [`useTheme.js`](../frontend/src/composables/useTheme.js):
 
-- En [`frontend/src/components/AuthLoginForm.vue`](../frontend/src/components/AuthLoginForm.vue#L38) y [`frontend/src/views/PrivacyPolicy.vue`](../frontend/src/views/PrivacyPolicy.vue#L24):
+- En `RepitelaLogo.vue`:
   ```javascript
-  import logoPositive from '../assets/logo-color-positivo.svg'
-  import logoNegative from '../assets/logo-color-negativo.svg'
+  import logoSobreClaro from '../assets/logo-color-sobre-claro.svg'
+  import logoSobreOscuro from '../assets/logo-color-sobre-oscuro.svg'
 
-  // Si currentMode es 'dark', usa logoNegative (fondo oscuro); si es 'light', usa logoPositive
-  const logoSrc = currentMode.value === 'dark' ? logoNegative : logoPositive
+  const logoSrc = currentMode.value === 'dark' ? logoSobreOscuro : logoSobreClaro
   ```
 
 ### 8.3 Logo Corporativo vs. Logo del Bar
@@ -442,7 +435,7 @@ Es fundamental distinguir entre la identidad de la plataforma y la del estableci
 
 | Tipo de Logo | Origen | Componente Responsable | Comportamiento |
 |---|---|---|---|
-| **Logo de Repítela** | Assets estáticos locales (`assets/logo-color-*.svg`) | `<img>` directo o fallback | Identidad global de la plataforma BarQueue / Repítela. |
+| **Logo de Repítela** | Assets estáticos locales (`assets/logo-color-sobre-*.svg`) | `<img>` directo o fallback | Identidad global de la plataforma BarQueue / Repítela. |
 | **Logo del Bar** | Configuración remota del bar (`auth.adminInfo?.config.logoUrl`, sesión o API) | [`frontend/src/components/VenueLogo.vue`](../frontend/src/components/VenueLogo.vue) | Identidad personalizada del establecimiento. Si `logoUrl` está presente, sustituye al de Repítela en formularios y vistas de marca. |
 
 ### 8.4 Inversión Automática Inteligente (`VenueLogo.vue` y `utils/logo.js`)
@@ -482,7 +475,7 @@ El comportamiento de los logos y sus variantes se encuentra documentado en [`fro
 
 | Story | Qué Valida / Demuestra |
 |---|---|
-| `Variantes` | Muestra en grilla interactiva las 4 variantes de Repítela (`logo-color-negativo`, `logo-color-positivo`, `logo-positivo`, `logo-negativo`) con sus casos de uso. |
+| `Variantes` | Muestra en grilla interactiva las 4 variantes de Repítela (`logo-color-sobre-oscuro`, `logo-color-sobre-claro`, `logo-sobre-oscuro`, `logo-sobre-claro`) con sus casos de uso. |
 | `KioskAlwaysDark` | Demuestra el funcionamiento de la prop `always-dark` (`alwaysDark: true`) sobre fondo `#000000`, forzando la inversión a blanco sin importar el modo global. |
 | `SinLogo` | Valida que cuando la prop `src` está vacía o nula, el componente no renderiza elementos DOM, permitiendo al contenedor decidir el fallback. |
 
@@ -502,4 +495,3 @@ Los iconos de la aplicación web y accesos directos PWA residen en [`frontend/pu
 
 > **Pantalla de Carga (Splash Screen):**  
 > [`frontend/index.html`](../frontend/index.html) incluye un elemento `#splash` con fondo `#07070B` y el isotipo SVG embebido para una presentación instantánea sin saltos visuales mientras cargan los scripts de Vue.
-

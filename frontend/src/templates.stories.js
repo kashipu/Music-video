@@ -1,11 +1,9 @@
 import { computed, provide, ref } from 'vue'
 import { THEME_PRESETS } from './constants/themePresets.js'
-import logoColorPositivo from './assets/logo-color-positivo.svg'
-import logoColorNegativo from './assets/logo-color-negativo.svg'
+import logoColorSobreClaro from './assets/logo-color-sobre-claro.svg'
+import logoColorSobreOscuro from './assets/logo-color-sobre-oscuro.svg'
 
-// "negativo" es la variante para fondo oscuro. El ?? 'dark' en los llamadores
-// evita que un global ausente la de vuelta en silencio.
-const logoFor = (mode) => (mode === 'dark' ? logoColorNegativo : logoColorPositivo)
+const logoFor = (mode) => (mode === 'dark' ? logoColorSobreOscuro : logoColorSobreClaro)
 import AuthSplitLayout from './components/AuthSplitLayout.vue'
 import AuthLoginForm from './components/AuthLoginForm.vue'
 import NowPlaying from './components/NowPlaying.vue'

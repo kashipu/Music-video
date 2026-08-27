@@ -16,7 +16,7 @@ describe('RepitelaLogo', () => {
   it('centraliza los SVG de marca fuera de las stories', () => {
     for (const file of sourceFiles(sourceRoot)) {
       if (file.endsWith('RepitelaLogo.vue') || file.endsWith('.stories.js') || file.endsWith('.spec.js')) continue
-      expect(fs.readFileSync(file, 'utf8')).not.toMatch(/logo-color-(positivo|negativo)\.svg/)
+      expect(fs.readFileSync(file, 'utf8')).not.toMatch(/logo-color-sobre-(claro|oscuro)\.svg/)
     }
   })
 })

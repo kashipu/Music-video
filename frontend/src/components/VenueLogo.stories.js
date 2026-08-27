@@ -1,19 +1,16 @@
 import VenueLogo from './VenueLogo.vue'
-import colorPositivo from '../assets/logo-color-positivo.svg'
-import colorNegativo from '../assets/logo-color-negativo.svg'
-import positivo from '../assets/logo-positivo.svg'
-import negativo from '../assets/logo-negativo.svg'
+import colorSobreClaro from '../assets/logo-color-sobre-claro.svg'
+import colorSobreOscuro from '../assets/logo-color-sobre-oscuro.svg'
+import sobreClaro from '../assets/logo-sobre-claro.svg'
+import sobreOscuro from '../assets/logo-sobre-oscuro.svg'
 
 export default { title: 'Components/VenueLogo', component: VenueLogo }
 
-// Ojo con los nombres: "negativo" es la variante PARA fondo oscuro (texto
-// blanco) y "positivo" la de fondo claro (texto negro). Se leen al reves de
-// lo que uno espera; asi las usa AuthLoginForm.vue segun currentMode.
 const VARIANTS = [
-  { src: colorNegativo, name: 'logo-color-negativo.svg', use: 'A color, para fondo oscuro (la que usa el login en dark)' },
-  { src: colorPositivo, name: 'logo-color-positivo.svg', use: 'A color, para fondo claro (la que usa el login en light)' },
-  { src: positivo, name: 'logo-positivo.svg', use: 'Monocromo blanco, para fondo oscuro' },
-  { src: negativo, name: 'logo-negativo.svg', use: 'Monocromo negro, para fondo claro' },
+  { src: colorSobreOscuro, name: 'logo-color-sobre-oscuro.svg', use: 'A color, para fondo oscuro (la que usa el login en dark)' },
+  { src: colorSobreClaro, name: 'logo-color-sobre-claro.svg', use: 'A color, para fondo claro (la que usa el login en light)' },
+  { src: sobreOscuro, name: 'logo-sobre-oscuro.svg', use: 'Monocromo blanco, para fondo oscuro' },
+  { src: sobreClaro, name: 'logo-sobre-claro.svg', use: 'Monocromo negro, para fondo claro' },
 ]
 
 export const Variantes = {
@@ -36,7 +33,7 @@ export const Variantes = {
 }
 
 export const VariantesPorTema = {
-  args: { srcLight: colorPositivo, srcDark: colorNegativo },
+  args: { srcLight: colorSobreClaro, srcDark: colorSobreOscuro },
   parameters: { layout: 'centered' },
 }
 
@@ -44,7 +41,7 @@ export const VariantesPorTema = {
 export const KioskAlwaysDark = {
   render: () => ({
     components: { VenueLogo },
-    setup: () => ({ src: colorNegativo }),
+    setup: () => ({ src: colorSobreOscuro }),
     template: '<div style="padding:40px;background:#000"><VenueLogo :src="src" always-dark style="max-width:280px" /></div>',
   }),
 }
