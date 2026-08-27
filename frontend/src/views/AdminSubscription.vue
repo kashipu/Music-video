@@ -6,6 +6,7 @@ import { useConfigStore } from '../stores/config.js'
 import Badge from '../components/ui/Badge.vue'
 import UiButton from '../components/ui/Button.vue'
 import ThemeToggle from '../components/ui/ThemeToggle.vue'
+import FormError from '../components/ui/FormError.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -169,7 +170,7 @@ onMounted(async () => {
           <UiButton v-if="config.pagos" class="pay-btn" :disabled="paying" @click="payNow">
             {{ paying ? 'Redirigiendo a Wompi...' : 'Pagar con Wompi' }}
           </UiButton>
-          <span v-if="errorMsg" class="error-msg" role="alert">{{ errorMsg }}</span>
+          <FormError :message="errorMsg" />
 
           <div class="billing-divider" />
 
@@ -196,7 +197,7 @@ onMounted(async () => {
         </div>
       </template>
 
-      <p v-else class="error-msg" role="alert">{{ errorMsg || 'No se pudo cargar tu suscripción' }}</p>
+      <FormError v-else :message="errorMsg || 'No se pudo cargar tu suscripción'" />
     </main>
   </div>
 </template>
@@ -238,6 +239,7 @@ onMounted(async () => {
 
 .billing-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg, 12px); padding: 16px; }
 .billing-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; }
+/* El encabezado de facturación ya tiene separación en .billing-header. */
 .section-title { margin: 0; color: var(--text-muted); font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
 .billing-overdue { border-color: var(--warning) !important; }
 .billing-suspended { border-color: var(--danger) !important; }
@@ -258,8 +260,6 @@ onMounted(async () => {
 .price-value { font-size: 18px; }
 
 .pay-btn { width: 100%; }
-.error-msg { display: block; margin-top: 8px; color: var(--danger); font-size: 13px; font-weight: 600; }
-
 .history-title { margin: 0 0 10px; color: var(--text-muted); font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
 .history-list { display: flex; flex-direction: column; gap: 8px; }
 .history-card { background: var(--bg-elevated); border-radius: var(--radius-sm, 8px); padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
