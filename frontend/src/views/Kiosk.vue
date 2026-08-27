@@ -7,6 +7,7 @@ import { trackSongPlayed, trackSongEnded, trackSongError, trackFallbackActivated
 import VenueLogo from '../components/VenueLogo.vue'
 import KioskAudioBlocked from '../components/KioskAudioBlocked.vue'
 import KioskFallback from '../components/KioskFallback.vue'
+import KioskSongOverlay from '../components/KioskSongOverlay.vue'
 
 const route = useRoute()
 const venueSlug = route.params.venueSlug
@@ -802,14 +803,7 @@ onUnmounted(() => {
 
         <!-- Song Info Overlay (appears 15s then fades) -->
         <Transition name="overlay">
-          <div v-if="song && showOverlay && !playingFallback" class="song-overlay">
-            <div class="overlay-content">
-              <p class="overlay-title">{{ song.title }}</p>
-              <p class="overlay-meta" v-if="queue.length || pendingUserSong">
-                Siguiente: {{ queue[0]?.title || pendingUserSong?.title }}
-              </p>
-            </div>
-          </div>
+          <KioskSongOverlay v-if="song && showOverlay && !playingFallback" :song="song" :queue="queue" :pending-user-song="pendingUserSong" />
         </Transition>
 
         <!-- Persistent bottom bar -->
