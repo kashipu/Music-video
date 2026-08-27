@@ -5,6 +5,11 @@ import { useWebSocket } from '../composables/useWebSocket.js'
 import { useTheme } from '../composables/useTheme.js'
 import { trackSongPlayed, trackSongEnded, trackSongError, trackFallbackActivated } from '../utils/analytics.js'
 import VenueLogo from '../components/VenueLogo.vue'
+import KioskAudioBlocked from '../components/KioskAudioBlocked.vue'
+import KioskFallback from '../components/KioskFallback.vue'
+import KioskSongOverlay from '../components/KioskSongOverlay.vue'
+import KioskBottomBar from '../components/KioskBottomBar.vue'
+import KioskProgress from '../components/KioskProgress.vue'
 
 const route = useRoute()
 const venueSlug = route.params.venueSlug
@@ -744,30 +749,10 @@ onUnmounted(() => {
         </div>
 
         <!-- Audio blocked by browser -->
-        <div v-if="audioBlocked" class="audio-blocked-overlay" @click="unlockAudio">
-          <div class="audio-blocked-content">
-            <div class="audio-blocked-icon">&#128264;</div>
-            <p class="audio-blocked-text">El navegador bloqueo el audio</p>
-            <button class="audio-blocked-btn" @click.stop="unlockAudio">ACTIVAR SONIDO</button>
-          </div>
-        </div>
+        <KioskAudioBlocked v-if="audioBlocked" @unlock="unlockAudio" />
 
         <!-- Fallback: no songs playing -->
-        <div v-if="!song && !playingFallback" class="fallback-overlay">
-          <div class="fallback-content">
-            <div class="fallback-icon">&#9835;</div>
-            <p class="fallback-text" v-if="fallbackPaused">Playlist pausada</p>
-            <p class="fallback-text" v-else>Esperando canciones...</p>
-            <p class="fallback-sub">Escanea el QR para pedir musica</p>
-            <div class="fallback-qr">
-              <img :src="qrCodeUrl" alt="QR" class="fallback-qr-img" crossorigin="anonymous" />
-            </div>
-            <div v-if="dailyPin" class="pin-display">
-              <p class="pin-label">CODIGO DE HOY</p>
-              <p class="pin-value">{{ dailyPin }}</p>
-            </div>
-          </div>
-        </div>
+        <KioskFallback v-if="!song && !playingFallback" :fallback-paused="fallbackPaused" :qr-code-url="qrCodeUrl" :daily-pin="dailyPin" />
 
         <!-- Centered play/pause button: always visible when paused, briefly on tap -->
         <Transition name="fade-quick">
@@ -783,9 +768,7 @@ onUnmounted(() => {
         <!-- Progress bar + controls (bottom, expands on hover) -->
         <div v-if="song && !audioBlocked" class="player-bar" @mouseenter="showKioskControls" @mouseleave="kioskControlsVisible = false" @click="showKioskControls">
           <!-- Thin progress line (always visible) -->
-          <div class="progress-thin">
-            <div class="progress-thin-fill" :style="{ width: progress + '%' }"></div>
-          </div>
+          <KioskProgress :progress="progress" />
           <!-- Expanded controls -->
           <Transition name="slide-up">
             <div v-if="kioskControlsVisible" class="player-bar-expanded">
@@ -820,28 +803,11 @@ onUnmounted(() => {
 
         <!-- Song Info Overlay (appears 15s then fades) -->
         <Transition name="overlay">
-          <div v-if="song && showOverlay && !playingFallback" class="song-overlay">
-            <div class="overlay-content">
-              <p class="overlay-title">{{ song.title }}</p>
-              <p class="overlay-meta" v-if="queue.length || pendingUserSong">
-                Siguiente: {{ queue[0]?.title || pendingUserSong?.title }}
-              </p>
-            </div>
-          </div>
+          <KioskSongOverlay v-if="song && showOverlay && !playingFallback" :song="song" :queue="queue" :pending-user-song="pendingUserSong" />
         </Transition>
 
         <!-- Persistent bottom bar -->
-        <div v-if="song" class="bottom-bar" :class="{ 'bottom-fallback': playingFallback }">
-          <div class="bottom-left">
-            <span class="bottom-dot" :class="{ 'dot-fallback': playingFallback }"></span>
-            <span v-if="playingFallback" class="bottom-badge">PLAYLIST</span>
-            <span class="bottom-title">{{ song.title }}</span>
-          </div>
-          <div class="bottom-right">
-            <span v-if="queue.length || pendingUserSong" class="bottom-next">Siguiente: {{ queue[0]?.title || pendingUserSong?.title }}</span>
-            <span v-else-if="playingFallback" class="bottom-next">{{ fallbackPlayed.size }}/{{ fallbackSongs.length }} reproducidas</span>
-          </div>
-        </div>
+        <KioskBottomBar v-if="song" :song="song" :playing-fallback="playingFallback" :queue="queue" :pending-user-song="pendingUserSong" :fallback-played="fallbackPlayed" :fallback-songs="fallbackSongs" />
 
         <!-- Scrolling banner -->
         <div v-if="bannerText" class="banner-marquee">
@@ -892,201 +858,6 @@ onUnmounted(() => {
   left: -9999px;
 }
 
-/* ===== AUDIO BLOCKED ===== */
-.audio-blocked-overlay {
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  z-index: 50;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.85);
-  cursor: pointer;
-}
-.audio-blocked-content {
-  text-align: center;
-  color: #fff;
-}
-.audio-blocked-icon {
-  font-size: 64px;
-  margin-bottom: 16px;
-}
-.audio-blocked-text {
-  font-size: 20px;
-  margin-bottom: 24px;
-  opacity: 0.8;
-}
-.audio-blocked-btn {
-  padding: 16px 48px;
-  font-size: 20px;
-  font-weight: 700;
-  background: #7c3aed;
-  color: #fff;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  animation: pulse-btn 2s ease-in-out infinite;
-}
-@keyframes pulse-btn {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-}
-
-/* ===== FALLBACK ===== */
-.fallback-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--kiosk-bg);
-  z-index: 5;
-}
-.fallback-content {
-  text-align: center;
-}
-.fallback-icon {
-  font-size: 80px;
-  margin-bottom: 16px;
-  opacity: 0.3;
-}
-.fallback-text {
-  font-size: 32px;
-  font-weight: 700;
-  opacity: 0.8;
-}
-.fallback-sub {
-  font-size: 18px;
-  color: var(--kiosk-text-dim);
-  margin-top: 8px;
-}
-.fallback-qr {
-  margin-top: 24px;
-}
-.fallback-qr-img {
-  width: 180px;
-  height: 180px;
-  border-radius: 12px;
-  background: #fff;
-  padding: 8px;
-}
-.pin-display {
-  margin-top: 20px;
-  text-align: center;
-}
-.pin-label {
-  font-size: 14px;
-  color: var(--kiosk-text-dim);
-  letter-spacing: 2px;
-  margin-bottom: 8px;
-}
-.pin-value {
-  font-size: 56px;
-  font-weight: 800;
-  letter-spacing: 12px;
-  color: #fff;
-}
-
-/* ===== SONG OVERLAY (fades after 15s) ===== */
-.song-overlay {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 10;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
-  padding: 60px 40px 40px;
-}
-.overlay-content {
-  max-width: 900px;
-}
-.overlay-title {
-  font-size: 28px;
-  font-weight: 700;
-  line-height: 1.2;
-  text-shadow: 0 2px 8px rgba(0,0,0,0.6);
-}
-.overlay-meta {
-  font-size: 16px;
-  color: rgba(255,255,255,0.6);
-  margin-top: 8px;
-  text-shadow: 0 1px 4px rgba(0,0,0,0.6);
-}
-
-/* Overlay transition */
-.overlay-enter-active, .fade-enter-active {
-  transition: opacity 0.3s ease;
-}
-.overlay-leave-active, .fade-leave-active {
-  transition: opacity 0.5s ease;
-}
-.overlay-enter-from, .overlay-leave-to,
-.fade-enter-from, .fade-leave-to {
-  opacity: 0;
-}
-
-/* ===== PERSISTENT BOTTOM BAR (always visible, very subtle) ===== */
-.bottom-bar {
-  position: absolute;
-  bottom: 4px;
-  left: 0;
-  right: 0;
-  z-index: 8;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 24px;
-  opacity: 0.7;
-  transition: opacity 0.3s;
-}
-.bottom-bar:hover {
-  opacity: 1;
-}
-.bottom-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.bottom-fallback {
-  opacity: 0.5;
-}
-.bottom-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--kiosk-dot);
-  animation: pulse 2s infinite;
-}
-.dot-fallback {
-  background: var(--primary);
-}
-.bottom-badge {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: var(--primary-soft);
-  color: var(--primary);
-}
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
-.bottom-title {
-  font-size: 13px;
-  font-weight: 500;
-  opacity: 0.8;
-}
-.bottom-next {
-  font-size: 12px;
-  opacity: 0.5;
-}
-.bottom-pending {
-  opacity: 0.8;
-  color: #4ade80;
-}
-
 /* ===== PLAYER BAR (progress + controls) ===== */
 .player-bar {
   position: absolute;
@@ -1099,23 +870,6 @@ onUnmounted(() => {
   flex-direction: column;
   justify-content: flex-end;
 }
-.progress-thin {
-  height: 3px;
-  background: rgba(255, 255, 255, 0.15);
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  transition: opacity 0.3s;
-}
-.progress-thin-fill {
-  height: 100%;
-  background: var(--primary, #7C6CF0);
-  transition: width 0.4s linear;
-}
-/* Hide thin bar when expanded */
-.player-bar:hover .progress-thin { opacity: 0; }
-
 .player-bar-expanded {
   background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
   padding: 24px 24px 14px;
