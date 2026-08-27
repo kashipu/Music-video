@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useWebSocket } from '../composables/useWebSocket.js'
+import { useKioskPlayback } from '../composables/useKioskPlayback.js'
 import { useTheme } from '../composables/useTheme.js'
 import { trackSongPlayed, trackSongEnded, trackSongError, trackFallbackActivated } from '../utils/analytics.js'
 import VenueLogo from '../components/VenueLogo.vue'
@@ -14,36 +15,14 @@ import KioskProgress from '../components/KioskProgress.vue'
 const route = useRoute()
 const venueSlug = route.params.venueSlug
 const { applyVenueTheme } = useTheme()
-const API = import.meta.env.VITE_API_URL || ''
 const registroUrl = `${window.location.origin}/${venueSlug}/registro`
 const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(registroUrl)}`
 
-const song = ref(null)
-const fallbackActive = ref(false)
-const fallbackSongs = ref([])
-const fallbackIndex = ref(0)
-const fallbackPlayed = ref(new Set())
-const playingFallback = ref(false)
-const fallbackPaused = ref(false)
-const playbackStatus = ref('playing')
-const queue = ref([])
-const started = ref(false)
-const dailyPin = ref('')
 const showOverlay = ref(false)
-const bannerText = ref('')
 let bannerTimer = null
-let bannerAutoHidden = false
-const venueName = ref('')
-const venueLogo = ref(null)
-const venueLogoLight = ref(null)
-const venueLogoDark = ref(null)
-const showBrand = ref(true)
-const pendingUserSong = ref(null)
 const audioBlocked = ref(false)
 const kioskControlsVisible = ref(false)
 const isPlaying = ref(false)
-const showQr = ref(false)
-const qrSize = ref('M')
 const QR_PX = { S: 110, M: 160, L: 210 }
 const progress = ref(0)
 const currentTime = ref(0)
@@ -55,6 +34,24 @@ let ytPlayer = null
 let preloadPlayer = null
 let preloadedVideoId = null
 let overlayTimer = null
+
+const {
+  song, fallbackActive, fallbackSongs, fallbackPlayed, playingFallback, fallbackPaused,
+  playbackStatus, queue, started, dailyPin, bannerText, venueName, venueLogo,
+  venueLogoLight, venueLogoDark, showBrand, pendingUserSong, showQr, qrSize,
+  syncNowPlaying, fetchDailyPin, fetchNowPlaying, playFallback, nextFallback,
+  handleFallbackSkip, handleFallbackSongEnded, fetchQueuePreview,
+  hideBannerAutomatically, showBanner, reportError, reportFinished, updatePlaybackStatus,
+} = useKioskPlayback({
+  venueSlug,
+  getPlayer: () => ytPlayer,
+  loadVideo,
+  triggerOverlay,
+  enforcePlaybackStatus,
+  applyVolume,
+  preloadNextSong,
+  trackFallbackActivated,
+})
 
 const { onEvent, onReconnect } = useWebSocket(venueSlug)
 
@@ -116,11 +113,11 @@ onEvent((event) => {
     applyVolume(event.data.volume)
   } else if (event.event === 'banner_changed') {
     // Banner text
-    bannerAutoHidden = false
+    showBanner()
     bannerText.value = event.data.banner_text || ''
     if (bannerTimer) clearTimeout(bannerTimer)
     if (bannerText.value) {
-      bannerTimer = setTimeout(() => { bannerText.value = ''; bannerAutoHidden = true }, 3 * 60 * 1000)
+      bannerTimer = setTimeout(() => { bannerText.value = ''; hideBannerAutomatically() }, 3 * 60 * 1000)
     }
     // Brand visibility
     if (event.data.show_brand !== undefined) showBrand.value = event.data.show_brand
@@ -145,64 +142,6 @@ onEvent((event) => {
     }
   }
 })
-
-// Fetch now_playing from the API and sync the player to match backend state.
-// This is the single source of truth — handles song changes, pause/resume,
-// and fallback transitions.
-async function syncNowPlaying() {
-  const res = await fetch(`${API}/api/playback/now-playing?venue=${venueSlug}`)
-  if (!res.ok) return
-  const data = await res.json()
-  if (data.fallback_songs) fallbackSongs.value = data.fallback_songs
-
-  // 1. Sync song state
-  if (data.song && !data.song.is_fallback) {
-    if (playingFallback.value) {
-      // Fallback active — song is already 'playing' in DB (admin promoted it).
-      // Queue it for when fallback track ends; already_playing=true so start-playing won't be called.
-      pendingUserSong.value = { ...data.song, already_playing: true }
-    } else {
-      const currentYtId = song.value?.youtube_id
-      const playerIdle = ytPlayer && typeof ytPlayer.getPlayerState === 'function'
-        && (ytPlayer.getPlayerState() === -1 || ytPlayer.getPlayerState() === 5)
-      if (currentYtId !== data.song.youtube_id || playerIdle) {
-        song.value = data.song
-        fallbackActive.value = false
-        pendingUserSong.value = null
-        if (started.value) loadVideo(data.song.youtube_id)
-        triggerOverlay()
-      }
-    }
-  } else if (!data.song) {
-    // No song 'playing' in backend — could be fallback active or truly empty
-    if (song.value && !playingFallback.value) {
-      // We thought a user song was playing — clear it
-      song.value = null
-    }
-    fallbackActive.value = true
-    // Only start fallback if not already playing and no pending user song waiting
-    if (!playingFallback.value && !pendingUserSong.value && fallbackSongs.value.length && started.value && !fallbackPaused.value) {
-      playFallback()
-    }
-  }
-
-  // 2. Sync playback status — always compare backend state vs actual player state
-  playbackStatus.value = data.playback_status
-  enforcePlaybackStatus()
-
-  // 3. Sync volume
-  if (data.volume !== undefined) applyVolume(data.volume)
-
-  // 4. Sync banner + venue branding (don't re-show if auto-hidden)
-  if (data.banner_text !== undefined && !bannerAutoHidden) bannerText.value = data.banner_text
-  if (data.show_brand !== undefined) showBrand.value = data.show_brand
-  if (data.qr_size) qrSize.value = data.qr_size
-  if (data.show_qr !== undefined) showQr.value = data.show_qr
-  if (data.venue_name) venueName.value = data.venue_name
-  if (data.venue_logo !== undefined) venueLogo.value = data.venue_logo
-  if (data.venue_logo_light !== undefined) venueLogoLight.value = data.venue_logo_light
-  if (data.venue_logo_dark !== undefined) venueLogoDark.value = data.venue_logo_dark
-}
 
 // Compare desired playback status with actual YouTube player state and fix mismatches.
 // YT PlayerState: PLAYING=1, PAUSED=2, BUFFERING=3
@@ -244,20 +183,6 @@ function applyVolume(vol) {
 // matches the backend. Catches any missed WS events.
 let pollInterval = null
 
-async function fetchDailyPin() {
-  try {
-    const adminToken = localStorage.getItem('bq_admin_token')
-    if (!adminToken) return
-    const res = await fetch(`${API}/api/admin/daily-pin`, {
-      headers: { Authorization: `Bearer ${adminToken}` },
-    })
-    if (res.ok) {
-      const data = await res.json()
-      dailyPin.value = data.require_pin ? data.pin : ''
-    }
-  } catch { /* */ }
-}
-
 onMounted(async () => {
   // Apply venue theme
   try {
@@ -294,116 +219,6 @@ function triggerOverlay() {
   showOverlay.value = true
   if (overlayTimer) clearTimeout(overlayTimer)
   overlayTimer = setTimeout(() => { showOverlay.value = false }, 15000)
-}
-
-async function fetchNowPlaying() {
-  const res = await fetch(`${API}/api/playback/now-playing?venue=${venueSlug}`)
-  if (!res.ok) return
-  const data = await res.json()
-  song.value = data.song
-  playbackStatus.value = data.playback_status
-  fallbackActive.value = data.fallback_active
-  if (data.fallback_songs) fallbackSongs.value = data.fallback_songs
-  if (data.banner_text !== undefined) bannerText.value = data.banner_text
-  if (data.show_brand !== undefined) showBrand.value = data.show_brand
-  if (data.qr_size) qrSize.value = data.qr_size
-  if (data.show_qr !== undefined) showQr.value = data.show_qr
-  if (data.venue_name) venueName.value = data.venue_name
-  if (data.venue_logo !== undefined) venueLogo.value = data.venue_logo
-  if (data.venue_logo_light !== undefined) venueLogoLight.value = data.venue_logo_light
-  if (data.venue_logo_dark !== undefined) venueLogoDark.value = data.venue_logo_dark
-  if (song.value) {
-    playingFallback.value = false
-    triggerOverlay()
-  } else if (fallbackSongs.value.length && started.value) {
-    playFallback()
-  }
-}
-
-function playFallback() {
-  if (!fallbackSongs.value.length || fallbackPaused.value) return
-  if (!playingFallback.value) trackFallbackActivated(venueSlug)
-
-  // Reset cycle when all songs have been played
-  if (fallbackPlayed.value.size >= fallbackSongs.value.length) {
-    fallbackPlayed.value = new Set()
-  }
-
-  // Pick a random unplayed song to avoid always starting from the same position
-  const unplayed = fallbackSongs.value.filter(fb => !fallbackPlayed.value.has(fb.youtube_id))
-  if (!unplayed.length) return
-
-  const fb = unplayed[Math.floor(Math.random() * unplayed.length)]
-  playingFallback.value = true
-  fallbackPlayed.value.add(fb.youtube_id)
-  song.value = { id: null, youtube_id: fb.youtube_id, title: fb.title, is_fallback: true }
-  loadVideo(fb.youtube_id)
-  // Notify all clients (customer + admin dashboards) which fallback song is playing
-  fetch(`${API}/api/playback/fallback-playing?venue=${encodeURIComponent(venueSlug)}&youtube_id=${encodeURIComponent(fb.youtube_id)}&title=${encodeURIComponent(fb.title)}`, { method: 'POST' }).catch(() => {})
-}
-
-function nextFallback() {
-  playFallback()
-}
-
-// Start playing a user song that was waiting while fallback played.
-// If already_playing is false the song is still 'pending' in the DB — notify backend to promote it.
-async function startPendingUserSong(userSong) {
-  song.value = userSong
-  fallbackActive.value = false
-  playingFallback.value = false
-  pendingUserSong.value = null
-  loadVideo(userSong.youtube_id)
-  triggerOverlay()
-  fetchQueuePreview()
-
-  if (userSong.id && !userSong.already_playing) {
-    const adminToken = localStorage.getItem('bq_admin_token')
-    const hdrs = adminToken ? { Authorization: `Bearer ${adminToken}` } : {}
-    fetch(`${API}/api/queue/start-playing/${userSong.id}?venue=${encodeURIComponent(venueSlug)}`, {
-      method: 'POST',
-      headers: hdrs,
-    }).catch(() => {})
-  }
-}
-
-// Called when admin explicitly skips the current fallback song.
-// The backend sends now_playing_changed (sets pendingUserSong) then fallback_skip (triggers this).
-async function handleFallbackSkip() {
-  // 1. Use pending user song if available (already_playing=true means backend promoted it via admin skip)
-  if (pendingUserSong.value) {
-    await startPendingUserSong(pendingUserSong.value)
-    return
-  }
-
-  // 2. Safety-net: check backend directly (handles WS event ordering edge cases)
-  try {
-    const res = await fetch(`${API}/api/playback/now-playing?venue=${venueSlug}`)
-    if (res.ok) {
-      const data = await res.json()
-      if (data.song && !data.song.is_fallback) {
-        song.value = data.song
-        fallbackActive.value = false
-        playingFallback.value = false
-        pendingUserSong.value = null
-        loadVideo(data.song.youtube_id)
-        triggerOverlay()
-        fetchQueuePreview()
-        return
-      }
-    }
-  } catch { /* network error — fall through */ }
-
-  // 3. No queue song — play next random fallback
-  playFallback()
-}
-
-async function fetchQueuePreview() {
-  const res = await fetch(`${API}/api/queue?venue=${venueSlug}`)
-  if (!res.ok) return
-  const data = await res.json()
-  queue.value = data.queue.slice(0, 5)
-  preloadNextSong()
 }
 
 function preloadNextSong() {
@@ -504,21 +319,13 @@ async function onPlayerError(event) {
     const songId = song.value.id
     let adminToken = null
     try { adminToken = localStorage.getItem('bq_admin_token') } catch { /* */ }
-    const hdrs = { 'Content-Type': 'application/json' }
-    if (adminToken) hdrs['Authorization'] = `Bearer ${adminToken}`
-
     let handled = false
     for (let attempt = 0; attempt < 2 && !handled; attempt++) {
       if (attempt > 0) await new Promise(r => setTimeout(r, 500))
       try {
-        const res = await fetch(`${API}/api/playback/error`, {
-          method: 'POST',
-          headers: hdrs,
-          body: JSON.stringify({ song_id: songId, venue_slug: venueSlug, error_code: errorCode }),
-        })
-        if (res.ok) {
+        const data = await reportError(songId, errorCode, adminToken)
+        if (data) {
           handled = true
-          const data = await res.json()
           if (data.next_song) {
             song.value = data.next_song
             fallbackActive.value = false
@@ -573,48 +380,15 @@ async function onPlayerStateChange(event) {
   if (event.data === 0 && song.value) {
     trackSongEnded(song.value.youtube_id, song.value.title)
     if (playingFallback.value) {
-      // Fallback song ended — check pendingUserSong first, then backend
-      if (pendingUserSong.value) {
-        await startPendingUserSong(pendingUserSong.value)
-      } else {
-        try {
-          const res = await fetch(`${API}/api/playback/now-playing?venue=${venueSlug}`)
-          if (res.ok) {
-            const data = await res.json()
-            if (data.song && !data.song.is_fallback) {
-              song.value = data.song
-              fallbackActive.value = false
-              playingFallback.value = false
-              pendingUserSong.value = null
-              loadVideo(data.song.youtube_id)
-              triggerOverlay()
-              fetchQueuePreview()
-            } else {
-              nextFallback()
-            }
-          } else {
-            nextFallback()
-          }
-        } catch {
-          nextFallback()
-        }
-      }
+      await handleFallbackSongEnded()
     } else {
       // User song ended — notify backend to advance queue
       const songId = song.value.id
       let adminToken = null
       try { adminToken = localStorage.getItem('bq_admin_token') } catch { /* */ }
-      const hdrs = { 'Content-Type': 'application/json' }
-      if (adminToken) hdrs['Authorization'] = `Bearer ${adminToken}`
-
       try {
-        const res = await fetch(`${API}/api/playback/finished`, {
-          method: 'POST',
-          headers: hdrs,
-          body: JSON.stringify({ song_id: songId, venue_slug: venueSlug }),
-        })
-        if (res.ok) {
-          const data = await res.json()
+        const data = await reportFinished(songId, adminToken)
+        if (data) {
           if (data.next_song) {
             // Backend returned next song — load it directly without waiting for WS
             song.value = data.next_song
@@ -708,11 +482,7 @@ async function togglePlayPause() {
   playbackStatus.value = willPause ? 'paused' : 'playing'
   const adminToken = localStorage.getItem('bq_admin_token')
   if (adminToken) {
-    const endpoint = willPause ? 'pause' : 'resume'
-    fetch(`${API}/api/admin/playback/${endpoint}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${adminToken}` },
-    }).catch(() => {})
+    updatePlaybackStatus(playbackStatus.value, adminToken).catch(() => {})
   }
 }
 

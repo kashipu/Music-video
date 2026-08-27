@@ -3,10 +3,11 @@ import {
   getDailyPin,
   getNowPlaying,
   getQueue,
+  pausePlayback,
   reportFallbackPlaying,
   reportPlaybackError,
   reportPlaybackFinished,
-  setPlaybackStatus,
+  resumePlayback,
   startPlaying,
 } from '../services/kiosk.js'
 
@@ -158,6 +159,30 @@ export function useKioskPlayback({ venueSlug, getPlayer, loadVideo, triggerOverl
     playFallback()
   }
 
+  async function handleFallbackSongEnded() {
+    if (pendingUserSong.value) {
+      await startPendingUserSong(pendingUserSong.value)
+      return
+    }
+
+    try {
+      const data = await getNowPlaying(venueSlug)
+      if (data?.song && !data.song.is_fallback) {
+        song.value = data.song
+        fallbackActive.value = false
+        playingFallback.value = false
+        pendingUserSong.value = null
+        loadVideo(data.song.youtube_id)
+        triggerOverlay()
+        fetchQueuePreview()
+      } else {
+        nextFallback()
+      }
+    } catch {
+      nextFallback()
+    }
+  }
+
   async function fetchQueuePreview() {
     const data = await getQueue(venueSlug)
     if (!data) return
@@ -182,7 +207,7 @@ export function useKioskPlayback({ venueSlug, getPlayer, loadVideo, triggerOverl
   }
 
   function updatePlaybackStatus(status, adminToken) {
-    return setPlaybackStatus(status, adminToken)
+    return status === 'paused' ? pausePlayback(adminToken) : resumePlayback(adminToken)
   }
 
   return {
@@ -190,7 +215,7 @@ export function useKioskPlayback({ venueSlug, getPlayer, loadVideo, triggerOverl
     playbackStatus, queue, started, dailyPin, bannerText, venueName, venueLogo,
     venueLogoLight, venueLogoDark, showBrand, pendingUserSong, showQr, qrSize,
     syncNowPlaying, fetchDailyPin, fetchNowPlaying, playFallback, nextFallback,
-    startPendingUserSong, handleFallbackSkip, fetchQueuePreview, hideBannerAutomatically,
+    startPendingUserSong, handleFallbackSkip, handleFallbackSongEnded, fetchQueuePreview, hideBannerAutomatically,
     showBanner, reportError, reportFinished, updatePlaybackStatus,
   }
 }

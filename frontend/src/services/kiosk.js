@@ -1,12 +1,14 @@
 const API = import.meta.env.VITE_API_URL || ''
 
-async function request(path, { adminToken, headers, ...options } = {}) {
+async function request(path, { adminToken, json, headers, ...options } = {}) {
   const response = await fetch(`${API}${path}`, {
     ...options,
     headers: {
       ...(adminToken ? { Authorization: `Bearer ${adminToken}` } : {}),
+      ...(json ? { 'Content-Type': 'application/json' } : {}),
       ...headers,
     },
+    ...(json ? { body: JSON.stringify(json) } : {}),
   })
   if (!response.ok) {
     await response.json().catch(() => null)
@@ -39,8 +41,7 @@ export function reportPlaybackError(songId, venueSlug, errorCode, adminToken) {
   return request('/api/playback/error', {
     method: 'POST',
     adminToken,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ song_id: songId, venue_slug: venueSlug, error_code: errorCode }),
+    json: { song_id: songId, venue_slug: venueSlug, error_code: errorCode },
   })
 }
 
@@ -48,11 +49,14 @@ export function reportPlaybackFinished(songId, venueSlug, adminToken) {
   return request('/api/playback/finished', {
     method: 'POST',
     adminToken,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ song_id: songId, venue_slug: venueSlug }),
+    json: { song_id: songId, venue_slug: venueSlug },
   })
 }
 
-export function setPlaybackStatus(status, adminToken) {
-  return request(`/api/admin/playback/${status === 'paused' ? 'pause' : 'resume'}`, { method: 'POST', adminToken })
+export function pausePlayback(adminToken) {
+  return request('/api/admin/playback/pause', { method: 'POST', adminToken })
+}
+
+export function resumePlayback(adminToken) {
+  return request('/api/admin/playback/resume', { method: 'POST', adminToken })
 }
