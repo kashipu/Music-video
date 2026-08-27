@@ -11,6 +11,7 @@ import AdminHeader from '../components/AdminHeader.vue'
 import AdminSidebar from '../components/AdminSidebar.vue'
 import NowPlaying from '../components/NowPlaying.vue'
 import SubscriptionGate from '../components/SubscriptionGate.vue'
+import BackButton from '../components/ui/BackButton.vue'
 
 const toast = useToast()
 
@@ -1006,7 +1007,7 @@ function logout() {
 
           <!-- Table detail -->
           <div v-else>
-            <button class="back-btn" @click="selectedTable = null">&#8592; Volver a mesas</button>
+            <BackButton @click="selectedTable = null">&#8592; Volver a mesas</BackButton>
             <div class="card" style="margin-top:10px;">
               <div class="td-header">
                 <div>
@@ -1412,12 +1413,6 @@ function logout() {
 .td-num { font-weight: 700; font-size: 15px; margin-right: 8px; white-space: nowrap; }
 .td-user { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .td-count { font-size: 13px; color: var(--primary); font-weight: 600; white-space: nowrap; flex-shrink: 0; }
-.back-btn {
-  padding: 6px 12px; border-radius: 6px; background: var(--bg-card);
-  border: 1px solid var(--border); color: var(--text-muted);
-  font-size: 13px; font-weight: 600; cursor: pointer;
-}
-.back-btn:hover { border-color: var(--primary); color: var(--primary); }
 .td-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
 .td-header h3 { font-size: 18px; }
 .td-user-detail { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
