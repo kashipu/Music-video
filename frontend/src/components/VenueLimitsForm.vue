@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import FormField from './ui/FormField.vue'
 
 const props = defineProps({
   maxDurationSec: { type: Number, default: 600 },
@@ -17,21 +18,9 @@ const maxDurationMinutes = computed({
 
 <template>
   <div class="limits-grid">
-    <div class="form-group">
-      <label for="venue-max-duration">Máxima duración en minutos</label>
-      <input id="venue-max-duration" v-model.number="maxDurationMinutes" type="number" class="input-field" min="1" max="120" />
-      <small class="field-help">Cuánto puede durar cada canción que se reproduce en el bar.</small>
-    </div>
-    <div class="form-group">
-      <label for="venue-max-songs">Canciones por ventana</label>
-      <input id="venue-max-songs" :value="maxSongs" type="number" class="input-field" min="1" max="50" @input="emit('update:maxSongs', Number($event.target.value))" />
-      <small class="field-help">Cuántas canciones puede pedir un mismo usuario dentro de la ventana de tiempo.</small>
-    </div>
-    <div class="form-group">
-      <label for="venue-window-minutes">Ventana en minutos</label>
-      <input id="venue-window-minutes" :value="windowMinutes" type="number" class="input-field" min="1" max="720" @input="emit('update:windowMinutes', Number($event.target.value))" />
-      <small class="field-help">Cada cuántos minutos se reinicia ese límite de canciones por usuario.</small>
-    </div>
+    <FormField id="venue-max-duration" label="Máxima duración en minutos" hint="Cuánto puede durar cada canción que se reproduce en el bar." v-slot="{ id }"><input :id="id" v-model.number="maxDurationMinutes" type="number" class="input-field" min="1" max="120" /></FormField>
+    <FormField id="venue-max-songs" label="Canciones por ventana" hint="Cuántas canciones puede pedir un mismo usuario dentro de la ventana de tiempo." v-slot="{ id }"><input :id="id" :value="maxSongs" type="number" class="input-field" min="1" max="50" @input="emit('update:maxSongs', Number($event.target.value))" /></FormField>
+    <FormField id="venue-window-minutes" label="Ventana en minutos" hint="Cada cuántos minutos se reinicia ese límite de canciones por usuario." v-slot="{ id }"><input :id="id" :value="windowMinutes" type="number" class="input-field" min="1" max="720" @input="emit('update:windowMinutes', Number($event.target.value))" /></FormField>
   </div>
 </template>
 
@@ -45,23 +34,6 @@ const maxDurationMinutes = computed({
   gap: 12px;
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.form-group label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-muted);
-}
-
-.field-help {
-  color: var(--text-muted);
-  font-size: 12px;
-  line-height: 1.35;
-}
 
 /* =========================================
    BREAKPOINT 640px
