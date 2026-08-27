@@ -9,6 +9,7 @@ import KioskAudioBlocked from '../components/KioskAudioBlocked.vue'
 import KioskFallback from '../components/KioskFallback.vue'
 import KioskSongOverlay from '../components/KioskSongOverlay.vue'
 import KioskBottomBar from '../components/KioskBottomBar.vue'
+import KioskProgress from '../components/KioskProgress.vue'
 
 const route = useRoute()
 const venueSlug = route.params.venueSlug
@@ -767,9 +768,7 @@ onUnmounted(() => {
         <!-- Progress bar + controls (bottom, expands on hover) -->
         <div v-if="song && !audioBlocked" class="player-bar" @mouseenter="showKioskControls" @mouseleave="kioskControlsVisible = false" @click="showKioskControls">
           <!-- Thin progress line (always visible) -->
-          <div class="progress-thin">
-            <div class="progress-thin-fill" :style="{ width: progress + '%' }"></div>
-          </div>
+          <KioskProgress :progress="progress" />
           <!-- Expanded controls -->
           <Transition name="slide-up">
             <div v-if="kioskControlsVisible" class="player-bar-expanded">
