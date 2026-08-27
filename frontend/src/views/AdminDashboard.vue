@@ -9,6 +9,7 @@ import AdminBrandingPanel from '../components/AdminBrandingPanel.vue'
 import AdminAnalyticsPanel from '../components/AdminAnalyticsPanel.vue'
 import AdminSongSearch from '../components/AdminSongSearch.vue'
 import AdminQrCard from '../components/AdminQrCard.vue'
+import AdminVolumeControl from '../components/AdminVolumeControl.vue'
 import { useAdminDashboard } from '../composables/useAdminDashboard.js'
 
 const router = useRouter()
@@ -259,18 +260,12 @@ function logout() {
         </NowPlaying>
 
         <!-- Volume -->
-        <div class="card volume-card">
-          <div class="volume-row">
-            <button class="mute-btn" :class="{ muted: muted }" @click="toggleMute">
-              <span class="mute-icon" v-if="muted">&#128263;</span>
-              <span class="mute-icon" v-else-if="volume < 50">&#128265;</span>
-              <span class="mute-icon" v-else>&#128266;</span>
-              <span class="mute-text">{{ muted ? 'Unmute' : 'Mute' }}</span>
-            </button>
-            <input type="range" min="0" max="100" v-model.number="volume" class="volume-slider" :disabled="muted" @input="changeVolume" />
-            <span class="volume-value" :class="{ muted: muted }">{{ muted ? 'MUTE' : volume + '%' }}</span>
-          </div>
-        </div>
+        <AdminVolumeControl
+          v-model:volume="volume"
+          :muted="muted"
+          @change="changeVolume"
+          @toggle-mute="toggleMute"
+        />
 
         <!-- Kiosk Controls -->
         <AdminBrandingPanel :show-brand="showBrand" :loading-brand="loadingBrand" :show-qr="showQr" :loading-qr="loadingQr" :qr-size="qrSize" :loading-qr-size="loadingQrSize" v-model:banner-text="bannerText" :banner-active="bannerActive" :loading-banner="loadingBanner" @toggle-brand="toggleBrand" @toggle-qr="toggleQr" @set-qr-size="setQrSize" @activate-banner="activateBanner" @deactivate-banner="deactivateBanner" />
@@ -564,53 +559,6 @@ function logout() {
 .ctrl-skip { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); }
 .ctrl-skip:hover { background: var(--primary); color: white; }
 
-/* Volume */
-.volume-card { padding: 14px 16px; }
-.volume-row { display: flex; align-items: center; gap: 12px; }
-.mute-btn {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 16px; border-radius: 10px; font-size: 14px; flex-shrink: 0;
-  background: var(--bg-elevated); border: 1px solid var(--border);
-  color: var(--text); cursor: pointer;
-}
-.mute-icon { font-size: 20px; }
-.mute-text { font-size: 12px; font-weight: 700; text-transform: uppercase; }
-.mute-btn.muted { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
-.volume-value { font-size: 13px; font-weight: 700; color: var(--primary); min-width: 44px; text-align: right; }
-.volume-value.muted { color: var(--danger); }
-.volume-slider {
-  flex: 1; height: 6px; outline: none;
-  -webkit-appearance: none; appearance: none;
-  background: var(--bg-elevated); border-radius: 3px;
-  cursor: pointer;
-}
-.volume-slider:disabled { opacity: 0.3; cursor: not-allowed; }
-/* Webkit (Safari, Chrome) track */
-.volume-slider::-webkit-slider-runnable-track {
-  height: 6px; border-radius: 3px;
-  background: var(--bg-elevated);
-}
-/* Webkit thumb */
-.volume-slider::-webkit-slider-thumb {
-  -webkit-appearance: none; appearance: none;
-  width: 20px; height: 20px;
-  background: var(--primary); border-radius: 50%;
-  cursor: pointer; margin-top: -7px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
-}
-/* Firefox track */
-.volume-slider::-moz-range-track {
-  height: 6px; border-radius: 3px;
-  background: var(--bg-elevated); border: none;
-}
-/* Firefox thumb */
-.volume-slider::-moz-range-thumb {
-  width: 20px; height: 20px;
-  background: var(--primary); border-radius: 50%;
-  border: none; cursor: pointer;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
-}
-
 /* Queue List */
 .q-list { display: flex; flex-direction: column; gap: 6px; }
 .q-item {
@@ -739,8 +687,6 @@ function logout() {
   .ctrl-labeled { flex: 1; min-width: 0; }
   .stats-bar { flex-wrap: wrap; }
   .stat-pill { font-size: 12px; padding: 5px 10px; }
-  .volume-row { flex-wrap: wrap; }
-  .volume-slider { width: 100%; order: 3; }
   .q-item { padding: 10px 8px; }
   .q-handle { display: none; }
   .q-pos { display: none; }
