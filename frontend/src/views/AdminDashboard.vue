@@ -11,6 +11,8 @@ import AdminSongSearch from '../components/AdminSongSearch.vue'
 import AdminQrCard from '../components/AdminQrCard.vue'
 import AdminVolumeControl from '../components/AdminVolumeControl.vue'
 import AdminStatsBar from '../components/AdminStatsBar.vue'
+import AdminTablesCard from '../components/AdminTablesCard.vue'
+import AdminTablesView from '../components/AdminTablesView.vue'
 import { useAdminDashboard } from '../composables/useAdminDashboard.js'
 
 const router = useRouter()
@@ -164,28 +166,13 @@ function logout() {
         />
 
         <!-- Tables -->
-        <div class="card">
-          <p class="section-title">MESAS ({{ tables.length }})</p>
-          <div v-if="tables.length" class="tables-list">
-            <div v-for="table in tables" :key="table.table_number" class="table-item">
-              <div class="table-top">
-                <span class="table-num">#{{ table.table_number }}</span>
-                <span class="table-user">{{ table.user_name }}</span>
-                <span class="table-count">{{ table.songs.length }}</span>
-              </div>
-              <div class="table-status-row" v-if="table.songs.length">
-                <span v-if="table.songs_playing" class="ts-badge ts-playing">{{ table.songs_playing }} sonando</span>
-                <span v-if="table.songs_pending" class="ts-badge ts-pending">{{ table.songs_pending }} en cola</span>
-                <span v-if="table.songs_played" class="ts-badge ts-played">{{ table.songs_played }} reproducidas</span>
-              </div>
-              <div class="table-btns">
-                <button class="t-btn t-btn-reset" @click="resetTableLimit(table.table_number)" :disabled="loadingResetLimit[table.table_number]">{{ loadingResetLimit[table.table_number] ? '...' : 'Resetear' }}</button>
-                <button class="t-btn t-btn-kick" @click="kickTable(table.table_number)" :disabled="loadingKick[table.table_number]">{{ loadingKick[table.table_number] ? '...' : 'Expulsar' }}</button>
-              </div>
-            </div>
-          </div>
-          <p v-else class="text-muted">Sin mesas activas</p>
-        </div>
+        <AdminTablesCard
+          :tables="tables"
+          :loading-reset-limit="loadingResetLimit"
+          :loading-kick="loadingKick"
+          @reset-limit="resetTableLimit"
+          @kick-table="kickTable"
+        />
 
         <!-- Analytics Summary -->
         <div class="card" v-if="analytics">
@@ -360,55 +347,17 @@ function logout() {
         </template>
 
         <!-- ========== TABLES TAB ========== -->
-        <template v-if="rightTab === 'tables'">
-          <div v-if="!selectedTable">
-            <div v-if="!tables.length" class="card"><p class="text-muted">Sin mesas activas</p></div>
-            <div v-for="table in tables" :key="table.table_number" class="card table-detail-card" @click="selectedTable = table" style="cursor:pointer;">
-              <div class="td-row">
-                <div>
-                  <span class="td-num">#{{ table.table_number }}</span>
-                  <span class="td-user">{{ table.user_name }} ({{ table.user_phone }})</span>
-                </div>
-                <span class="td-count">{{ table.songs.length }}</span>
-              </div>
-              <div class="td-status-row" v-if="table.songs.length">
-                <span v-if="table.songs_playing" class="ts-badge ts-playing">{{ table.songs_playing }} sonando</span>
-                <span v-if="table.songs_pending" class="ts-badge ts-pending">{{ table.songs_pending }} en cola</span>
-                <span v-if="table.songs_played" class="ts-badge ts-played">{{ table.songs_played }} reproducidas</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Table detail -->
-          <div v-else>
-            <button class="back-btn" @click="selectedTable = null">&#8592; Volver a mesas</button>
-            <div class="card" style="margin-top:10px;">
-              <div class="td-header">
-                <div>
-                  <h3>Usuario #{{ selectedTable.table_number }}</h3>
-                  <p class="td-user-detail">{{ selectedTable.user_name }} &middot; {{ selectedTable.user_phone }}</p>
-                </div>
-                <div class="td-actions">
-                  <button class="t-btn t-btn-reset" @click="resetTableLimit(selectedTable.table_number)" :disabled="loadingResetLimit[selectedTable.table_number]">{{ loadingResetLimit[selectedTable.table_number] ? '...' : 'Resetear limite' }}</button>
-                  <button class="t-btn t-btn-kick" @click="kickTable(selectedTable.table_number); selectedTable = null" :disabled="loadingKick[selectedTable.table_number]">{{ loadingKick[selectedTable.table_number] ? '...' : 'Expulsar' }}</button>
-                </div>
-              </div>
-            </div>
-            <div class="card" style="margin-top:10px;">
-              <p class="section-title">CANCIONES PEDIDAS ({{ selectedTable.songs.length }})</p>
-              <div v-if="selectedTable.songs.length" class="td-songs">
-                <div v-for="(s, i) in selectedTable.songs" :key="i" class="td-song">
-                  <span class="td-song-status" :class="s.status"></span>
-                  <div class="td-song-info">
-                    <p class="td-song-title">{{ s.title }}</p>
-                    <p class="td-song-meta">{{ s.added_at }} &middot; {{ { playing: 'Sonando', pending: 'En cola', played: 'Reproducida', removed: 'Removida' }[s.status] || s.status }}</p>
-                  </div>
-                </div>
-              </div>
-              <p v-else class="text-muted">No ha pedido canciones</p>
-            </div>
-          </div>
-        </template>
+        <AdminTablesView
+          v-if="rightTab === 'tables'"
+          :tables="tables"
+          :selected-table="selectedTable"
+          :loading-reset-limit="loadingResetLimit"
+          :loading-kick="loadingKick"
+          @select-table="t => selectedTable = t"
+          @back="selectedTable = null"
+          @reset-limit="resetTableLimit"
+          @kick-table="tableNumber => { kickTable(tableNumber); selectedTable = null }"
+        />
 
         <!-- ========== ANALYTICS TAB ========== -->
         <AdminAnalyticsPanel
@@ -444,37 +393,6 @@ function logout() {
   margin: 0 auto; padding: 16px;
   min-width: 0;
 }
-
-/* Tables in sidebar */
-.tables-list { display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto; }
-.table-item {
-  padding: 8px; background: var(--bg-elevated);
-  border-radius: 8px; border: 1px solid var(--border);
-  min-width: 0;
-}
-.table-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 8px; min-width: 0; }
-.table-num { font-weight: 700; font-size: 13px; white-space: nowrap; flex-shrink: 0; }
-.table-user { font-size: 11px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
-.table-count {
-  font-size: 12px; font-weight: 700; color: var(--primary);
-  background: var(--primary-soft); padding: 2px 8px; border-radius: 10px;
-  flex-shrink: 0;
-}
-.table-status-row, .td-status-row { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
-.ts-badge {
-  font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px;
-}
-.ts-playing { background: var(--success-soft); color: var(--success); }
-.ts-pending { background: var(--warning-soft); color: var(--warning); }
-.ts-played { background: var(--border-soft); color: var(--text-muted); }
-.table-btns { display: flex; gap: 4px; }
-.t-btn {
-  padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; border: 1px solid;
-}
-.t-btn-reset { border-color: var(--secondary); color: var(--secondary); background: transparent; }
-.t-btn-reset:hover { background: var(--secondary); color: #000; }
-.t-btn-kick { border-color: var(--danger); color: var(--danger); background: transparent; }
-.t-btn-kick:hover { background: var(--danger); color: white; }
 
 /* Analytics mini */
 .analytics-mini { display: flex; gap: 12px; margin-bottom: 10px; }
@@ -596,40 +514,6 @@ function logout() {
 }
 .rt.active { background: var(--primary); color: white; }
 
-/* Tables Tab */
-.table-detail-card { transition: border-color 0.15s; }
-.table-detail-card:hover { border-color: var(--primary); }
-.td-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-width: 0; }
-.td-row > div { min-width: 0; flex: 1; }
-.td-num { font-weight: 700; font-size: 15px; margin-right: 8px; white-space: nowrap; }
-.td-user { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.td-count { font-size: 13px; color: var(--primary); font-weight: 600; white-space: nowrap; flex-shrink: 0; }
-.back-btn {
-  padding: 6px 12px; border-radius: 6px; background: var(--bg-card);
-  border: 1px solid var(--border); color: var(--text-muted);
-  font-size: 13px; font-weight: 600; cursor: pointer;
-}
-.back-btn:hover { border-color: var(--primary); color: var(--primary); }
-.td-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
-.td-header h3 { font-size: 18px; }
-.td-user-detail { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
-.td-actions { display: flex; gap: 6px; }
-.td-songs { display: flex; flex-direction: column; gap: 4px; }
-.td-song {
-  display: flex; align-items: center; gap: 10px;
-  padding: 8px; background: var(--bg-elevated); border-radius: 8px;
-}
-.td-song-status {
-  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-}
-.td-song-status.playing { background: var(--success); }
-.td-song-status.pending { background: var(--warning); }
-.td-song-status.played { background: var(--text-muted); }
-.td-song-status.removed { background: var(--danger); }
-.td-song-info { flex: 1; min-width: 0; }
-.td-song-title { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.td-song-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-
 /* Common */
 .text-muted { color: var(--text-muted); font-size: 14px; }
 
@@ -640,7 +524,6 @@ function logout() {
     display: block; position: fixed; inset: 0; z-index: 99;
     background: rgba(0,0,0,0.5);
   }
-  .tables-list { max-height: none; }
   .ctrl-labeled { flex: 1; min-width: 0; }
   .q-item { padding: 10px 8px; }
   .q-handle { display: none; }
@@ -650,12 +533,6 @@ function logout() {
   .fb-header { flex-direction: column; align-items: flex-start; gap: 8px; }
   .fb-btns { width: 100%; }
   .fb-toggle { flex: 1; text-align: center; }
-  .table-item { padding: 6px; }
-  .table-btns { flex-wrap: wrap; }
-  .table-songs-mini { max-height: none; }
-  .td-header { flex-direction: column; }
-  .td-actions { width: 100%; }
-  .td-actions .t-btn { flex: 1; text-align: center; }
 }
 
 @media (max-width: 480px) {
@@ -665,8 +542,6 @@ function logout() {
   .q-title { font-size: 12px; }
   .q-meta { font-size: 10px; }
   .q-btn-label { font-size: 9px; padding: 2px 6px; }
-  .td-row { flex-direction: column; align-items: flex-start; gap: 4px; }
-  .td-count { align-self: flex-end; }
   .song-pill { max-width: 120px; }
   .section-title { font-size: 11px; }
 }
