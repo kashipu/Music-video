@@ -2,8 +2,11 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import VenueLimitsForm from '../components/VenueLimitsForm.vue'
-import UiButton from '../components/ui/Button.vue'
-import UiInput from '../components/ui/Input.vue'
+import Button from '../components/ui/Button.vue'
+import Input from '../components/ui/Input.vue'
+import FormField from '../components/ui/FormField.vue'
+import FormError from '../components/ui/FormError.vue'
+import PasswordInput from '../components/ui/PasswordInput.vue'
 
 document.title = 'Repítela - Crear Bar'
 
@@ -113,38 +116,30 @@ async function createVenue() {
           <h2>Datos del bar</h2>
           <p class="section-help">Todos los campos son obligatorios.</p>
           <div class="form-grid">
-            <div class="form-group">
-              <label for="venue-name">Nombre del bar</label>
-              <UiInput id="venue-name" v-model="newVenue.name" placeholder="Bar La Esquina" required @input="autoSlug" />
-            </div>
-            <div class="form-group">
-              <label for="venue-slug">Identificador de la URL</label>
-              <UiInput id="venue-slug" v-model="newVenue.slug" placeholder="bar-la-esquina" required />
-            </div>
-            <div class="form-group">
-              <label for="venue-admin-user">Usuario administrador</label>
-              <UiInput id="venue-admin-user" v-model="newVenue.admin_username" placeholder="admin_bar" required />
-            </div>
-            <div class="form-group">
-              <label for="venue-admin-pass">Contraseña del administrador</label>
-              <UiInput id="venue-admin-pass" v-model="newVenue.admin_password" type="password" placeholder="********" required />
-            </div>
-            <div class="form-group">
-              <label for="venue-admin-email">Correo del admin</label>
-              <UiInput id="venue-admin-email" v-model="newVenue.admin_email" type="email" placeholder="admin@bar.com" required />
-            </div>
-            <div class="form-group">
-              <label for="venue-admin-phone">Teléfono</label>
-              <UiInput id="venue-admin-phone" v-model="newVenue.admin_phone" type="tel" placeholder="+57 300 123 4567" required />
-            </div>
-            <div class="form-group">
-              <label for="venue-admin-address">Dirección</label>
-              <UiInput id="venue-admin-address" v-model="newVenue.admin_address" placeholder="Calle 10 # 20-30" required />
-            </div>
-            <div class="form-group">
-              <label for="venue-admin-city">Ciudad</label>
-              <UiInput id="venue-admin-city" v-model="newVenue.admin_city" placeholder="Bogotá" required />
-            </div>
+            <FormField id="venue-name" label="Nombre del bar" required v-slot="{ id }">
+              <Input :id="id" v-model="newVenue.name" placeholder="Bar La Esquina" required @input="autoSlug" />
+            </FormField>
+            <FormField id="venue-slug" label="Identificador de la URL" required v-slot="{ id }">
+              <Input :id="id" v-model="newVenue.slug" placeholder="bar-la-esquina" required />
+            </FormField>
+            <FormField id="venue-admin-user" label="Usuario administrador" required v-slot="{ id }">
+              <Input :id="id" v-model="newVenue.admin_username" placeholder="admin_bar" required />
+            </FormField>
+            <FormField id="venue-admin-pass" label="Contraseña del administrador" required v-slot="{ id }">
+              <PasswordInput :id="id" v-model="newVenue.admin_password" placeholder="********" required />
+            </FormField>
+            <FormField id="venue-admin-email" label="Correo del admin" required v-slot="{ id }">
+              <Input :id="id" v-model="newVenue.admin_email" type="email" placeholder="admin@bar.com" required />
+            </FormField>
+            <FormField id="venue-admin-phone" label="Teléfono" required v-slot="{ id }">
+              <Input :id="id" v-model="newVenue.admin_phone" type="tel" placeholder="+57 300 123 4567" required />
+            </FormField>
+            <FormField id="venue-admin-address" label="Dirección" required v-slot="{ id }">
+              <Input :id="id" v-model="newVenue.admin_address" placeholder="Calle 10 # 20-30" required />
+            </FormField>
+            <FormField id="venue-admin-city" label="Ciudad" required v-slot="{ id }">
+              <Input :id="id" v-model="newVenue.admin_city" placeholder="Bogotá" required />
+            </FormField>
           </div>
         </section>
 
@@ -171,14 +166,12 @@ async function createVenue() {
           <h2>Datos de onboarding</h2>
           <p class="section-help">Opcionales. Puedes ajustarlos después desde el detalle del bar.</p>
           <div class="form-grid">
-            <div class="form-group">
-              <label for="venue-logo-url">Imagen del bar (URL, opcional)</label>
-              <UiInput id="venue-logo-url" v-model="newVenue.logo_url" placeholder="https://ejemplo.com/logo.png" />
-            </div>
-            <div class="form-group">
-              <label for="venue-qr-url">URL del QR (opcional)</label>
-              <UiInput id="venue-qr-url" v-model="newVenue.qr_url" placeholder="Se puede agregar después" />
-            </div>
+            <FormField id="venue-logo-url" label="Imagen del bar (URL, opcional)" v-slot="{ id }">
+              <Input :id="id" v-model="newVenue.logo_url" placeholder="https://ejemplo.com/logo.png" />
+            </FormField>
+            <FormField id="venue-qr-url" label="URL del QR (opcional)" v-slot="{ id }">
+              <Input :id="id" v-model="newVenue.qr_url" placeholder="Se puede agregar después" />
+            </FormField>
           </div>
           <VenueLimitsForm
             v-model:max-duration-sec="newVenue.max_duration_sec"
@@ -188,8 +181,8 @@ async function createVenue() {
           />
         </section>
 
-        <p v-if="createError" class="error-msg" role="alert">{{ createError }}</p>
-        <UiButton type="submit" :disabled="loading">{{ loading ? 'Creando...' : 'Crear bar' }}</UiButton>
+        <FormError :message="createError" />
+        <Button type="submit" :disabled="loading">{{ loading ? 'Creando...' : 'Crear bar' }}</Button>
       </form>
     </main>
   </div>
@@ -268,18 +261,6 @@ async function createVenue() {
   gap: 12px;
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.form-group label {
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 600;
-}
-
 .limits-form { margin-top: 12px; }
 
 .trial-options {
@@ -313,16 +294,6 @@ async function createVenue() {
 .trial-pill:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
-}
-
-.error-msg {
-  margin: 0 0 12px;
-  color: var(--danger);
-  font-size: 13px;
-  background: var(--danger-soft);
-  padding: 8px 12px;
-  border-radius: var(--radius-sm, 8px);
-  border: 1px solid var(--danger);
 }
 
 /* =========================================
