@@ -1,5 +1,5 @@
 import AdminHeader from './AdminHeader.vue'
-import logo from '../assets/logo-color-negativo.svg'
+import logo from '../assets/logo-color-sobre-oscuro.svg'
 
 export default {
   title: 'Components/AdminHeader', component: AdminHeader,

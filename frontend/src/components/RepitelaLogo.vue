@@ -1,8 +1,8 @@
 <script setup>
 import { computed } from 'vue'
 import { useTheme } from '../composables/useTheme.js'
-import logoLight from '../assets/logo-color-positivo.svg'
-import logoDark from '../assets/logo-color-negativo.svg'
+import logoSobreClaro from '../assets/logo-color-sobre-claro.svg'
+import logoSobreOscuro from '../assets/logo-color-sobre-oscuro.svg'
 
 const props = defineProps({
   alwaysDark: { type: Boolean, default: false },
@@ -10,7 +10,7 @@ const props = defineProps({
 })
 
 const { currentMode } = useTheme()
-const src = computed(() => (props.alwaysDark || currentMode.value === 'dark' ? logoDark : logoLight))
+const src = computed(() => (props.alwaysDark || currentMode.value === 'dark' ? logoSobreOscuro : logoSobreClaro))
 </script>
 
 <template>
