@@ -11,6 +11,7 @@ import SongSubmit from '../components/SongSubmit.vue'
 import SongPreview from '../components/SongPreview.vue'
 import CustomerHeader from '../components/CustomerHeader.vue'
 import CustomerMySongs from '../components/CustomerMySongs.vue'
+import CustomerQueuePreview from '../components/CustomerQueuePreview.vue'
 import FormError from '../components/ui/FormError.vue'
 import { trackSongConfirmed, trackSongCancelled, trackSessionKicked, trackSessionExpired, setAnalyticsContext } from '../utils/analytics.js'
 
@@ -320,18 +321,10 @@ async function cancelSong(songId) {
       />
 
       <!-- 4. NEXT UP -->
-      <div class="card section" v-if="nextFive.length">
-        <p class="section-title">&#9654; Siguiente · {{ queueStore.totalInQueue }} en cola</p>
-        <div v-for="(song, i) in nextFive" :key="song.id" class="q-item">
-          <span class="q-pos">{{ i + 1 }}</span>
-          <img :src="song.thumbnail_url || `https://i.ytimg.com/vi/${song.youtube_id}/mqdefault.jpg`" class="q-thumb" />
-          <div class="q-info">
-            <p class="q-title">{{ song.title }}</p>
-            <p class="q-meta">{{ song.added_by }}</p>
-          </div>
-        </div>
-        <p v-if="queueStore.totalInQueue > 5" class="more-text">+ {{ queueStore.totalInQueue - 5 }} mas en la cola</p>
-      </div>
+      <CustomerQueuePreview
+        :queue="nextFive"
+        :total-in-queue="queueStore.totalInQueue"
+      />
 
 
     </div>
@@ -368,42 +361,6 @@ async function cancelSong(songId) {
 .greeting-name { font-size: 22px; font-weight: 800; color: var(--text); line-height: 1.2; }
 .greeting-name strong { color: var(--primary); }
 .greeting-sub { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
-
-/* ── Sections ── */
-.section { margin-top: 14px; }
-/* Título compacto para secciones del tablero del cliente. */
-.section-title {
-  font-size: 11px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.6px; color: var(--text-muted); margin-bottom: 12px;
-}
-
-/* ── Queue items ── */
-.q-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 9px 0;
-}
-.q-item + .q-item { border-top: 1px solid var(--border-soft); }
-.q-pos {
-  width: 22px; height: 22px; border-radius: 50%;
-  background: var(--bg-elevated);
-  font-size: 11px; font-weight: 700; color: var(--text-muted);
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.q-thumb {
-  width: 48px; height: 36px; border-radius: 6px;
-  object-fit: cover; flex-shrink: 0;
-}
-.q-info { flex: 1; min-width: 0; }
-.q-title {
-  font-size: 13px; font-weight: 500;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.q-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-.more-text {
-  font-size: 12px; color: var(--text-muted);
-  text-align: center; padding: 10px 0 2px; opacity: 0.6;
-}
 
 /* ── Error Modal ── */
 .error-overlay {
