@@ -4,6 +4,10 @@ import { RouterLink, useRouter } from 'vue-router'
 import AuthSplitLayout from '../components/AuthSplitLayout.vue'
 import Button from '../components/ui/Button.vue'
 import Input from '../components/ui/Input.vue'
+import Select from '../components/ui/Select.vue'
+import FormField from '../components/ui/FormField.vue'
+import FormError from '../components/ui/FormError.vue'
+import PasswordInput from '../components/ui/PasswordInput.vue'
 import { useAuthStore } from '../stores/auth.js'
 import { useConfigStore } from '../stores/config.js'
 import { useGoogleAuth } from '../composables/useGoogleAuth.js'
@@ -66,7 +70,6 @@ function selectCity(value) {
 }
 
 const password = ref('')
-const showPassword = ref(false)
 const accepted = ref(false)
 const loading = ref(false)
 const error = ref('')
@@ -212,83 +215,57 @@ onBeforeUnmount(() => {
     </header>
     <form class="signup-form" @submit.prevent="submitSignup">
       <div class="form-grid">
-        <label class="form-group">
-          <span>Nombre del bar</span>
-          <Input v-model="venueName" required autocomplete="organization" />
-        </label>
-        <label class="form-group">
-          <span>Correo electrónico</span>
-          <Input v-model="email" type="email" required autocomplete="email" />
-        </label>
-        <label class="form-group">
-          <span>Teléfono</span>
-          <Input v-model="phone" type="tel" required autocomplete="tel" placeholder="Ej: +57 300 123 4567" />
-        </label>
-        <label class="form-group">
-          <span>Dirección</span>
-          <Input v-model="address" required autocomplete="street-address" placeholder="Ej: Calle 10 # 40-20" />
-        </label>
-        <label v-if="!customCountry" class="form-group">
-          <span>País</span>
-          <select :value="country" class="input-field select-field" required @change="selectCountry($event.target.value)">
+        <FormField id="signup-venue-name" label="Nombre del bar" required v-slot="{ id }">
+          <Input :id="id" v-model="venueName" required autocomplete="organization" />
+        </FormField>
+        <FormField id="signup-email" label="Correo electrónico" required v-slot="{ id }">
+          <Input :id="id" v-model="email" type="email" required autocomplete="email" />
+        </FormField>
+        <FormField id="signup-phone" label="Teléfono" required v-slot="{ id }">
+          <Input :id="id" v-model="phone" type="tel" required autocomplete="tel" placeholder="Ej: +57 300 123 4567" />
+        </FormField>
+        <FormField id="signup-address" label="Dirección" required v-slot="{ id }">
+          <Input :id="id" v-model="address" required autocomplete="street-address" placeholder="Ej: Calle 10 # 40-20" />
+        </FormField>
+        <FormField v-if="!customCountry" id="signup-country" label="País" required v-slot="{ id }">
+          <Select :id="id" :model-value="country" required @update:model-value="selectCountry">
             <option v-for="c in LATAM_COUNTRIES" :key="c.code" :value="c.name">
               {{ c.name }}
             </option>
             <option value="__other__">Otro</option>
-          </select>
-        </label>
-        <label v-else class="form-group">
-          <span>País</span>
-          <Input v-model="country" list="country-options" required autocomplete="country-name" placeholder="Escribe tu país" />
+          </Select>
+        </FormField>
+        <FormField v-else id="signup-country-custom" label="País" required v-slot="{ id }">
+          <Input :id="id" v-model="country" list="country-options" required autocomplete="country-name" placeholder="Escribe tu país" />
           <datalist id="country-options">
             <option v-for="c in LATAM_COUNTRIES" :key="c.code" :value="c.name" />
           </datalist>
-        </label>
-        <label v-if="!customCity" class="form-group">
-          <span>Ciudad</span>
-          <select :value="city" class="input-field select-field" required @change="selectCity($event.target.value)">
+        </FormField>
+        <FormField v-if="!customCity" id="signup-city" label="Ciudad" required v-slot="{ id }">
+          <Select :id="id" :model-value="city" required @update:model-value="selectCity">
             <option v-for="cityName in availableCities" :key="cityName" :value="cityName">
               {{ cityName }}
             </option>
             <option value="__other__">Otro</option>
-          </select>
-        </label>
-        <label v-else class="form-group">
-          <span>Ciudad</span>
-          <Input v-model="city" list="city-options" required autocomplete="address-level2" placeholder="Escribe tu ciudad" />
+          </Select>
+        </FormField>
+        <FormField v-else id="signup-city-custom" label="Ciudad" required v-slot="{ id }">
+          <Input :id="id" v-model="city" list="city-options" required autocomplete="address-level2" placeholder="Escribe tu ciudad" />
           <datalist id="city-options">
             <option v-for="cityName in availableCities" :key="cityName" :value="cityName" />
           </datalist>
-        </label>
+        </FormField>
       </div>
 
-      <label class="form-group full-width">
-        <span>Contraseña</span>
-        <span class="password-field">
-          <Input
-            v-model="password"
-            :type="showPassword ? 'text' : 'password'"
-            required
-            minlength="8"
-            autocomplete="new-password"
-          />
-          <button
-            type="button"
-            class="eye-btn"
-            :aria-label="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
-            @click="showPassword = !showPassword"
-          >
-            <svg v-if="!showPassword" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
-            <svg v-else viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
-              <line x1="1" y1="1" x2="23" y2="23" />
-            </svg>
-          </button>
-        </span>
-      </label>
+      <FormField id="signup-password" class="full-width" label="Contraseña" required v-slot="{ id }">
+        <PasswordInput
+          :id="id"
+          v-model="password"
+          required
+          minlength="8"
+          autocomplete="new-password"
+        />
+      </FormField>
 
       <label class="consent">
         <input v-model="accepted" type="checkbox" />
@@ -296,7 +273,7 @@ onBeforeUnmount(() => {
       </label>
 
       <div v-if="TURNSTILE_SITE_KEY" ref="turnstileElement" class="turnstile" />
-      <p v-if="error" class="error-msg" role="alert">{{ error }}</p>
+      <FormError :message="error" />
       <p v-if="success" class="success-msg" role="status">{{ success }}</p>
       <Button type="submit" :disabled="loading || !accepted || (TURNSTILE_SITE_KEY && !turnstileToken)">{{ loading ? 'Creando...' : 'Crear cuenta' }}</Button>
       <template v-if="config.google_signup">
@@ -366,58 +343,8 @@ onBeforeUnmount(() => {
   gap: 16px;
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 500;
-}
-
 .full-width {
   grid-column: 1 / -1;
-}
-
-.password-field {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.password-field :deep(.input-field) {
-  padding-right: 42px;
-}
-
-.select-field {
-  cursor: pointer;
-  appearance: auto;
-}
-
-.select-field option {
-  background: var(--bg-card);
-  color: var(--text);
-}
-
-.eye-btn {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 6px;
-  border-radius: var(--radius-sm);
-  transition: color 0.15s;
-}
-
-.eye-btn:hover {
-  color: var(--text);
 }
 
 .consent {
@@ -459,6 +386,10 @@ onBeforeUnmount(() => {
   text-decoration: none;
 }
 
+.google-consent a:hover {
+  text-decoration: underline;
+}
+
 .login-prompt {
   margin: 4px 0 0;
   font-size: 14px;
@@ -474,10 +405,6 @@ onBeforeUnmount(() => {
 }
 
 .login-link:hover {
-  text-decoration: underline;
-}
-
-.google-consent a:hover {
   text-decoration: underline;
 }
 
@@ -502,12 +429,6 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-
-.error-msg {
-  color: var(--danger);
-  text-align: center;
-  font-size: 13px;
 }
 
 .success-msg {
