@@ -10,6 +10,7 @@ import { useTheme } from '../composables/useTheme.js'
 import SongSubmit from '../components/SongSubmit.vue'
 import SongPreview from '../components/SongPreview.vue'
 import CustomerHeader from '../components/CustomerHeader.vue'
+import CustomerMySongs from '../components/CustomerMySongs.vue'
 import FormError from '../components/ui/FormError.vue'
 import { trackSongConfirmed, trackSongCancelled, trackSessionKicked, trackSessionExpired, setAnalyticsContext } from '../utils/analytics.js'
 
@@ -312,30 +313,11 @@ async function cancelSong(songId) {
       />
 
       <!-- 3. MY SONGS -->
-      <div class="card section" v-if="queueStore.mySongs.length">
-        <p class="section-title">&#127911; Tus canciones</p>
-        <div v-for="song in queueStore.mySongs" :key="song.id" class="my-item">
-          <img :src="`https://i.ytimg.com/vi/${song.youtube_id}/mqdefault.jpg`" class="my-thumb" />
-          <div class="my-info">
-            <p class="my-title">{{ song.title }}</p>
-            <div class="my-status">
-              <template v-if="song.status === 'playing'">
-                <span class="status-pill playing">&#9654; Sonando</span>
-              </template>
-              <template v-else>
-                <span class="status-pill pending">#{{ song.position }} en cola</span>
-              </template>
-            </div>
-          </div>
-          <button
-            v-if="song.status === 'pending'"
-            class="cancel-btn"
-            @click="cancelSong(song.id)"
-            :disabled="cancelLoading[song.id]"
-            title="Quitar de la cola"
-          >{{ cancelLoading[song.id] ? '...' : '&#10005;' }}</button>
-        </div>
-      </div>
+      <CustomerMySongs
+        :songs="queueStore.mySongs"
+        :cancel-loading="cancelLoading"
+        @cancel-song="cancelSong"
+      />
 
       <!-- 4. NEXT UP -->
       <div class="card section" v-if="nextFive.length">
@@ -394,39 +376,6 @@ async function cancelSong(songId) {
   font-size: 11px; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.6px; color: var(--text-muted); margin-bottom: 12px;
 }
-
-/* ── My Songs ── */
-.my-item {
-  display: flex; align-items: center; gap: 12px;
-  padding: 10px 0;
-}
-.my-item + .my-item { border-top: 1px solid var(--border-soft); }
-.my-thumb {
-  width: 52px; height: 39px; border-radius: 6px;
-  object-fit: cover; flex-shrink: 0;
-}
-.my-info { flex: 1; min-width: 0; }
-.my-title {
-  font-size: 13px; font-weight: 600; line-height: 1.3;
-  display: -webkit-box; -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical; overflow: hidden;
-}
-.my-status { margin-top: 5px; }
-.status-pill {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: 11px; font-weight: 600;
-  padding: 2px 8px; border-radius: 10px;
-}
-.status-pill.playing { background: var(--success-soft); color: var(--success); }
-.status-pill.pending { background: var(--warning-soft); color: var(--warning); }
-.cancel-btn {
-  width: 36px; height: 36px; border-radius: 50%;
-  background: var(--danger-soft); border: none;
-  color: var(--danger); font-size: 13px; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  transition: all 0.15s;
-}
-.cancel-btn:hover { background: var(--danger); color: white; }
 
 /* ── Queue items ── */
 .q-item {
