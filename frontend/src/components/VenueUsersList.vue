@@ -59,18 +59,12 @@ function relativeDate(dateStr) {
               <span class="songs-pill">{{ u.songs_count }}</span>
             </td>
             <td>
-              <span
-                class="badge-status"
-                :class="u.is_recurring ? 'badge-recurring' : 'badge-first'"
-              >
+              <span class="badge-status" :class="u.is_recurring ? 'badge-recurring' : 'badge-first'">
                 {{ u.is_recurring ? 'Sí' : 'No' }}
               </span>
             </td>
             <td>
-              <span
-                class="badge-status"
-                :class="u.data_consent ? 'badge-consent' : 'badge-noconsent'"
-              >
+              <span class="badge-status" :class="u.data_consent ? 'badge-consent' : 'badge-noconsent'">
                 {{ u.data_consent ? 'Sí' : 'No' }}
               </span>
             </td>
@@ -88,10 +82,7 @@ function relativeDate(dateStr) {
             <span class="user-card-phone">{{ u.phone }}</span>
           </div>
           <div class="user-card-badges">
-            <span
-              class="badge-status"
-              :class="u.is_recurring ? 'badge-recurring' : 'badge-first'"
-            >
+            <span class="badge-status" :class="u.is_recurring ? 'badge-recurring' : 'badge-first'">
               {{ u.is_recurring ? 'Recurrente' : '1ra vez' }}
             </span>
           </div>
@@ -127,219 +118,49 @@ function relativeDate(dateStr) {
 /* =========================================
    CSS GENERAL
    ========================================= */
-.table-card {
-  display: none;
-}
-
-.mobile-cards-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.user-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg, 12px);
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.user-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 8px;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 10px;
-}
-
-.user-title-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.user-card-name {
-  font-weight: 700;
-  font-size: 15px;
-  color: var(--text);
-}
-
-.user-card-phone {
-  font-size: 13px;
-  color: var(--text-muted);
-}
-
-.user-card-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px 16px;
-}
-
-.grid-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.grid-item.full-row {
-  grid-column: 1 / -1;
-  border-top: 1px dashed var(--border);
-  padding-top: 8px;
-}
-
-.item-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  font-weight: 600;
-  letter-spacing: 0.3px;
-}
-
-.item-val {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text);
-}
-
-.consent-val {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.dot-indicator {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  display: inline-block;
-}
-
-.dot-yes {
-  background-color: var(--success);
-}
-
-.dot-no {
-  background-color: var(--text-muted);
-}
-
-.badge-status {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 3px 9px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.badge-recurring {
-  background: var(--success-soft);
-  color: var(--success);
-}
-
-.badge-first {
-  background: var(--bg-elevated);
-  color: var(--text-muted);
-}
-
-.badge-consent {
-  background: var(--success-soft);
-  color: var(--success);
-}
-
-.badge-noconsent {
-  background: var(--bg-elevated);
-  color: var(--text-muted);
-}
-
-.songs-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 24px;
-  height: 24px;
-  padding: 0 6px;
-  background: var(--bg-elevated);
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--primary);
-}
+.table-card { display: none; }
+.mobile-cards-list { display: flex; flex-direction: column; gap: 12px; }
+.user-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg, 12px); padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.user-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+.user-title-wrap { display: flex; flex-direction: column; gap: 2px; }
+.user-card-name { font-weight: 700; font-size: 15px; color: var(--text); }
+.user-card-phone { font-size: 13px; color: var(--text-muted); }
+.user-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; }
+.grid-item { display: flex; flex-direction: column; gap: 2px; }
+.grid-item.full-row { grid-column: 1 / -1; border-top: 1px dashed var(--border); padding-top: 8px; }
+.item-label { font-size: 11px; text-transform: uppercase; color: var(--text-muted); font-weight: 600; letter-spacing: 0.3px; }
+.item-val { font-size: 13px; font-weight: 500; color: var(--text); }
+.consent-val { display: inline-flex; align-items: center; gap: 6px; }
+.dot-indicator { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.dot-yes { background-color: var(--success); }
+.dot-no { background-color: var(--text-muted); }
+.badge-status { display: inline-flex; align-items: center; justify-content: center; padding: 3px 9px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+.badge-recurring { background: var(--success-soft); color: var(--success); }
+.badge-first { background: var(--bg-elevated); color: var(--text-muted); }
+.badge-consent { background: var(--success-soft); color: var(--success); }
+.badge-noconsent { background: var(--bg-elevated); color: var(--text-muted); }
+.songs-pill { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 24px; padding: 0 6px; background: var(--bg-elevated); border-radius: 12px; font-size: 12px; font-weight: 700; color: var(--primary); }
 
 /* =========================================
    BREAKPOINT 850px (Desktop Table)
    ========================================= */
 @media (min-width: 850px) {
-  .mobile-cards-list {
-    display: none;
-  }
-
-  .table-card {
-    display: block;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-lg, 12px);
-    overflow: hidden;
-  }
-
-  .users-table {
-    width: 100%;
-    border-collapse: collapse;
-    text-align: left;
-    font-size: 13px;
-  }
-
-  .users-table th {
-    background: var(--bg-elevated);
-    padding: 12px 16px;
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    color: var(--text-muted);
-    letter-spacing: 0.5px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .users-table td {
-    padding: 14px 16px;
-    border-bottom: 1px solid var(--border);
-    color: var(--text);
-  }
-
-  .users-table tbody tr:last-child td {
-    border-bottom: none;
-  }
-
-  .users-table tbody tr:hover {
-    background: var(--bg-elevated);
-  }
-
-  .user-name {
-    font-weight: 600;
-    color: var(--text);
-  }
-
-  .user-phone-cell {
-    color: var(--text-muted);
-    font-family: monospace;
-    font-size: 13px;
-  }
-
-  .date-value {
-    white-space: nowrap;
-  }
+  .mobile-cards-list { display: none; }
+  .table-card { display: block; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg, 12px); overflow: hidden; }
+  .users-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+  .users-table th { background: var(--bg-elevated); padding: 12px 16px; font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+  .users-table td { padding: 14px 16px; border-bottom: 1px solid var(--border); color: var(--text); }
+  .users-table tbody tr:last-child td { border-bottom: none; }
+  .users-table tbody tr:hover { background: var(--bg-elevated); }
+  .user-name { font-weight: 600; color: var(--text); }
+  .user-phone-cell { color: var(--text-muted); font-family: monospace; font-size: 13px; }
+  .date-value { white-space: nowrap; }
 }
 
 /* =========================================
    BREAKPOINT 360px
    ========================================= */
 @media (max-width: 360px) {
-  .user-card-grid {
-    grid-template-columns: 1fr;
-  }
+  .user-card-grid { grid-template-columns: 1fr; }
 }
 </style>
