@@ -2,6 +2,7 @@
 import { onMounted, provide, readonly, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ThemeToggle from '../components/ui/ThemeToggle.vue'
+import BackButton from '../components/ui/BackButton.vue'
 import VenueLogo from '../components/VenueLogo.vue'
 
 const route = useRoute()
@@ -30,7 +31,7 @@ onMounted(fetchDetail)
   <div v-if="detail" class="vd">
     <header class="vd-header">
       <div class="vd-header-left">
-        <button class="back-btn" aria-label="Volver a bares" @click="router.push({ name: 'superadmin' })">&#8592; Bares</button>
+        <BackButton aria-label="Volver a bares" @click="router.push({ name: 'superadmin' })">&#8592; Bares</BackButton>
         <VenueLogo v-if="detail.venue.logo_url || detail.venue.logo_url_light || detail.venue.logo_url_dark" :src="detail.venue.logo_url" :src-light="detail.venue.logo_url_light" :src-dark="detail.venue.logo_url_dark" class="header-logo" alt="Logo" />
         <h1>{{ detail.venue.name }}</h1>
         <span class="status-badge" :class="detail.venue.active ? 'active' : 'inactive'">
@@ -79,23 +80,6 @@ onMounted(fetchDetail)
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-}
-
-.back-btn {
-  padding: 6px 12px;
-  border-radius: var(--radius-sm, 8px);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.back-btn:hover {
-  border-color: var(--primary);
-  color: var(--primary);
 }
 
 .header-logo {
