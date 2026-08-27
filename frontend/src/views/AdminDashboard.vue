@@ -13,6 +13,9 @@ import NowPlaying from '../components/NowPlaying.vue'
 import SubscriptionGate from '../components/SubscriptionGate.vue'
 import BackButton from '../components/ui/BackButton.vue'
 import AdminBrandingPanel from '../components/AdminBrandingPanel.vue'
+import AdminAnalyticsPanel from '../components/AdminAnalyticsPanel.vue'
+import AdminSongSearch from '../components/AdminSongSearch.vue'
+import { getAnalytics, getLibrary, addQueueSong } from '../services/admin.js'
 
 const toast = useToast()
 
@@ -43,7 +46,6 @@ const volumeBeforeMute = ref(80)
 const tables = ref([])
 const analytics = ref(null)
 const library = ref([])
-const librarySearch = ref('')
 const analyticsPeriod = ref('week')
 const fallbackSongs = ref([])
 const fallbackPaused = ref(false)
@@ -52,7 +54,6 @@ const bannerActive = ref(false)
 const showBrand = ref(true)
 const rightTab = ref('music')
 const selectedTable = ref(null)
-const addMode = ref('search')
 // Per-button loading states
 const loadingSkip = ref(false)
 const loadingPause = ref(false)
@@ -77,10 +78,6 @@ const loadingDeleteFallback = ref({})
 const loadingAddToFallback = ref({})
 const queueLimit = ref(15)
 const playedLimit = ref(15)
-const ytSearch = ref('')
-const ytResults = ref([])
-const ytSearching = ref(false)
-let ytSearchTimeout = null
 const dragIdx = ref(null)
 const dropIdx = ref(null)
 let ignoreNextReorder = false
@@ -254,8 +251,8 @@ async function fetchTables() {
 }
 
 async function fetchAnalytics() {
-  const res = await fetch(`${API}/api/admin/analytics?period=${analyticsPeriod.value}`, { headers: auth.adminHeaders() })
-  if (res.ok) analytics.value = await res.json()
+  const data = await getAnalytics(analyticsPeriod.value, auth.adminHeaders())
+  if (data) analytics.value = data
 }
 
 async function fetchFallbackPlaylist() {
@@ -263,10 +260,9 @@ async function fetchFallbackPlaylist() {
   if (res.ok) { const data = await res.json(); fallbackSongs.value = data.songs }
 }
 
-async function fetchLibrary() {
-  const q = librarySearch.value ? `&search=${encodeURIComponent(librarySearch.value)}` : ''
-  const res = await fetch(`${API}/api/admin/library?${q}`, { headers: auth.adminHeaders() })
-  if (res.ok) { const data = await res.json(); library.value = data.songs }
+async function fetchLibrary(search = '') {
+  const data = await getLibrary(search, auth.adminHeaders())
+  if (data) library.value = data.songs
 }
 
 // ===== PLAYBACK =====
@@ -496,18 +492,16 @@ async function addFromLibrary(youtubeId) {
   loadingAddFromLib.value = { ...loadingAddFromLib.value, [youtubeId]: true }
   addError.value = ''
   try {
-    const res = await fetch(`${API}/api/admin/queue/songs`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...auth.adminHeaders() },
-      body: JSON.stringify({ youtube_url: `https://www.youtube.com/watch?v=${youtubeId}` }),
-    })
-    if (!res.ok) {
-      const err = await res.json()
-      addError.value = err.detail || 'Error al agregar'
+    const data = await addQueueSong(youtubeId, auth.adminHeaders())
+    if (!data) {
+      addError.value = 'Error al agregar'
       setTimeout(() => { addError.value = '' }, 3000)
     } else {
       await fetchQueue()
     }
+  } catch {
+    addError.value = 'Error al agregar'
+    setTimeout(() => { addError.value = '' }, 3000)
   } finally { loadingAddFromLib.value = { ...loadingAddFromLib.value, [youtubeId]: false } }
 }
 async function requeueSong(youtubeId) {
@@ -548,22 +542,6 @@ async function resetTableLimit(tableNumber) {
     await fetchTables()
     if (r.ok) trackAdminAction('reset_limit', { table_number: tableNumber })
   } finally { loadingResetLimit.value = { ...loadingResetLimit.value, [tableNumber]: false } }
-}
-
-function onYtSearch() {
-  if (ytSearchTimeout) clearTimeout(ytSearchTimeout)
-  if (ytSearch.value.length < 2) { ytResults.value = []; return }
-  ytSearchTimeout = setTimeout(doYtSearch, 400)
-}
-
-async function doYtSearch() {
-  if (ytSearch.value.length < 2) return
-  ytSearching.value = true
-  try {
-    const res = await fetch(`${API}/api/queue/search?q=${encodeURIComponent(ytSearch.value)}`)
-    if (res.ok) { const data = await res.json(); ytResults.value = data.results }
-  } catch { /* */ }
-  finally { ytSearching.value = false }
 }
 
 function downloadQR() {
@@ -820,45 +798,13 @@ function logout() {
         <AdminBrandingPanel :show-brand="showBrand" :loading-brand="loadingBrand" :show-qr="showQr" :loading-qr="loadingQr" :qr-size="qrSize" :loading-qr-size="loadingQrSize" v-model:banner-text="bannerText" :banner-active="bannerActive" :loading-banner="loadingBanner" @toggle-brand="toggleBrand" @toggle-qr="toggleQr" @set-qr-size="setQrSize" @activate-banner="activateBanner" @deactivate-banner="deactivateBanner" />
 
         <!-- Add Song -->
-        <div class="card add-card">
-          <div class="add-tabs">
-            <button class="add-tab" :class="{ active: addMode === 'search' }" @click="addMode = 'search'">Buscar</button>
-            <button class="add-tab" :class="{ active: addMode === 'library' }" @click="addMode = 'library'; if (!library.length) fetchLibrary()">Biblioteca</button>
-          </div>
-
-          <!-- Search YouTube -->
-          <div v-if="addMode === 'search'">
-            <input v-model="ytSearch" class="input-field" placeholder="Buscar en YouTube..." @input="onYtSearch" @keydown.enter.prevent="doYtSearch" />
-            <p v-if="ytSearching" class="search-status">Buscando...</p>
-            <div class="library-list" v-if="ytResults.length">
-              <div v-for="r in ytResults" :key="r.youtube_id" class="lib-item">
-                <img :src="r.thumbnail_url" class="lib-thumb" @error="thumbFallback" />
-                <div class="lib-info">
-                  <p class="lib-title">{{ r.title }}</p>
-                  <p class="lib-artist">{{ r.duration }}</p>
-                </div>
-                <button class="ctrl-add-sm" :disabled="loadingAddFromLib[r.youtube_id]" @click.stop="addFromLibrary(r.youtube_id)">{{ loadingAddFromLib[r.youtube_id] ? '...' : '+' }}</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Library -->
-          <div v-if="addMode === 'library'" class="library">
-            <input v-model="librarySearch" class="input-field" placeholder="Buscar en biblioteca..." @input="fetchLibrary" />
-            <div class="library-list">
-              <div v-for="song in library" :key="song.youtube_id" class="lib-item">
-                <img :src="song.thumbnail_url" class="lib-thumb" @error="thumbFallback" />
-                <div class="lib-info">
-                  <p class="lib-title">{{ song.title }}</p>
-                  <p class="lib-artist">{{ song.artist }} &middot; {{ formatDuration(song.duration_sec) }}</p>
-                </div>
-                <button class="ctrl-add-sm" @click="addFromLibrary(song.youtube_id)" :disabled="loadingAddFromLib[song.youtube_id]">{{ loadingAddFromLib[song.youtube_id] ? '...' : '+' }}</button>
-              </div>
-              <p v-if="!library.length" class="text-muted">Sin canciones guardadas</p>
-            </div>
-          </div>
-          <p v-if="addError" class="add-error">{{ addError }}</p>
-        </div>
+        <AdminSongSearch
+          :library="library"
+          :loading-add="loadingAddFromLib"
+          :add-error="addError"
+          @add-song="addFromLibrary"
+          @fetch-library="fetchLibrary"
+        />
 
         <!-- Queue -->
         <div class="card">
@@ -999,69 +945,15 @@ function logout() {
         </template>
 
         <!-- ========== ANALYTICS TAB ========== -->
-        <template v-if="rightTab === 'analytics'">
-          <!-- Period selector -->
-          <div class="an-period">
-            <button v-for="p in [{k:'day',l:'Hoy'},{k:'week',l:'Semana'},{k:'month',l:'Mes'},{k:'all',l:'Todo'}]" :key="p.k"
-              class="an-period-btn" :class="{ active: analyticsPeriod === p.k }"
-              @click="analyticsPeriod = p.k; fetchAnalytics()">{{ p.l }}</button>
-          </div>
-
-          <div v-if="analytics">
-            <div class="an-grid">
-              <div class="an-card"><p class="an-val">{{ analytics.summary.total_songs_played }}</p><p class="an-label">Canciones</p></div>
-              <div class="an-card"><p class="an-val">{{ analytics.summary.unique_users }}</p><p class="an-label">Usuarios</p></div>
-              <div class="an-card"><p class="an-val">{{ analytics.summary.unique_songs }}</p><p class="an-label">Unicas</p></div>
-              <div class="an-card"><p class="an-val">{{ analytics.summary.avg_queue_length }}</p><p class="an-label">Prom. Cola</p></div>
-              <div class="an-card" v-if="analytics.summary.active_days !== undefined"><p class="an-val">{{ analytics.summary.active_days }}</p><p class="an-label">Dias activos</p></div>
-              <div class="an-card" v-if="analytics.summary.skip_count !== undefined"><p class="an-val">{{ analytics.summary.skip_count }} <small>({{ analytics.summary.skip_rate }}%)</small></p><p class="an-label">Skips</p></div>
-              <div class="an-card" v-if="analytics.summary.error_count !== undefined"><p class="an-val">{{ analytics.summary.error_count }} <small>({{ analytics.summary.error_rate }}%)</small></p><p class="an-label">Errores</p></div>
-              <div class="an-card" v-if="analytics.summary.fallback_activations !== undefined"><p class="an-val">{{ analytics.summary.fallback_activations }}</p><p class="an-label">Fallbacks</p></div>
-              <div class="an-card" v-if="analytics.summary.new_users !== undefined"><p class="an-val">{{ analytics.summary.new_users }}</p><p class="an-label">Nuevos</p></div>
-              <div class="an-card" v-if="analytics.summary.returning_users !== undefined"><p class="an-val">{{ analytics.summary.returning_users }}</p><p class="an-label">Recurrentes</p></div>
-            </div>
-            <div class="card" v-if="analytics.top_songs.length">
-              <p class="section-title">TOP CANCIONES</p>
-              <div v-for="(s, i) in analytics.top_songs" :key="s.youtube_id" class="an-song">
-                <span class="an-pos">{{ i + 1 }}</span>
-                <img :src="`https://i.ytimg.com/vi/${s.youtube_id}/mqdefault.jpg`" class="an-thumb" />
-                <span class="an-title">{{ s.title }}</span>
-                <span class="an-count">{{ s.times_played }}x</span>
-                <button class="q-btn-label q-btn-fallback"
-                  @click="addToFallback(s.youtube_id)"
-                  :disabled="fallbackYoutubeIds.has(s.youtube_id) || loadingAddToFallback[s.youtube_id]"
-                  :title="fallbackYoutubeIds.has(s.youtube_id) ? 'Ya en playlist de respaldo' : 'Agregar a playlist de respaldo'">
-                  {{ loadingAddToFallback[s.youtube_id] ? '...' : fallbackYoutubeIds.has(s.youtube_id) ? '&#10003; En respaldo' : '+ Respaldo' }}
-                </button>
-              </div>
-            </div>
-            <div class="card" v-if="analytics.top_artists && analytics.top_artists.length" style="margin-top:12px;">
-              <p class="section-title">TOP ARTISTAS</p>
-              <div v-for="(a, i) in analytics.top_artists" :key="a.artist" class="an-song">
-                <span class="an-pos">{{ i + 1 }}</span>
-                <span class="an-title">{{ a.artist }}</span>
-                <span class="an-count">{{ a.count }}x</span>
-              </div>
-            </div>
-            <div class="card" v-if="analytics.peak_hours.length" style="margin-top:12px;">
-              <p class="section-title">HORAS PICO</p>
-              <div v-for="h in analytics.peak_hours.slice(0, 8)" :key="h.hour" class="an-hour">
-                <span class="an-hour-label">{{ h.hour }}</span>
-                <div class="an-hour-bar"><div class="an-hour-fill" :style="{ width: (h.requests / analytics.peak_hours[0].requests * 100) + '%' }"></div></div>
-                <span class="an-hour-count">{{ h.requests }}</span>
-              </div>
-            </div>
-            <div class="card" v-if="analytics.top_tables && analytics.top_tables.length" style="margin-top:12px;">
-              <p class="section-title">USUARIOS MAS ACTIVOS</p>
-              <div v-for="(t, i) in analytics.top_tables" :key="t.table_number" class="an-song">
-                <span class="an-pos">{{ i + 1 }}</span>
-                <span class="an-title">{{ t.table_number }}</span>
-                <span class="an-count">{{ t.total_songs }} canciones</span>
-              </div>
-            </div>
-          </div>
-          <div v-else class="card"><p class="text-muted">Cargando analytics...</p></div>
-        </template>
+        <AdminAnalyticsPanel
+          v-if="rightTab === 'analytics'"
+          :analytics="analytics"
+          :analytics-period="analyticsPeriod"
+          :fallback-youtube-ids="fallbackYoutubeIds"
+          :loading-add-to-fallback="loadingAddToFallback"
+          @period="p => { analyticsPeriod = p; fetchAnalytics() }"
+          @add-fallback="addToFallback"
+        />
 
       </main>
     </div>
@@ -1255,38 +1147,6 @@ function logout() {
   box-shadow: 0 1px 4px rgba(0,0,0,0.3);
 }
 
-/* Add Song */
-.add-card { padding: 14px; }
-.add-tabs {
-  display: flex; gap: 4px; background: var(--bg-elevated);
-  border-radius: 8px; padding: 3px; margin-bottom: 10px;
-}
-.add-tab {
-  flex: 1; padding: 6px; border-radius: 6px; background: transparent;
-  color: var(--text-muted); font-size: 12px; font-weight: 600;
-  text-align: center; transition: all 0.15s;
-}
-.add-tab.active { background: var(--primary); color: var(--text-on-primary); }
-.search-status { font-size: 13px; color: var(--text-muted); text-align: center; padding: 12px 0; }
-.add-error { color: var(--danger); font-size: 13px; margin-top: 8px; font-weight: 500; }
-.add-row { display: flex; gap: 8px; }
-.add-row .input-field { flex: 1; }
-.ctrl-add {
-  width: 44px; min-width: 44px; height: 44px; border-radius: 50%;
-  background: var(--primary); border: 2px solid var(--primary);
-  color: white; font-size: 22px; display: flex; align-items: center; justify-content: center;
-}
-.ctrl-add:disabled { opacity: 0.4; }
-.ctrl-add-sm { width: 32px; height: 32px; min-width: 32px; background: var(--primary); border: 2px solid var(--primary); color: white; font-size: 18px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
-.library { display: flex; flex-direction: column; gap: 10px; }
-.library-list { max-height: 300px; overflow-y: auto; }
-.lib-item { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); }
-.lib-item:last-child { border-bottom: none; }
-.lib-thumb { width: 48px; height: 36px; border-radius: 4px; object-fit: cover; }
-.lib-info { flex: 1; min-width: 0; }
-.lib-title { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lib-artist { font-size: 11px; color: var(--text-muted); }
-
 /* Queue List */
 .q-list { display: flex; flex-direction: column; gap: 6px; }
 .q-item {
@@ -1395,32 +1255,6 @@ function logout() {
 .td-song-title { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .td-song-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
 
-/* Analytics Tab */
-.an-period { display: flex; gap: 6px; margin-bottom: 12px; }
-.an-period-btn { padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border); cursor: pointer; }
-.an-period-btn.active { background: var(--primary); color: var(--text-on-primary, #fff); border-color: var(--primary); }
-.an-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 12px; }
-.an-card { background: var(--bg-card); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); padding: 16px; text-align: center; }
-.an-val { font-size: 26px; font-weight: 700; }
-.an-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-.an-song {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 0; border-bottom: 1px solid var(--border-soft);
-}
-.an-song:last-child { border-bottom: none; }
-.an-pos { font-weight: 700; font-size: 13px; color: var(--text-muted); width: 20px; text-align: center; flex-shrink: 0; }
-.an-thumb { width: 48px; height: 36px; border-radius: 4px; object-fit: cover; flex-shrink: 0; }
-.an-title { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.an-count { font-weight: 600; color: var(--primary); font-size: 13px; flex-shrink: 0; min-width: 28px; text-align: right; }
-.an-hour {
-  display: flex; align-items: center; gap: 10px;
-  padding: 6px 0;
-}
-.an-hour-label { font-size: 13px; font-weight: 600; width: 45px; flex-shrink: 0; }
-.an-hour-bar { flex: 1; height: 8px; background: var(--bg-elevated); border-radius: 4px; overflow: hidden; }
-.an-hour-fill { height: 100%; background: var(--primary); border-radius: 4px; transition: width 0.3s; }
-.an-hour-count { font-size: 12px; color: var(--text-muted); width: 30px; text-align: right; flex-shrink: 0; }
-
 /* Common */
 .text-muted { color: var(--text-muted); font-size: 14px; }
 
@@ -1445,20 +1279,13 @@ function logout() {
   .fb-header { flex-direction: column; align-items: flex-start; gap: 8px; }
   .fb-btns { width: 100%; }
   .fb-toggle { flex: 1; text-align: center; }
-  .add-row { flex-wrap: wrap; }
-  .add-row .input-field { width: 100%; }
   .qr-img { width: 150px; height: 150px; }
   .table-item { padding: 6px; }
   .table-btns { flex-wrap: wrap; }
   .table-songs-mini { max-height: none; }
-  .an-grid { grid-template-columns: repeat(3, 1fr); }
   .td-header { flex-direction: column; }
   .td-actions { width: 100%; }
   .td-actions .t-btn { flex: 1; text-align: center; }
-  .lib-item { gap: 8px; }
-  .lib-thumb { width: 40px; height: 30px; }
-  .ctrl-add { width: 36px; min-width: 36px; height: 36px; font-size: 18px; }
-  .ctrl-add-sm { width: 28px; height: 28px; min-width: 28px; font-size: 16px; }
 }
 
 @media (max-width: 480px) {
@@ -1471,8 +1298,6 @@ function logout() {
   .td-row { flex-direction: column; align-items: flex-start; gap: 4px; }
   .td-count { align-self: flex-end; }
   .song-pill { max-width: 120px; }
-  .an-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
-  .an-val { font-size: 20px; }
   .section-title { font-size: 11px; }
 }
 
