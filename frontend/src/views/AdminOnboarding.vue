@@ -109,39 +109,59 @@ async function submit() {
     </header>
     <form class="onboarding-form" @submit.prevent="submit">
       <div class="form-grid">
-        <FormField label="Nombre completo" required v-slot="{ id }"><Input :id="id" v-model="fullName" required autocomplete="name" /></FormField>
-        <FormField label="Teléfono" required v-slot="{ id }"><Input :id="id" v-model="phone" type="tel" required autocomplete="tel" placeholder="Ej: +57 300 123 4567" /></FormField>
-        <FormField label="Cargo" required v-slot="{ id }"><Select :id="id" v-model="role" required>
+        <FormField label="Nombre completo" required v-slot="{ id }">
+          <Input :id="id" v-model="fullName" required autocomplete="name" />
+        </FormField>
+        <FormField label="Teléfono" required v-slot="{ id }">
+          <Input :id="id" v-model="phone" type="tel" required autocomplete="tel" placeholder="Ej: +57 300 123 4567" />
+        </FormField>
+        <FormField label="Cargo" required v-slot="{ id }">
+          <Select :id="id" v-model="role" required>
             <option value="owner">Dueño</option>
             <option value="manager">Administrador</option>
-          </Select></FormField>
-        <FormField label="Nombre del bar" required v-slot="{ id }"><Input :id="id" v-model="venueName" required autocomplete="organization" /></FormField>
-        <FormField label="Dirección del local" required v-slot="{ id }"><Input :id="id" v-model="venueAddress" required autocomplete="street-address" placeholder="Ej: Calle 10 # 40-20" /></FormField>
-        <FormField label="Temática" required v-slot="{ id }"><Select :id="id" v-model="venueType" required>
+          </Select>
+        </FormField>
+        <FormField label="Nombre del bar" required v-slot="{ id }">
+          <Input :id="id" v-model="venueName" required autocomplete="organization" />
+        </FormField>
+        <FormField label="Dirección del local" required v-slot="{ id }">
+          <Input :id="id" v-model="venueAddress" required autocomplete="street-address" placeholder="Ej: Calle 10 # 40-20" />
+        </FormField>
+        <FormField label="Temática" required v-slot="{ id }">
+          <Select :id="id" v-model="venueType" required>
             <option value="discoteca">Discoteca</option>
             <option value="rock">Rock</option>
             <option value="musica_popular">Música popular</option>
             <option value="otro">Otro</option>
-          </Select></FormField>
-        <FormField v-if="venueType === 'otro'" label="¿Cuál temática?" required v-slot="{ id }"><Input :id="id" v-model="venueTypeOther" required /></FormField>
-        <FormField v-if="!customCountry" label="País" required v-slot="{ id }"><Select :id="id" :model-value="country" required @change="selectCountry($event.target.value)">
+          </Select>
+        </FormField>
+        <FormField v-if="venueType === 'otro'" label="¿Cuál temática?" required v-slot="{ id }">
+          <Input :id="id" v-model="venueTypeOther" required />
+        </FormField>
+        <FormField v-if="!customCountry" label="País" required v-slot="{ id }">
+          <Select :id="id" :model-value="country" required @change="selectCountry($event.target.value)">
             <option v-for="c in LATAM_COUNTRIES" :key="c.code" :value="c.name">
               {{ c.name }}
             </option>
             <option value="__other__">Otro</option>
-          </Select></FormField>
-        <FormField v-else label="País" required v-slot="{ id }"><Input :id="id" v-model="country" list="country-options" required autocomplete="country-name" placeholder="Escribe tu país" />
+          </Select>
+        </FormField>
+        <FormField v-else label="País" required v-slot="{ id }">
+          <Input :id="id" v-model="country" list="country-options" required autocomplete="country-name" placeholder="Escribe tu país" />
           <datalist id="country-options">
             <option v-for="c in LATAM_COUNTRIES" :key="c.code" :value="c.name" />
           </datalist>
         </FormField>
-        <FormField v-if="!customCity" label="Ciudad" required v-slot="{ id }"><Select :id="id" :model-value="city" required @change="selectCity($event.target.value)">
+        <FormField v-if="!customCity" label="Ciudad" required v-slot="{ id }">
+          <Select :id="id" :model-value="city" required @change="selectCity($event.target.value)">
             <option v-for="cityName in availableCities" :key="cityName" :value="cityName">
               {{ cityName }}
             </option>
             <option value="__other__">Otro</option>
-          </Select></FormField>
-        <FormField v-else label="Ciudad" required v-slot="{ id }"><Input :id="id" v-model="city" list="city-options" required autocomplete="address-level2" placeholder="Escribe tu ciudad" />
+          </Select>
+        </FormField>
+        <FormField v-else label="Ciudad" required v-slot="{ id }">
+          <Input :id="id" v-model="city" list="city-options" required autocomplete="address-level2" placeholder="Escribe tu ciudad" />
           <datalist id="city-options">
             <option v-for="cityName in availableCities" :key="cityName" :value="cityName" />
           </datalist>
@@ -155,6 +175,9 @@ async function submit() {
 </template>
 
 <style scoped>
+/* =========================================
+   CSS GENERAL
+   ========================================= */
 .onboarding-header {
   margin-bottom: 24px;
   text-align: center;
@@ -184,6 +207,9 @@ async function submit() {
   gap: 16px;
 }
 
+/* =========================================
+   BREAKPOINT 700px
+   ========================================= */
 @media (min-width: 700px) {
   .form-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
