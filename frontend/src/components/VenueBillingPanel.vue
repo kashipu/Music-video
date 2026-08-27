@@ -6,14 +6,18 @@ import Badge from './ui/Badge.vue'
 import UiButton from './ui/Button.vue'
 import UiInput from './ui/Input.vue'
 import FormError from './ui/FormError.vue'
+import BillingSummary from './billing/BillingSummary.vue'
+import { postBillingAction, updateBillingEvent } from '../services/billing.js'
 
 const route = useRoute()
-const API = import.meta.env.VITE_API_URL || ''
 const venueId = route.params.venueId
 const venueDetail = inject('venueDetail')
 if (!venueDetail) throw new Error('venueDetail no disponible')
 const { detail, refresh } = venueDetail
 const { confirm } = useConfirmModal()
+
+// ponytail: coordinación de formularios, confirmaciones y edición de historial;
+// se mantiene aquí hasta extraer esos flujos sin duplicar su estado compartido.
 
 const actionTab = ref('payment')
 const busy = ref(false)
@@ -33,10 +37,6 @@ const adjustNotes = ref('')
 const saveMsg = ref('')
 const errorMsg = ref('')
 const showAllHistory = ref(false)
-
-function headers() {
-  return { Authorization: `Bearer ${localStorage.getItem('bq_super_token')}` }
-}
 
 const currencyFormatter = new Intl.NumberFormat('es-CO', {
   style: 'currency',
@@ -209,19 +209,6 @@ function flashOk(msg) {
   setTimeout(() => { saveMsg.value = '' }, 3000)
 }
 
-async function post(path, body) {
-  const res = await fetch(`${API}/api/superadmin/venues/${venueId}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...headers() },
-    body: body ? JSON.stringify(body) : undefined,
-  })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.detail || 'Error al guardar')
-  }
-  return res
-}
-
 async function markAsPaid() {
   if (!isValidAmount.value || !isValidPaidUntilDate.value) return
   const amountNumber = Number(amountCOP.value)
@@ -239,7 +226,7 @@ async function markAsPaid() {
 
   busy.value = true
   try {
-    await post('/mark-paid', {
+    await postBillingAction(venueId, '/mark-paid', localStorage.getItem('bq_super_token'), {
       days: daysBetween(referenceStart.value, paidUntilDate.value),
       amount_cents: Math.round(amountNumber * 100),
       notes: notesText || null,
@@ -269,7 +256,7 @@ async function extendTrial() {
 
   busy.value = true
   try {
-    await post('/extend-trial', { days: daysBetween(referenceStart.value, trialUntilDate.value) })
+    await postBillingAction(venueId, '/extend-trial', localStorage.getItem('bq_super_token'), { days: daysBetween(referenceStart.value, trialUntilDate.value) })
     flashOk(`Prueba extendida hasta el ${untilLabel}`)
     trialUntilDate.value = ''
     await refresh()
@@ -293,7 +280,7 @@ async function adjustExpiry() {
 
   busy.value = true
   try {
-    await post('/adjust-expiry', {
+    await postBillingAction(venueId, '/adjust-expiry', localStorage.getItem('bq_super_token'), {
       paid_until: adjustDate.value,
       notes: adjustNotes.value.trim(),
     })
@@ -321,7 +308,7 @@ async function voidEvent(item) {
 
   voidingEventId.value = item.id
   try {
-    await post(`/billing/events/${item.id}/void`)
+    await postBillingAction(venueId, `/billing/events/${item.id}/void`, localStorage.getItem('bq_super_token'))
     flashOk('Movimiento anulado')
     await refresh()
   } catch (e) {
@@ -379,15 +366,7 @@ async function saveEventNote(item) {
 
   savingNote.value = true
   try {
-    const res = await fetch(`${API}/api/superadmin/venues/${venueId}/billing/events/${item.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', ...headers() },
-      body: JSON.stringify(body),
-    })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      throw new Error(err.detail || 'Error al actualizar el movimiento')
-    }
+    await updateBillingEvent(venueId, item.id, localStorage.getItem('bq_super_token'), body)
     cancelEditNote()
     flashOk('Movimiento actualizado')
     await refresh()
@@ -408,48 +387,14 @@ async function saveEventNote(item) {
       'billing-suspended': billing.status === 'suspended',
     }"
   >
-    <!-- Header -->
-    <div class="billing-header">
-      <p class="section-title">SUSCRIPCIÓN</p>
-      <Badge :variant="statusBadgeInfo.variant">
-        {{ statusBadgeInfo.label }}
-      </Badge>
-    </div>
-
-    <!-- Hero: días + período + qué lo define -->
-    <div class="billing-hero">
-      <div class="hero-days">
-        <span class="days-number" :class="'ps-' + billing.status">
-          {{ billing.days_remaining != null ? Math.abs(billing.days_remaining) : '—' }}
-        </span>
-        <span class="days-label">{{ periodSubtitle }}</span>
-      </div>
-      <div v-if="billing.period_start || billing.period_end" class="period-range">
-        <span v-if="billing.period_start && billing.period_end">
-          {{ formatDate(billing.period_start) }} → {{ formatDate(billing.period_end) }}
-        </span>
-        <span v-else-if="billing.period_end">
-          Cubierto hasta el {{ formatDate(billing.period_end) }}
-        </span>
-      </div>
-      <div v-if="definingLabel" class="defining-line">
-        Definido por: <strong>{{ definingLabel }}</strong>
-      </div>
-    </div>
-
-    <!-- Totales de conciliación -->
-    <div v-if="hasTotals" class="totals-row">
-      <div v-if="paymentTotals.wompi" class="total-chip">
-        <span class="total-label">Pagado vía Wompi</span>
-        <strong>{{ formatCurrency(paymentTotals.wompi.amount_cents / 100) }}</strong>
-        <span class="total-count">{{ paymentTotals.wompi.count }} pago{{ paymentTotals.wompi.count === 1 ? '' : 's' }}</span>
-      </div>
-      <div v-if="paymentTotals.manual" class="total-chip">
-        <span class="total-label">Pagado manual</span>
-        <strong>{{ formatCurrency(paymentTotals.manual.amount_cents / 100) }}</strong>
-        <span class="total-count">{{ paymentTotals.manual.count }} pago{{ paymentTotals.manual.count === 1 ? '' : 's' }}</span>
-      </div>
-    </div>
+    <BillingSummary
+      :billing="billing"
+      :status-badge-info="statusBadgeInfo"
+      :period-subtitle="periodSubtitle"
+      :defining-label="definingLabel"
+      :payment-totals="paymentTotals"
+      :has-totals="hasTotals"
+    />
 
     <div class="billing-divider" />
 
@@ -685,113 +630,12 @@ async function saveEventNote(item) {
   padding: 16px;
 }
 
-.billing-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-/* El encabezado de facturación ya tiene separación en .billing-header. */
-.section-title {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-}
-
 .billing-overdue {
   border-color: var(--warning) !important;
 }
 
 .billing-suspended {
   border-color: var(--danger) !important;
-}
-
-.billing-hero {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.hero-days {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-}
-
-.days-number {
-  font-size: 28px;
-  font-weight: 700;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
-
-.days-label {
-  font-size: 13px;
-  color: var(--text-muted);
-  font-weight: 500;
-}
-
-.period-range {
-  font-size: 13px;
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-  margin-top: 2px;
-}
-
-.defining-line {
-  font-size: 12px;
-  color: var(--text-muted);
-  margin-top: 2px;
-}
-
-.defining-line strong {
-  color: var(--text);
-  font-weight: 600;
-}
-
-.ps-active { color: var(--success); }
-.ps-overdue { color: var(--warning); }
-.ps-suspended { color: var(--danger); }
-
-/* Totales de conciliación */
-.totals-row {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 12px;
-}
-
-.total-chip {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 8px 12px;
-  background: var(--bg-elevated);
-  border-radius: var(--radius-sm, 8px);
-  min-width: 130px;
-}
-
-.total-label {
-  font-size: 11px;
-  color: var(--text-muted);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-}
-
-.total-chip strong {
-  font-size: 15px;
-  color: var(--text);
-}
-
-.total-count {
-  font-size: 11px;
-  color: var(--text-muted);
 }
 
 .billing-divider {
@@ -1129,10 +973,6 @@ async function saveEventNote(item) {
     padding: 20px;
   }
 
-  .days-number {
-    font-size: 32px;
-  }
-
   .action-fields {
     flex-direction: row;
     align-items: flex-end;
@@ -1166,15 +1006,6 @@ async function saveEventNote(item) {
 @media (max-width: 360px) {
   .billing-card {
     padding: 12px;
-  }
-
-  .hero-days {
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .days-number {
-    font-size: 24px;
   }
 
   .history-line-1 {
