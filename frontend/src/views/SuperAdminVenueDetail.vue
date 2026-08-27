@@ -2,6 +2,7 @@
 import { onMounted, provide, readonly, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ThemeToggle from '../components/ui/ThemeToggle.vue'
+import VenueLogo from '../components/VenueLogo.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -30,7 +31,7 @@ onMounted(fetchDetail)
     <header class="vd-header">
       <div class="vd-header-left">
         <button class="back-btn" aria-label="Volver a bares" @click="router.push({ name: 'superadmin' })">&#8592; Bares</button>
-        <img v-if="detail.venue.logo_url" :src="detail.venue.logo_url.startsWith('/') ? API + detail.venue.logo_url : detail.venue.logo_url" class="header-logo" alt="Logo" />
+        <VenueLogo v-if="detail.venue.logo_url || detail.venue.logo_url_light || detail.venue.logo_url_dark" :src="detail.venue.logo_url" :src-light="detail.venue.logo_url_light" :src-dark="detail.venue.logo_url_dark" class="header-logo" alt="Logo" />
         <h1>{{ detail.venue.name }}</h1>
         <span class="status-badge" :class="detail.venue.active ? 'active' : 'inactive'">
           {{ detail.venue.active ? 'Activo' : 'Inactivo' }}

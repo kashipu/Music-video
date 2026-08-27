@@ -26,6 +26,8 @@ const error = ref('')
 const loading = ref(false)
 const venueName = ref('')
 const venueLogo = ref(null)
+const venueLogoLight = ref(null)
+const venueLogoDark = ref(null)
 
 onMounted(async () => {
   if (venueSlug) {
@@ -34,9 +36,9 @@ onMounted(async () => {
       if (res.ok) {
         const data = await res.json()
         venueName.value = data.venue_name || ''
-        if (data.logo_url) {
-          venueLogo.value = data.logo_url.startsWith('/') ? API + data.logo_url : data.logo_url
-        }
+        venueLogo.value = data.logo_url || null
+        venueLogoLight.value = data.logo_url_light || null
+        venueLogoDark.value = data.logo_url_dark || null
         if (venueName.value) {
           document.title = `${venueName.value} - Admin`
         }
@@ -117,6 +119,8 @@ async function startGoogleLogin() {
       :title="venueName || (venueSlug ? venueSlug.replace(/-/g, ' ') : 'Repítela')"
       subtitle="Panel de administración"
       :logo-url="venueLogo"
+      :logo-url-light="venueLogoLight"
+      :logo-url-dark="venueLogoDark"
       :error="error"
       :loading="loading"
       :show-google="config.google_signup"

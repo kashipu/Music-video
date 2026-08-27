@@ -13,7 +13,7 @@ const VARIANTS = [
   { src: colorNegativo, name: 'logo-color-negativo.svg', use: 'A color, para fondo oscuro (la que usa el login en dark)' },
   { src: colorPositivo, name: 'logo-color-positivo.svg', use: 'A color, para fondo claro (la que usa el login en light)' },
   { src: positivo, name: 'logo-positivo.svg', use: 'Monocromo blanco, para fondo oscuro' },
-  { src: negativo, name: 'logo-negativo.svg', use: 'Monocromo negro: VenueLogo lo detecta y lo invierte solo' },
+  { src: negativo, name: 'logo-negativo.svg', use: 'Monocromo negro, para fondo claro' },
 ]
 
 export const Variantes = {
@@ -33,6 +33,11 @@ export const Variantes = {
       </div>
     `,
   }),
+}
+
+export const VariantesPorTema = {
+  args: { srcLight: colorPositivo, srcDark: colorNegativo },
+  parameters: { layout: 'centered' },
 }
 
 // El kiosk va siempre sobre negro, sin importar el tema del bar.

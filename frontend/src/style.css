@@ -156,15 +156,6 @@ a { color: var(--color-link, var(--primary)); text-decoration: none; }
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
-/* ===== LOGO DEL BAR =====
-   Los logos monocromos oscuros se invierten a blanco sobre fondo oscuro; los
-   que tienen color quedan intactos (invertirlos los dejaría en negativo). La
-   clase la decide VenueLogo.vue mirando los píxeles, no la extensión. */
-[data-theme="dark"] .logo-adaptive,
-.logo-adaptive.logo-on-dark {
-  filter: invert(1);
-}
-
 /* ===== THEME TOGGLE ===== */
 .theme-toggle {
   width: 44px; height: 44px; border-radius: 8px;

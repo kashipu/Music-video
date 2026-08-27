@@ -30,6 +30,8 @@ let bannerTimer = null
 let bannerAutoHidden = false
 const venueName = ref('')
 const venueLogo = ref(null)
+const venueLogoLight = ref(null)
+const venueLogoDark = ref(null)
 const showBrand = ref(true)
 const pendingUserSong = ref(null)
 const audioBlocked = ref(false)
@@ -193,6 +195,8 @@ async function syncNowPlaying() {
   if (data.show_qr !== undefined) showQr.value = data.show_qr
   if (data.venue_name) venueName.value = data.venue_name
   if (data.venue_logo !== undefined) venueLogo.value = data.venue_logo
+  if (data.venue_logo_light !== undefined) venueLogoLight.value = data.venue_logo_light
+  if (data.venue_logo_dark !== undefined) venueLogoDark.value = data.venue_logo_dark
 }
 
 // Compare desired playback status with actual YouTube player state and fix mismatches.
@@ -301,6 +305,8 @@ async function fetchNowPlaying() {
   if (data.show_qr !== undefined) showQr.value = data.show_qr
   if (data.venue_name) venueName.value = data.venue_name
   if (data.venue_logo !== undefined) venueLogo.value = data.venue_logo
+  if (data.venue_logo_light !== undefined) venueLogoLight.value = data.venue_logo_light
+  if (data.venue_logo_dark !== undefined) venueLogoDark.value = data.venue_logo_dark
   if (song.value) {
     playingFallback.value = false
     triggerOverlay()
@@ -733,7 +739,7 @@ onUnmounted(() => {
 
         <!-- Venue branding top-left -->
         <div v-if="showBrand && (venueName || venueLogo)" class="venue-brand">
-          <VenueLogo v-if="venueLogo" :src="venueLogo" always-dark class="venue-brand-logo" />
+          <VenueLogo v-if="venueLogo || venueLogoLight || venueLogoDark" :src="venueLogo" :src-light="venueLogoLight" :src-dark="venueLogoDark" always-dark class="venue-brand-logo" />
           <span v-else class="venue-brand-name">{{ venueName }}</span>
         </div>
 

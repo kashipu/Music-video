@@ -23,6 +23,8 @@ const pin = ref('')
 const pinRequired = ref(false)
 const venueName = ref('')
 const venueLogo = ref(null)
+const venueLogoLight = ref(null)
+const venueLogoDark = ref(null)
 const error = ref('')
 const loading = ref(false)
 const pageOpenedAt = Date.now()
@@ -40,6 +42,8 @@ onMounted(async () => {
       pinRequired.value = data.pin_required
       venueName.value = data.venue_name || ''
       venueLogo.value = data.logo_url || null
+      venueLogoLight.value = data.logo_url_light || null
+      venueLogoDark.value = data.logo_url_dark || null
       if (venueName.value) document.title = `${venueName.value} - Repitela`
       if (data.theme) applyVenueTheme({ theme: data.theme })
     }
@@ -76,9 +80,9 @@ async function handleRegister() {
     <ThemeToggle style="position:fixed;top:16px;right:16px;" />
     <div class="container">
       <div class="landing-header">
-        <VenueLogo v-if="venueLogo" :src="venueLogo" class="venue-logo" />
+        <VenueLogo v-if="venueLogo || venueLogoLight || venueLogoDark" :src="venueLogo" :src-light="venueLogoLight" :src-dark="venueLogoDark" class="venue-logo" />
         <div v-else class="music-icon">&#9835;</div>
-        <h1 v-if="!venueLogo">{{ venueName || venueSlug.replace(/-/g, ' ') }}</h1>
+        <h1 v-if="!venueLogo && !venueLogoLight && !venueLogoDark">{{ venueName || venueSlug.replace(/-/g, ' ') }}</h1>
         <p class="subtitle">Elige la musica que suena!</p>
         <p class="powered-by">por Repitela</p>
       </div>

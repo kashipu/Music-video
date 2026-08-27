@@ -194,6 +194,8 @@ async function refreshAdminInfo() {
       const data = await res.json()
       if (data.venue_logo !== undefined && auth.adminInfo) {
         auth.adminInfo.logo_url = data.venue_logo
+        auth.adminInfo.logo_url_light = data.venue_logo_light
+        auth.adminInfo.logo_url_dark = data.venue_logo_dark
         try { localStorage.setItem('bq_admin', JSON.stringify(auth.adminInfo)) } catch { /* */ }
       }
     }
@@ -660,6 +662,8 @@ function logout() {
     <AdminHeader
       :venue-name="auth.adminInfo?.venue_name || venueSlug"
       :logo-url="auth.adminInfo?.logo_url"
+      :logo-url-light="auth.adminInfo?.logo_url_light"
+      :logo-url-dark="auth.adminInfo?.logo_url_dark"
       @toggle-sidebar="sidebarOpen = !sidebarOpen"
       @logout="logout"
     />
@@ -674,8 +678,10 @@ function logout() {
 
       <!-- ===== LEFT: BAR INFO ===== -->
       <AdminSidebar
-        :venue-name="auth.adminInfo?.venue_name"
-        :logo-url="auth.adminInfo?.logo_url"
+      :venue-name="auth.adminInfo?.venue_name"
+      :logo-url="auth.adminInfo?.logo_url"
+      :logo-url-light="auth.adminInfo?.logo_url_light"
+      :logo-url-dark="auth.adminInfo?.logo_url_dark"
         :active-users="tables.length"
         :queued-count="queue.length"
         :venue-slug="venueSlug"

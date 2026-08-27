@@ -15,8 +15,9 @@ if (!venueDetail) throw new Error('venueDetail no disponible')
 const { detail, refresh } = venueDetail
 
 const editName = ref('')
-const editLogoUrl = ref('')
-const uploadingLogo = ref(false)
+const editLogoUrlLight = ref('')
+const editLogoUrlDark = ref('')
+const uploadingLogo = ref('')
 const editQrUrl = ref('')
 const editConfig = ref({ max_duration_sec: 600, max_songs_per_window: 3, window_minutes: 20 })
 const savingConfig = ref(false)
@@ -46,7 +47,8 @@ onMounted(fetchPlaylist)
 watch(detail, (currentDetail) => {
   if (!currentDetail) return
   editName.value = currentDetail.venue.name
-  editLogoUrl.value = currentDetail.venue.logo_url || ''
+  editLogoUrlLight.value = currentDetail.venue.logo_url_light || ''
+  editLogoUrlDark.value = currentDetail.venue.logo_url_dark || ''
   editQrUrl.value = currentDetail.venue.qr_url || ''
   try {
     const cfg = typeof currentDetail.venue.config === 'string'
@@ -67,7 +69,8 @@ async function saveVenue() {
   try {
     const body = {
       name: editName.value,
-      logo_url: editLogoUrl.value || null,
+      logo_url_light: editLogoUrlLight.value || null,
+      logo_url_dark: editLogoUrlDark.value || null,
       qr_url: editQrUrl.value || null,
       theme: (() => {
         const p = THEME_PRESETS.find(t => t.id === selectedPreset.value) || THEME_PRESETS[0]
@@ -137,7 +140,7 @@ async function saveConfig() {
   }
 }
 
-async function uploadLogo(event) {
+async function uploadLogo(event, variant) {
   const file = event.target.files?.[0]
   if (!file) return
   const allowed = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml']
@@ -149,10 +152,11 @@ async function uploadLogo(event) {
     saveMsg.value = 'Max 2MB'
     return
   }
-  uploadingLogo.value = true
+  uploadingLogo.value = variant
   try {
     const formData = new FormData()
     formData.append('file', file)
+    formData.append('variant', variant)
     const res = await fetch(`${API}/api/superadmin/venues/${venueId}/logo`, {
       method: 'POST',
       headers: headers(),
@@ -160,15 +164,16 @@ async function uploadLogo(event) {
     })
     if (res.ok) {
       const data = await res.json()
-      editLogoUrl.value = data.logo_url
+      if (variant === 'light') editLogoUrlLight.value = data.logo_url_light
+      else editLogoUrlDark.value = data.logo_url_dark
       await refresh()
-      saveMsg.value = 'Logo actualizado'
+      saveMsg.value = `Logo para tema ${variant === 'light' ? 'claro' : 'oscuro'} actualizado`
       setTimeout(() => { saveMsg.value = '' }, 2000)
     } else {
       const err = await res.json().catch(() => ({}))
       saveMsg.value = err.detail || 'Error al subir logo'
     }
-  } finally { uploadingLogo.value = false }
+  } finally { uploadingLogo.value = '' }
 }
 
 async function addAdmin() {
@@ -292,17 +297,28 @@ async function toggleVenue() {
             <input id="venue-name-input" v-model="editName" class="input-field" />
           </div>
           <div class="form-group">
-            <label>Logo del bar</label>
+            <label>Logos del bar</label>
             <div class="logo-upload">
-              <img v-if="editLogoUrl" :src="editLogoUrl.startsWith('/') ? API + editLogoUrl : editLogoUrl" class="logo-preview" alt="Vista previa de logo" />
+              <img v-if="editLogoUrlLight" :src="editLogoUrlLight.startsWith('/') ? API + editLogoUrlLight : editLogoUrlLight" class="logo-preview" alt="Vista previa para tema claro" />
               <div class="logo-actions">
                 <label class="btn btn-secondary logo-btn">
-                  {{ uploadingLogo ? 'Subiendo...' : 'Subir logo' }}
-                  <input type="file" accept=".png,.jpg,.jpeg,.svg" hidden :disabled="uploadingLogo" aria-label="Subir archivo de logo" @change="uploadLogo" />
+                  {{ uploadingLogo === 'light' ? 'Subiendo...' : 'Subir para tema claro' }}
+                  <input type="file" accept=".png,.jpg,.jpeg,.svg" hidden :disabled="!!uploadingLogo" aria-label="Subir logo para tema claro" @change="uploadLogo($event, 'light')" />
                 </label>
-                <p class="logo-hint">PNG, JPG o SVG. Máx. 2MB.</p>
+                <p class="logo-hint">Se muestra sobre fondos claros.</p>
               </div>
             </div>
+            <div class="logo-upload">
+              <img v-if="editLogoUrlDark" :src="editLogoUrlDark.startsWith('/') ? API + editLogoUrlDark : editLogoUrlDark" class="logo-preview" alt="Vista previa para tema oscuro" />
+              <div class="logo-actions">
+                <label class="btn btn-secondary logo-btn">
+                  {{ uploadingLogo === 'dark' ? 'Subiendo...' : 'Subir para tema oscuro' }}
+                  <input type="file" accept=".png,.jpg,.jpeg,.svg" hidden :disabled="!!uploadingLogo" aria-label="Subir logo para tema oscuro" @change="uploadLogo($event, 'dark')" />
+                </label>
+                <p class="logo-hint">Se muestra sobre fondos oscuros.</p>
+              </div>
+            </div>
+            <p class="logo-hint">PNG, JPG o SVG. Máx. 2 MB por archivo. Si falta una variante, se usa la disponible.</p>
           </div>
           <div class="form-group">
             <label for="venue-qr-input">URL del QR (dejar vacío para automática)</label>

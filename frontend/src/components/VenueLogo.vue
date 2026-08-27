@@ -1,29 +1,29 @@
 <script setup>
-import { ref } from 'vue'
-import { isMonochromeDarkLogo } from '../utils/logo.js'
+import { computed } from 'vue'
+import { useTheme } from '../composables/useTheme.js'
 
 const props = defineProps({
   src: { type: String, default: '' },
+  srcLight: { type: String, default: '' },
+  srcDark: { type: String, default: '' },
   // El kiosk va siempre sobre negro, sin importar el tema del bar.
   alwaysDark: { type: Boolean, default: false },
 })
 
 const API = import.meta.env.VITE_API_URL || ''
-const adaptive = ref(false)
+const { currentMode } = useTheme()
 
-const resolved = () => (props.src?.startsWith('/') ? API + props.src : props.src)
+const source = computed(() => {
+  const preferred = props.alwaysDark || currentMode.value === 'dark' ? props.srcDark : props.srcLight
+  return preferred || props.srcLight || props.srcDark || props.src
+})
 
-function onLoad(e) {
-  adaptive.value = isMonochromeDarkLogo(e.target)
-}
+const resolved = () => (source.value?.startsWith('/') ? API + source.value : source.value)
 </script>
 
 <template>
   <img
-    v-if="src"
+    v-if="source"
     :src="resolved()"
-    crossorigin="anonymous"
-    :class="{ 'logo-adaptive': adaptive, 'logo-on-dark': alwaysDark }"
-    @load="onLoad"
   />
 </template>
