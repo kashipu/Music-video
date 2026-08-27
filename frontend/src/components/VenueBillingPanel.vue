@@ -5,6 +5,7 @@ import { useConfirmModal } from '../composables/useConfirmModal.js'
 import Badge from './ui/Badge.vue'
 import UiButton from './ui/Button.vue'
 import UiInput from './ui/Input.vue'
+import FormError from './ui/FormError.vue'
 
 const route = useRoute()
 const API = import.meta.env.VITE_API_URL || ''
@@ -523,7 +524,7 @@ async function saveEventNote(item) {
     </div>
 
     <span v-if="saveMsg" class="save-msg">{{ saveMsg }}</span>
-    <span v-if="errorMsg" class="error-msg" role="alert">{{ errorMsg }}</span>
+    <FormError :message="errorMsg" />
 
     <div class="billing-divider" />
 
@@ -692,6 +693,7 @@ async function saveEventNote(item) {
   margin-bottom: 16px;
 }
 
+/* El encabezado de facturación ya tiene separación en .billing-header. */
 .section-title {
   margin: 0;
   color: var(--text-muted);
@@ -876,14 +878,6 @@ async function saveEventNote(item) {
   display: block;
   margin-top: 8px;
   color: var(--success);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.error-msg {
-  display: block;
-  margin-top: 8px;
-  color: var(--danger);
   font-size: 13px;
   font-weight: 600;
 }
