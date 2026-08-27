@@ -8,6 +8,7 @@ import SubscriptionGate from '../components/SubscriptionGate.vue'
 import AdminBrandingPanel from '../components/AdminBrandingPanel.vue'
 import AdminAnalyticsPanel from '../components/AdminAnalyticsPanel.vue'
 import AdminSongSearch from '../components/AdminSongSearch.vue'
+import AdminQrCard from '../components/AdminQrCard.vue'
 import { useAdminDashboard } from '../composables/useAdminDashboard.js'
 
 const router = useRouter()
@@ -151,18 +152,14 @@ function logout() {
       >
 
         <!-- QR Code -->
-        <div class="card qr-card">
-          <p class="section-title">QR DEL BAR</p>
-          <div class="qr-wrapper" id="qr-print-area">
-            <img :src="qrCodeUrl" :alt="`QR ${venueSlug}`" class="qr-img" crossorigin="anonymous" />
-            <p class="qr-bar-name">{{ auth.adminInfo?.venue_name }}</p>
-            <p class="qr-url">{{ registroUrl }}</p>
-          </div>
-          <div class="qr-btns">
-            <button class="qr-btn" @click="downloadQR">Descargar</button>
-            <button class="qr-btn" @click="printQR">Imprimir</button>
-          </div>
-        </div>
+        <AdminQrCard
+          :venue-slug="venueSlug"
+          :venue-name="auth.adminInfo?.venue_name"
+          :qr-code-url="qrCodeUrl"
+          :registro-url="registroUrl"
+          @download="downloadQR"
+          @print="printQR"
+        />
 
         <!-- Tables -->
         <div class="card">
@@ -460,20 +457,6 @@ function logout() {
   min-width: 0;
 }
 
-/* QR */
-.qr-card { text-align: center; }
-.qr-wrapper { padding: 16px; }
-.qr-img { width: 180px; height: 180px; border-radius: 8px; background: white; padding: 6px; }
-.qr-bar-name { font-size: 16px; font-weight: 700; margin-top: 10px; }
-.qr-url { font-size: 10px; color: var(--text-muted); margin-top: 4px; word-break: break-all; }
-.qr-btns { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
-.qr-btn {
-  padding: 6px 16px; border-radius: 6px; font-size: 12px; font-weight: 600;
-  background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text);
-  cursor: pointer; transition: all 0.15s;
-}
-.qr-btn:hover { border-color: var(--primary); color: var(--primary); }
-
 /* Tables in sidebar */
 .tables-list { display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto; }
 .table-item {
@@ -766,7 +749,6 @@ function logout() {
   .fb-header { flex-direction: column; align-items: flex-start; gap: 8px; }
   .fb-btns { width: 100%; }
   .fb-toggle { flex: 1; text-align: center; }
-  .qr-img { width: 150px; height: 150px; }
   .table-item { padding: 6px; }
   .table-btns { flex-wrap: wrap; }
   .table-songs-mini { max-height: none; }
