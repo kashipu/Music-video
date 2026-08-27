@@ -20,6 +20,8 @@ async function request(path, { adminToken, json, headers, ...options } = {}) {
 export function getVenueUsers(venueId, token) {
   return request(`/api/superadmin/venues/${venueId}/users`, {
     adminToken: token || localStorage.getItem('bq_super_token'),
+  })
+}
 
 function getAuthHeaders(headers = {}) {
   const token = localStorage.getItem('bq_super_token')
