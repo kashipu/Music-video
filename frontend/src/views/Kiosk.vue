@@ -6,6 +6,7 @@ import { useTheme } from '../composables/useTheme.js'
 import { trackSongPlayed, trackSongEnded, trackSongError, trackFallbackActivated } from '../utils/analytics.js'
 import VenueLogo from '../components/VenueLogo.vue'
 import KioskAudioBlocked from '../components/KioskAudioBlocked.vue'
+import KioskFallback from '../components/KioskFallback.vue'
 
 const route = useRoute()
 const venueSlug = route.params.venueSlug
@@ -748,21 +749,7 @@ onUnmounted(() => {
         <KioskAudioBlocked v-if="audioBlocked" @unlock="unlockAudio" />
 
         <!-- Fallback: no songs playing -->
-        <div v-if="!song && !playingFallback" class="fallback-overlay">
-          <div class="fallback-content">
-            <div class="fallback-icon">&#9835;</div>
-            <p class="fallback-text" v-if="fallbackPaused">Playlist pausada</p>
-            <p class="fallback-text" v-else>Esperando canciones...</p>
-            <p class="fallback-sub">Escanea el QR para pedir musica</p>
-            <div class="fallback-qr">
-              <img :src="qrCodeUrl" alt="QR" class="fallback-qr-img" crossorigin="anonymous" />
-            </div>
-            <div v-if="dailyPin" class="pin-display">
-              <p class="pin-label">CODIGO DE HOY</p>
-              <p class="pin-value">{{ dailyPin }}</p>
-            </div>
-          </div>
-        </div>
+        <KioskFallback v-if="!song && !playingFallback" :fallback-paused="fallbackPaused" :qr-code-url="qrCodeUrl" :daily-pin="dailyPin" />
 
         <!-- Centered play/pause button: always visible when paused, briefly on tap -->
         <Transition name="fade-quick">
