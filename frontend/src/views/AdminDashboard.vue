@@ -12,6 +12,7 @@ import AdminSidebar from '../components/AdminSidebar.vue'
 import NowPlaying from '../components/NowPlaying.vue'
 import SubscriptionGate from '../components/SubscriptionGate.vue'
 import BackButton from '../components/ui/BackButton.vue'
+import AdminBrandingPanel from '../components/AdminBrandingPanel.vue'
 
 const toast = useToast()
 
@@ -816,46 +817,7 @@ function logout() {
         </div>
 
         <!-- Kiosk Controls -->
-        <div class="card volume-card">
-          <p class="section-title">PANTALLA VIDEO</p>
-
-          <!-- Logo/Nombre toggle -->
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-            <span style="font-size:13px;font-weight:600;">Logo / Nombre del bar</span>
-            <button class="t-btn" :class="showBrand ? 't-btn-kick' : 't-btn-reset'" @click="toggleBrand" :disabled="loadingBrand" style="padding:5px 12px;font-size:11px;">
-              {{ loadingBrand ? '...' : (showBrand ? 'Ocultar' : 'Mostrar') }}
-            </button>
-          </div>
-
-          <!-- QR en pantalla -->
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <span style="font-size:13px;font-weight:600;">QR en pantalla</span>
-            <button class="t-btn" :class="showQr ? 't-btn-kick' : 't-btn-reset'" @click="toggleQr" :disabled="loadingQr" style="padding:5px 12px;font-size:11px;">
-              {{ loadingQr ? '...' : (showQr ? 'Ocultar' : 'Mostrar') }}
-            </button>
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-            <span style="font-size:13px;font-weight:600;">Tamano del QR</span>
-            <div style="display:flex;gap:4px;">
-              <button v-for="s in ['S', 'M', 'L']" :key="s" class="t-btn" :class="qrSize === s ? 't-btn-kick' : 't-btn-reset'" @click="setQrSize(s)" :disabled="loadingQrSize" style="padding:5px 10px;font-size:11px;">{{ s }}</button>
-            </div>
-          </div>
-
-          <!-- Banner -->
-          <div style="border-top:1px solid var(--border);padding-top:12px;">
-            <span style="font-size:13px;font-weight:600;display:block;margin-bottom:8px;">Banner publicitario</span>
-            <input type="text" v-model="bannerText" class="input-field"
-              placeholder="Escribe el texto del banner..." />
-            <div style="display:flex;gap:8px;margin-top:8px;">
-              <button class="btn btn-primary" style="flex:1;" @click="activateBanner" :disabled="!bannerText || bannerActive || loadingBanner">
-                {{ loadingBanner ? '...' : 'Mostrar (3 min)' }}
-              </button>
-              <button class="btn btn-danger" style="flex:1;" @click="deactivateBanner" :disabled="!bannerActive || loadingBanner">
-                {{ loadingBanner ? '...' : 'Apagar' }}
-              </button>
-            </div>
-          </div>
-        </div>
+        <AdminBrandingPanel :show-brand="showBrand" :loading-brand="loadingBrand" :show-qr="showQr" :loading-qr="loadingQr" :qr-size="qrSize" :loading-qr-size="loadingQrSize" v-model:banner-text="bannerText" :banner-active="bannerActive" :loading-banner="loadingBanner" @toggle-brand="toggleBrand" @toggle-qr="toggleQr" @set-qr-size="setQrSize" @activate-banner="activateBanner" @deactivate-banner="deactivateBanner" />
 
         <!-- Add Song -->
         <div class="card add-card">
