@@ -13,6 +13,8 @@ defineProps({
   loading: Boolean,
   usernamePlaceholder: { type: String, default: 'admin' },
   logoUrl: { type: String, default: null },
+  logoUrlLight: { type: String, default: null },
+  logoUrlDark: { type: String, default: null },
   showGoogle: { type: Boolean, default: false },
 })
 
@@ -28,8 +30,10 @@ const { currentMode } = useTheme()
 <template>
   <header class="login-header">
     <VenueLogo
-      v-if="logoUrl"
+      v-if="logoUrl || logoUrlLight || logoUrlDark"
       :src="logoUrl"
+      :src-light="logoUrlLight"
+      :src-dark="logoUrlDark"
       :alt="title"
       class="login-icon venue-logo"
     />

@@ -5,6 +5,8 @@ import VenueLogo from './VenueLogo.vue'
 defineProps({
   venueName: { type: String, default: '' },
   logoUrl: { type: String, default: '' },
+  logoUrlLight: { type: String, default: '' },
+  logoUrlDark: { type: String, default: '' },
 })
 
 defineEmits(['toggle-sidebar', 'logout'])
@@ -14,9 +16,9 @@ defineEmits(['toggle-sidebar', 'logout'])
   <header class="admin-header">
     <div class="header-brand">
       <button class="menu-btn" @click="$emit('toggle-sidebar')">&#9776;</button>
-      <VenueLogo v-if="logoUrl" :src="logoUrl" class="header-logo" />
+      <VenueLogo v-if="logoUrl || logoUrlLight || logoUrlDark" :src="logoUrl" :src-light="logoUrlLight" :src-dark="logoUrlDark" class="header-logo" />
       <!-- El logo ya lleva el nombre del bar: repetirlo al lado es redundante -->
-      <h1 v-if="!logoUrl">{{ venueName }}</h1>
+      <h1 v-if="!logoUrl && !logoUrlLight && !logoUrlDark">{{ venueName }}</h1>
     </div>
     <div style="display:flex;gap:8px;align-items:center;">
       <ThemeToggle />

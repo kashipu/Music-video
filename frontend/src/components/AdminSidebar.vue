@@ -4,6 +4,8 @@ import VenueLogo from './VenueLogo.vue'
 defineProps({
   venueName: { type: String, default: '' },
   logoUrl: { type: String, default: '' },
+  logoUrlLight: { type: String, default: '' },
+  logoUrlDark: { type: String, default: '' },
   activeUsers: { type: Number, default: 0 },
   queuedCount: { type: Number, default: 0 },
   venueSlug: { type: String, required: true },
@@ -19,7 +21,7 @@ defineEmits(['close'])
 
     <!-- Bar Info Card -->
     <div class="card sidebar-info">
-      <VenueLogo v-if="logoUrl" :src="logoUrl" class="sidebar-logo" />
+      <VenueLogo v-if="logoUrl || logoUrlLight || logoUrlDark" :src="logoUrl" :src-light="logoUrlLight" :src-dark="logoUrlDark" class="sidebar-logo" />
       <h2 class="bar-name">{{ venueName }}</h2>
       <div class="info-stats">
         <div class="info-stat">
