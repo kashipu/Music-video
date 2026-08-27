@@ -870,23 +870,6 @@ onUnmounted(() => {
   flex-direction: column;
   justify-content: flex-end;
 }
-.progress-thin {
-  height: 3px;
-  background: rgba(255, 255, 255, 0.15);
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  transition: opacity 0.3s;
-}
-.progress-thin-fill {
-  height: 100%;
-  background: var(--primary, #7C6CF0);
-  transition: width 0.4s linear;
-}
-/* Hide thin bar when expanded */
-.player-bar:hover .progress-thin { opacity: 0; }
-
 .player-bar-expanded {
   background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
   padding: 24px 24px 14px;
