@@ -9,12 +9,14 @@ import NowPlaying from '../components/NowPlaying.vue'
 import { useTheme } from '../composables/useTheme.js'
 import SongSubmit from '../components/SongSubmit.vue'
 import SongPreview from '../components/SongPreview.vue'
-import ThemeToggle from '../components/ui/ThemeToggle.vue'
-import FormError from '../components/ui/FormError.vue'
+import CustomerHeader from '../components/CustomerHeader.vue'
+import CustomerMySongs from '../components/CustomerMySongs.vue'
+import CustomerQueuePreview from '../components/CustomerQueuePreview.vue'
+import SongErrorModal from '../components/SongErrorModal.vue'
+import { checkSession } from '../services/auth.js'
 import { trackSongConfirmed, trackSongCancelled, trackSessionKicked, trackSessionExpired, setAnalyticsContext } from '../utils/analytics.js'
 
 const t = useToast()
-
 const route = useRoute()
 const router = useRouter()
 const { applyVenueTheme } = useTheme()
@@ -25,10 +27,8 @@ const venueSlug = route.params.venueSlug
 const preview = ref(null)
 const confirmLoading = ref(false)
 const cancelLoading = ref({})
-const toast = ref('')
-const toastTimeout = ref(null)
 const mySongPlaying = ref(false)
-const songError = ref(null) // { title, youtube_id, message }
+const songError = ref(null)
 const supportsNotifications = 'Notification' in window && typeof Notification.requestPermission === 'function'
 const notificationPermission = ref(supportsNotifications ? Notification.permission : 'denied')
 
@@ -39,7 +39,6 @@ const isMyNowPlaying = computed(() => {
 
 const nextFive = computed(() => queueStore.queue.slice(0, 5))
 
-// Refresh all data from server
 function refreshAll() {
   queueStore.fetchQueue(venueSlug)
   queueStore.fetchMySongs()
@@ -49,7 +48,6 @@ function refreshAll() {
 // WebSocket
 const { onEvent, onReconnect, connected: wsConnected } = useWebSocket(venueSlug, auth.user?.id, auth.token)
 
-// Subtle WS state — only show banner when disconnected for >2s (avoids flicker on quick reconnects)
 const wsOffline = ref(false)
 let wsOfflineTimer = null
 watch(wsConnected, (online) => {
@@ -59,22 +57,17 @@ watch(wsConnected, (online) => {
       wsOffline.value = false
       t.success('Conexión restaurada', 2500)
     }
-  } else {
-    if (!wsOfflineTimer) {
-      wsOfflineTimer = setTimeout(() => { wsOffline.value = true }, 2000)
-    }
+  } else if (!wsOfflineTimer) {
+    wsOfflineTimer = setTimeout(() => { wsOffline.value = true }, 2000)
   }
 })
 
-// On reconnect (after background, network loss, etc.), re-fetch everything
-// since we likely missed events while disconnected
 onReconnect(refreshAll)
 
 onEvent((event) => {
   if (event.event === 'now_playing_changed') {
     mySongPlaying.value = false
     if (event.data.fallback_active && event.data.song?.is_fallback) {
-      // Fallback song started — backend has no record of it, update directly
       queueStore.nowPlaying = event.data.song
       queueStore.fallbackActive = true
     } else if (event.data.fallback_active) {
@@ -85,69 +78,40 @@ onEvent((event) => {
     } else {
       refreshAll()
     }
-  }
-  if (['song_added', 'song_removed'].includes(event.event)) {
+  } else if (['song_added', 'song_removed'].includes(event.event)) {
     refreshAll()
-  }
-  if (event.event === 'queue_reordered') {
+  } else if (event.event === 'queue_reordered') {
     queueStore.fetchQueue(venueSlug)
     queueStore.fetchMySongs()
-  }
-  if (event.event === 'your_song_playing') {
+  } else if (event.event === 'your_song_playing') {
     mySongPlaying.value = true
     const title = event.data.song?.title || 'Tu canción está sonando'
     t.success(`🎵 ${title}`, 7000)
     sendBrowserNotification(title)
-  }
-  if (event.event === 'rate_limit_reset') {
+  } else if (event.event === 'rate_limit_reset') {
     t.info('Slot liberado — puedes pedir otra canción', 4000)
-  }
-  if (event.event === 'song_error_notification') {
-    // Clear preview if it was showing the errored song
-    if (preview.value && preview.value.youtube_id === event.data.youtube_id) {
-      preview.value = null
-    }
-    songError.value = {
-      title: event.data.title || 'Tu cancion',
-      youtube_id: event.data.youtube_id || '',
-      message: event.data.message || 'Tu cancion no pudo ser reproducida',
-    }
-    // Immediately remove the errored song from local state so user doesn't see it
-    const errorYtId = event.data.youtube_id
-    if (errorYtId) {
-      queueStore.mySongs = queueStore.mySongs.filter(s => s.youtube_id !== errorYtId)
-      queueStore.queue = queueStore.queue.filter(s => s.youtube_id !== errorYtId)
-    }
-    // Then sync with server
-    queueStore.fetchMySongs()
     queueStore.fetchRemainingSlots()
-    queueStore.fetchQueue(venueSlug)
-  }
-  if (event.event === 'fallback_status_changed') {
-    if (event.data.paused) {
-      queueStore.nowPlaying = null
-      queueStore.fallbackActive = false
+  } else if (event.event === 'song_error_notification') {
+    if (preview.value?.youtube_id === event.data.youtube_id) preview.value = null
+    songError.value = { title: event.data.title || 'Tu cancion', youtube_id: event.data.youtube_id || '', message: event.data.message || 'Tu cancion no pudo ser reproducida' }
+    if (event.data.youtube_id) {
+      queueStore.mySongs = queueStore.mySongs.filter(s => s.youtube_id !== event.data.youtube_id)
+      queueStore.queue = queueStore.queue.filter(s => s.youtube_id !== event.data.youtube_id)
     }
-    // when resumed, next fallback-playing event will restore nowPlaying
-  }
-  if (event.event === 'rate_limit_reset') {
-    queueStore.fetchRemainingSlots()
-  }
-  if (event.event === 'session_kicked') {
+    refreshAll()
+  } else if (event.event === 'fallback_status_changed' && event.data.paused) {
+    queueStore.nowPlaying = null
+    queueStore.fallbackActive = false
+  } else if (event.event === 'session_kicked') {
     trackSessionKicked(venueSlug)
     auth.logout()
     router.push({ name: 'registro', params: { venueSlug } })
   }
 })
 
-// Full sync: verify session + refresh queue, songs, rate limits
-const API = import.meta.env.VITE_API_URL || ''
 async function syncAll() {
   try {
-    // Check session is still valid
-    const res = await fetch(`${API}/api/auth/session`, {
-      headers: auth.authHeaders(),
-    })
+    const res = await checkSession(auth.token)
     if (res.status === 401 || res.status === 404) {
       trackSessionExpired(venueSlug, res.status === 401 ? 'expired' : 'not_found')
       auth.logout()
@@ -163,11 +127,7 @@ async function syncAll() {
       }
     }
   } catch { /* network error, skip */ }
-
-  // Refresh data in case WS events were missed
-  queueStore.fetchQueue(venueSlug)
-  queueStore.fetchMySongs()
-  queueStore.fetchRemainingSlots()
+  refreshAll()
 }
 
 let syncPoll = null
@@ -176,34 +136,18 @@ onMounted(async () => {
   document.title = `${auth.session?.venue_name || venueSlug} - Repitela`
   applyVenueTheme(auth.session?.config)
   setAnalyticsContext(venueSlug)
-  await Promise.all([
-    queueStore.fetchQueue(venueSlug),
-    queueStore.fetchMySongs(),
-    queueStore.fetchRemainingSlots(),
-  ])
-  // Safety net sync every 30s — catches any missed WS events
+  await Promise.all([queueStore.fetchQueue(venueSlug), queueStore.fetchMySongs(), queueStore.fetchRemainingSlots()])
   syncPoll = setInterval(syncAll, 30000)
 })
 
 onUnmounted(() => { if (syncPoll) clearInterval(syncPoll) })
 
-function showToast(msg) {
-  toast.value = msg
-  if (toastTimeout.value) clearTimeout(toastTimeout.value)
-  toastTimeout.value = setTimeout(() => { toast.value = '' }, 4000)
-}
-
 function sendBrowserNotification(title) {
-  if (notificationPermission.value === 'granted') {
-    new Notification('Repitela', { body: title })
-  }
+  if (notificationPermission.value === 'granted') new Notification('Repitela', { body: title })
 }
 
 async function requestNotifications() {
-  if (supportsNotifications) {
-    const perm = await Notification.requestPermission()
-    notificationPermission.value = perm
-  }
+  if (supportsNotifications) notificationPermission.value = await Notification.requestPermission()
 }
 
 function handleLogout() {
@@ -211,31 +155,21 @@ function handleLogout() {
   router.push({ name: 'registro', params: { venueSlug } })
 }
 
-function dismissError() {
-  songError.value = null
-  // Preview stays null, search query stays — user can immediately pick another song
-}
-
-function onPreview(data) { preview.value = data }
-function onCancelPreview() { preview.value = null }
-
 async function onConfirm(youtubeId) {
   confirmLoading.value = true
   try {
     const result = await queueStore.confirmSong(youtubeId)
     trackSongConfirmed(youtubeId, result.title, result.position)
     preview.value = null
-    if (result.position === 1) {
-      t.success(`🎵 Tu canción es la siguiente!`)
-    } else {
-      t.success(`Canción agregada — posición #${result.position}`)
-    }
+    t.success(result.position === 1 ? '🎵 Tu canción es la siguiente!' : `Canción agregada — posición #${result.position}`)
     await queueStore.fetchMySongs()
     await queueStore.fetchRemainingSlots()
     if (notificationPermission.value === 'default') requestNotifications()
   } catch (e) {
     t.error(e.message || 'Error al confirmar canción')
-  } finally { confirmLoading.value = false }
+  } finally {
+    confirmLoading.value = false
+  }
 }
 
 async function cancelSong(songId) {
@@ -248,262 +182,72 @@ async function cancelSong(songId) {
     await queueStore.fetchQueue(venueSlug)
   } catch (e) {
     t.error(e.message || 'Error al cancelar canción')
-  } finally { cancelLoading.value = { ...cancelLoading.value, [songId]: false } }
+  } finally {
+    cancelLoading.value = { ...cancelLoading.value, [songId]: false }
+  }
 }
 </script>
 
 <template>
   <div class="dashboard">
-    <!-- Toast -->
-    <Transition name="fade">
-      <div v-if="toast" class="toast">{{ toast }}</div>
-    </Transition>
+    <SongErrorModal :error="songError" @dismiss="songError = null" />
 
-    <!-- Song Error Modal -->
-    <Transition name="fade">
-      <div v-if="songError" class="error-overlay" @click.self="dismissError">
-        <div class="error-modal">
-          <div class="error-icon">&#9888;</div>
-          <p class="error-title">No se pudo reproducir</p>
-          <p class="error-song-name">{{ songError.title }}</p>
-          <FormError message="Este video tiene restricciones de derechos de autor y no puede reproducirse en este momento." />
-          <p class="error-hint">Busca otra version o una cancion diferente. Tu turno fue liberado.</p>
-          <button class="error-btn" @click="dismissError">Buscar otra cancion</button>
-        </div>
-      </div>
-    </Transition>
-
-    <!-- WS offline banner — only shows after 2s of disconnect -->
     <Transition name="fade">
       <div v-if="wsOffline" class="ws-offline-banner" role="status">
-        <span class="ws-banner-dot"></span>
+        <span class="ws-banner-dot" />
         Sin conexión — reintentando…
       </div>
     </Transition>
 
-    <!-- Header -->
-    <header class="dash-header">
-      <div class="header-left">
-        <span class="venue-name">{{ auth.session?.venue_name || venueSlug.replace(/-/g, ' ') }}</span>
-      </div>
-      <div class="header-right">
-        <ThemeToggle />
-        <button class="logout-btn" @click="handleLogout">Salir</button>
-      </div>
-    </header>
+    <CustomerHeader
+      :venue-name="auth.session?.venue_name || venueSlug.replace(/-/g, ' ')"
+      @logout="handleLogout"
+    />
     <div class="container">
-
-      <!-- Greeting -->
       <div class="user-greeting">
         <p class="greeting-name">Hola, <strong>{{ auth.user?.display_name?.split(' ')[0] || auth.user?.phone }}</strong> 👋</p>
         <p class="greeting-sub">¿Qué quieres escuchar hoy?</p>
       </div>
 
-      <!-- 1. NOW PLAYING BANNER -->
       <NowPlaying :song="queueStore.nowPlaying" :mine="isMyNowPlaying" />
 
-      <!-- 2. SUBMIT SONG -->
       <SongPreview
         v-if="preview"
         :preview="preview"
         :loading="confirmLoading"
         @confirm="onConfirm"
-        @cancel="onCancelPreview"
+        @cancel="preview = null"
       />
       <SongSubmit
         v-else
         :rate-limit="queueStore.rateLimit"
-        @preview="onPreview"
+        @preview="preview = $event"
       />
 
-      <!-- 3. MY SONGS -->
-      <div class="card section" v-if="queueStore.mySongs.length">
-        <p class="section-title">&#127911; Tus canciones</p>
-        <div v-for="song in queueStore.mySongs" :key="song.id" class="my-item">
-          <img :src="`https://i.ytimg.com/vi/${song.youtube_id}/mqdefault.jpg`" class="my-thumb" />
-          <div class="my-info">
-            <p class="my-title">{{ song.title }}</p>
-            <div class="my-status">
-              <template v-if="song.status === 'playing'">
-                <span class="status-pill playing">&#9654; Sonando</span>
-              </template>
-              <template v-else>
-                <span class="status-pill pending">#{{ song.position }} en cola</span>
-              </template>
-            </div>
-          </div>
-          <button
-            v-if="song.status === 'pending'"
-            class="cancel-btn"
-            @click="cancelSong(song.id)"
-            :disabled="cancelLoading[song.id]"
-            title="Quitar de la cola"
-          >{{ cancelLoading[song.id] ? '...' : '&#10005;' }}</button>
-        </div>
-      </div>
+      <CustomerMySongs
+        :songs="queueStore.mySongs"
+        :cancel-loading="cancelLoading"
+        @cancel-song="cancelSong"
+      />
 
-      <!-- 4. NEXT UP -->
-      <div class="card section" v-if="nextFive.length">
-        <p class="section-title">&#9654; Siguiente · {{ queueStore.totalInQueue }} en cola</p>
-        <div v-for="(song, i) in nextFive" :key="song.id" class="q-item">
-          <span class="q-pos">{{ i + 1 }}</span>
-          <img :src="song.thumbnail_url || `https://i.ytimg.com/vi/${song.youtube_id}/mqdefault.jpg`" class="q-thumb" />
-          <div class="q-info">
-            <p class="q-title">{{ song.title }}</p>
-            <p class="q-meta">{{ song.added_by }}</p>
-          </div>
-        </div>
-        <p v-if="queueStore.totalInQueue > 5" class="more-text">+ {{ queueStore.totalInQueue - 5 }} mas en la cola</p>
-      </div>
-
-
+      <CustomerQueuePreview
+        :queue="nextFive"
+        :total-in-queue="queueStore.totalInQueue"
+      />
     </div>
   </div>
 </template>
 
 <style scoped>
-/* WS offline banner */
-.ws-offline-banner {
-  position: sticky; top: 0; z-index: 20;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 6px 12px;
-  background: var(--danger-soft, rgba(239,68,68,0.15));
-  color: var(--danger, #ef4444);
-  font-size: 12px; font-weight: 600;
-  border-bottom: 1px solid var(--danger, #ef4444);
-}
-.ws-banner-dot {
-  width: 7px; height: 7px; border-radius: 50%;
-  background: var(--danger, #ef4444);
-  animation: ws-pulse 1s infinite;
-}
-@keyframes ws-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
-
-/* ── Layout ── */
-.dashboard {
-  padding-bottom: max(40px, env(safe-area-inset-bottom));
-  min-height: 100vh; min-height: 100dvh;
-  background: var(--bg);
-}
-
-/* ── Header ── */
-.dash-header {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: max(14px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 14px max(16px, env(safe-area-inset-left));
-  background: var(--bg-card);
-  border-bottom: 1px solid var(--border-soft);
-  position: -webkit-sticky; position: sticky; top: 0; z-index: 10;
-}
-.header-left { display: flex; align-items: center; min-width: 0; flex-shrink: 1; }
-.venue-name { font-weight: 800; font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.logout-btn {
-  padding: 6px 14px; border-radius: 20px;
-  background: transparent; border: 1px solid var(--border);
-  color: var(--text-muted); font-size: 12px; font-weight: 600;
-  cursor: pointer; transition: all 0.15s;
-}
-.logout-btn:hover { border-color: var(--danger); color: var(--danger); }
-
-/* ── Greeting ── */
+/* =========================================
+   CSS GENERAL
+   ========================================= */
+.dashboard { padding-bottom: max(40px, env(safe-area-inset-bottom)); min-height: 100vh; min-height: 100dvh; background: var(--bg); }
+.ws-offline-banner { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 6px 12px; background: var(--danger-soft, rgba(239, 68, 68, 0.15)); color: var(--danger, #ef4444); font-size: 12px; font-weight: 600; border-bottom: 1px solid var(--danger, #ef4444); }
+.ws-banner-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--danger, #ef4444); animation: ws-pulse 1s infinite; }
+@keyframes ws-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 .user-greeting { padding-top: 18px; padding-bottom: 4px; }
 .greeting-name { font-size: 22px; font-weight: 800; color: var(--text); line-height: 1.2; }
 .greeting-name strong { color: var(--primary); }
 .greeting-sub { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
-
-/* ── Sections ── */
-.section { margin-top: 14px; }
-/* Título compacto para secciones del tablero del cliente. */
-.section-title {
-  font-size: 11px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.6px; color: var(--text-muted); margin-bottom: 12px;
-}
-
-/* ── My Songs ── */
-.my-item {
-  display: flex; align-items: center; gap: 12px;
-  padding: 10px 0;
-}
-.my-item + .my-item { border-top: 1px solid var(--border-soft); }
-.my-thumb {
-  width: 52px; height: 39px; border-radius: 6px;
-  object-fit: cover; flex-shrink: 0;
-}
-.my-info { flex: 1; min-width: 0; }
-.my-title {
-  font-size: 13px; font-weight: 600; line-height: 1.3;
-  display: -webkit-box; -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical; overflow: hidden;
-}
-.my-status { margin-top: 5px; }
-.status-pill {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: 11px; font-weight: 600;
-  padding: 2px 8px; border-radius: 10px;
-}
-.status-pill.playing { background: var(--success-soft); color: var(--success); }
-.status-pill.pending { background: var(--warning-soft); color: var(--warning); }
-.cancel-btn {
-  width: 36px; height: 36px; border-radius: 50%;
-  background: var(--danger-soft); border: none;
-  color: var(--danger); font-size: 13px; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  transition: all 0.15s;
-}
-.cancel-btn:hover { background: var(--danger); color: white; }
-
-/* ── Queue items ── */
-.q-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 9px 0;
-}
-.q-item + .q-item { border-top: 1px solid var(--border-soft); }
-.q-pos {
-  width: 22px; height: 22px; border-radius: 50%;
-  background: var(--bg-elevated);
-  font-size: 11px; font-weight: 700; color: var(--text-muted);
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.q-thumb {
-  width: 48px; height: 36px; border-radius: 6px;
-  object-fit: cover; flex-shrink: 0;
-}
-.q-info { flex: 1; min-width: 0; }
-.q-title {
-  font-size: 13px; font-weight: 500;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-.q-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-.more-text {
-  font-size: 12px; color: var(--text-muted);
-  text-align: center; padding: 10px 0 2px; opacity: 0.6;
-}
-
-/* ── Error Modal ── */
-.error-overlay {
-  position: fixed; inset: 0; z-index: 100;
-  background: rgba(0,0,0,0.6);
-  display: flex; align-items: center; justify-content: center;
-  padding: 20px;
-  -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
-}
-.error-modal {
-  background: var(--bg-card); border-radius: 16px;
-  padding: 28px 24px; max-width: 340px; width: 100%;
-  text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-}
-.error-icon { font-size: 40px; margin-bottom: 8px; color: var(--warning); }
-.error-title { font-size: 17px; font-weight: 700; margin-bottom: 6px; }
-.error-song-name {
-  font-size: 14px; font-weight: 600; color: var(--text-muted); margin-bottom: 14px;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-}
-.error-hint { font-size: 13px; color: var(--success); font-weight: 600; margin-bottom: 20px; }
-.error-btn {
-  width: 100%; padding: 13px; border: none; border-radius: 10px;
-  background: var(--primary); color: white;
-  font-size: 15px; font-weight: 700; cursor: pointer; transition: opacity 0.15s;
-}
-.error-btn:active { opacity: 0.8; }
 </style>
