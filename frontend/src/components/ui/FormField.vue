@@ -2,14 +2,16 @@
 import { useId } from 'vue'
 import FormError from './FormError.vue'
 
-defineProps({
+const props = defineProps({
+  id: { type: String, default: '' },
   label: { type: String, required: true },
   hint: { type: String, default: '' },
   error: { type: String, default: '' },
   required: Boolean,
 })
 
-const id = useId()
+const generatedId = useId()
+const id = props.id || generatedId
 </script>
 
 <template>
