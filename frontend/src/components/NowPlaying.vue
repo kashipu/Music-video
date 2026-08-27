@@ -171,6 +171,7 @@ const displayMeta = computed(() => {
 .np-mine .np-dot {
   background: var(--success);
 }
+/* Encabezado compacto para el estado de reproducción. */
 .section-title {
   font-size: 11px;
   font-weight: 700;
