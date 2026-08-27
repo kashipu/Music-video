@@ -24,14 +24,8 @@ const trialUntilDate = ref('')
 const adjustDate = ref('')
 const adjustNotes = ref('')
 
-function toISODate(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-function daysBetween(fromDate, toDateStr) {
-  const to = new Date(`${toDateStr}T00:00:00`)
-  return Math.round((to - fromDate) / 86400000)
-}
+const toISODate = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+const daysBetween = (fromDate, toDateStr) => Math.round((new Date(`${toDateStr}T00:00:00`) - fromDate) / 86400000)
 
 const isValidAmount = computed(() => {
   const n = Number(amountCOP.value)
@@ -60,12 +54,9 @@ const isValidPaidUntilDate = computed(() => paidUntilDate.value && daysBetween(p
 const isValidTrialDate = computed(() => trialUntilDate.value && daysBetween(props.referenceStart, trialUntilDate.value) > 0)
 const isValidAdjust = computed(() => !!adjustDate.value && adjustNotes.value.trim().length >= 3)
 
-// Delta del ajuste contra el vencimiento actual, para anunciarlo antes de confirmar.
 const adjustDelta = computed(() => {
-  if (!adjustDate.value) return null
-  const current = props.periodEnd
-  if (!current) return null
-  const from = new Date(`${current.slice(0, 10)}T00:00:00`)
+  if (!adjustDate.value || !props.periodEnd) return null
+  const from = new Date(`${props.periodEnd.slice(0, 10)}T00:00:00`)
   return daysBetween(from, adjustDate.value)
 })
 
@@ -117,58 +108,22 @@ function handleAdjustExpiry() {
 
 <template>
   <div class="billing-actions">
-    <!-- Acciones: tabs -->
     <div class="action-tabs" role="tablist" aria-label="Acciones de suscripción">
-      <button
-        role="tab"
-        :aria-selected="actionTab === 'payment'"
-        :class="{ selected: actionTab === 'payment' }"
-        @click="actionTab = 'payment'"
-      >
-        Registrar pago
-      </button>
-      <button
-        role="tab"
-        :aria-selected="actionTab === 'trial'"
-        :class="{ selected: actionTab === 'trial' }"
-        @click="actionTab = 'trial'"
-      >
-        Dar prueba
-      </button>
-      <button
-        role="tab"
-        :aria-selected="actionTab === 'adjust'"
-        :class="{ selected: actionTab === 'adjust' }"
-        @click="actionTab = 'adjust'"
-      >
-        Corregir
-      </button>
+      <button role="tab" :aria-selected="actionTab === 'payment'" :class="{ selected: actionTab === 'payment' }" @click="actionTab = 'payment'">Registrar pago</button>
+      <button role="tab" :aria-selected="actionTab === 'trial'" :class="{ selected: actionTab === 'trial' }" @click="actionTab = 'trial'">Dar prueba</button>
+      <button role="tab" :aria-selected="actionTab === 'adjust'" :class="{ selected: actionTab === 'adjust' }" @click="actionTab = 'adjust'">Corregir</button>
     </div>
 
     <!-- Tab: Pago manual -->
     <div v-if="actionTab === 'payment'" class="action-panel">
-      <p class="action-hint">
-        Pago recibido por fuera de Wompi (efectivo, transferencia). El período nuevo arranca el <strong>{{ referenceStartLabel }}</strong>, donde termina el vigente.
-      </p>
+      <p class="action-hint">Pago recibido por fuera de Wompi (efectivo, transferencia). El período nuevo arranca el <strong>{{ referenceStartLabel }}</strong>, donde termina el vigente.</p>
       <div class="action-fields">
-        <UiInput
-          v-model="amountCOP"
-          type="number"
-          inputmode="numeric"
-          placeholder="Monto en COP..."
-          aria-label="Monto en pesos COP"
-          class="field-amount"
-        />
+        <UiInput v-model="amountCOP" type="number" inputmode="numeric" placeholder="Monto en COP..." aria-label="Monto en pesos COP" class="field-amount" />
         <label class="field-date-wrap">
           <span>Cubierto hasta</span>
           <UiInput v-model="paidUntilDate" type="date" aria-label="Pagado hasta" class="field-date" />
         </label>
-        <UiInput
-          v-model="paymentNotes"
-          placeholder="Nota del pago (opcional)..."
-          aria-label="Nota del pago"
-          class="field-notes"
-        />
+        <UiInput v-model="paymentNotes" placeholder="Nota del pago (opcional)..." aria-label="Nota del pago" class="field-notes" />
         <UiButton :disabled="busy || !isValidAmount || !isValidPaidUntilDate" class="field-btn" @click="handleMarkPaid">
           {{ busy ? 'Guardando...' : 'Registrar pago' }}
         </UiButton>
@@ -177,9 +132,7 @@ function handleAdjustExpiry() {
 
     <!-- Tab: Prueba -->
     <div v-else-if="actionTab === 'trial'" class="action-panel">
-      <p class="action-hint">
-        Días gratis, sin cobro. Se extiende desde el <strong>{{ referenceStartLabel }}</strong> hasta la fecha que elijas.
-      </p>
+      <p class="action-hint">Días gratis, sin cobro. Se extiende desde el <strong>{{ referenceStartLabel }}</strong> hasta la fecha que elijas.</p>
       <div class="action-fields">
         <label class="field-date-wrap">
           <span>Prueba hasta</span>
@@ -193,20 +146,13 @@ function handleAdjustExpiry() {
 
     <!-- Tab: Corregir -->
     <div v-else class="action-panel">
-      <p class="action-hint action-hint-danger">
-        Fija el vencimiento <strong>exactamente</strong> en la fecha elegida — sirve para quitar días mal asignados. La nota es obligatoria y el ajuste queda en el historial (se puede anular).
-      </p>
+      <p class="action-hint action-hint-danger">Fija el vencimiento <strong>exactamente</strong> en la fecha elegida — sirve para quitar días mal asignados. La nota es obligatoria y el ajuste queda en el historial (se puede anular).</p>
       <div class="action-fields">
         <label class="field-date-wrap">
           <span>Nuevo vencimiento</span>
           <UiInput v-model="adjustDate" type="date" aria-label="Nuevo vencimiento" class="field-date" />
         </label>
-        <UiInput
-          v-model="adjustNotes"
-          placeholder="Motivo de la corrección (obligatorio)..."
-          aria-label="Motivo de la corrección"
-          class="field-notes"
-        />
+        <UiInput v-model="adjustNotes" placeholder="Motivo de la corrección (obligatorio)..." aria-label="Motivo de la corrección" class="field-notes" />
         <UiButton variant="danger" :disabled="busy || !isValidAdjust" class="field-btn" @click="handleAdjustExpiry">
           {{ busy ? 'Guardando...' : 'Corregir vencimiento' }}
         </UiButton>
@@ -223,118 +169,29 @@ function handleAdjustExpiry() {
 /* =========================================
    CSS GENERAL
    ========================================= */
-.billing-actions {
-  display: flex;
-  flex-direction: column;
-}
-
-/* Tabs de acción */
-.action-tabs {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 12px;
-  background: var(--bg-elevated);
-  border-radius: var(--radius-sm, 8px);
-  padding: 3px;
-}
-
-.action-tabs button {
-  flex: 1;
-  padding: 7px 10px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--text-muted);
-  font: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.action-tabs button.selected {
-  background: var(--bg-card);
-  color: var(--text);
-}
-
-.action-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.action-hint {
-  margin: 0;
-  font-size: 12px;
-  color: var(--text-muted);
-  line-height: 1.5;
-}
-
+.billing-actions { display: flex; flex-direction: column; }
+.action-tabs { display: flex; gap: 4px; margin-bottom: 12px; background: var(--bg-elevated); border-radius: var(--radius-sm, 8px); padding: 3px; }
+.action-tabs button { flex: 1; padding: 7px 10px; border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.action-tabs button.selected { background: var(--bg-card); color: var(--text); }
+.action-panel { display: flex; flex-direction: column; gap: 10px; }
+.action-hint { margin: 0; font-size: 12px; color: var(--text-muted); line-height: 1.5; }
 .action-hint strong { color: var(--text); }
-
 .action-hint-danger { color: var(--warning); }
 .action-hint-danger strong { color: var(--warning); }
-
-.action-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.field-amount,
-.field-notes,
-.field-date,
-.field-btn {
-  width: 100%;
-}
-
-.field-date-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 11px;
-  color: var(--text-muted);
-  font-weight: 600;
-}
-
-.adjust-delta {
-  margin: 0;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--warning);
-}
-
-.save-msg {
-  display: block;
-  margin-top: 8px;
-  color: var(--success);
-  font-size: 13px;
-  font-weight: 600;
-}
+.action-fields { display: flex; flex-direction: column; gap: 8px; }
+.field-amount, .field-notes, .field-date, .field-btn { width: 100%; }
+.field-date-wrap { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--text-muted); font-weight: 600; }
+.adjust-delta { margin: 0; font-size: 12px; font-weight: 700; color: var(--warning); }
+.save-msg { display: block; margin-top: 8px; color: var(--success); font-size: 13px; font-weight: 600; }
 
 /* =========================================
    BREAKPOINT 850px
    ========================================= */
 @media (min-width: 850px) {
-  .action-fields {
-    flex-direction: row;
-    align-items: flex-end;
-  }
-
-  .field-amount {
-    flex: 0 0 140px;
-  }
-
-  .field-date-wrap {
-    flex: 0 0 160px;
-  }
-
-  .field-notes {
-    flex: 1;
-  }
-
-  .field-btn {
-    width: auto;
-    white-space: nowrap;
-  }
+  .action-fields { flex-direction: row; align-items: flex-end; }
+  .field-amount { flex: 0 0 140px; }
+  .field-date-wrap { flex: 0 0 160px; }
+  .field-notes { flex: 1; }
+  .field-btn { width: auto; white-space: nowrap; }
 }
 </style>

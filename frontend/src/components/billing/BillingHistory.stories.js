@@ -46,8 +46,6 @@ const baseHistory = [
 export const PagoManual = {
   args: {
     billing: { history: baseHistory },
-    visibleHistory: baseHistory,
-    showAllHistory: false,
   },
 }
 
@@ -65,33 +63,11 @@ export const PagoRechazado = {
         },
       ],
     },
-    visibleHistory: [
-      {
-        id: 4,
-        kind: 'payment',
-        source: 'wompi',
-        amount_cents: 4900000,
-        status: 'declined',
-        created_at: '2026-08-26',
-      },
-    ],
-  },
-}
-
-export const EdicionActiva = {
-  args: {
-    billing: { history: baseHistory },
-    visibleHistory: baseHistory,
-    editingEventId: 1,
-    editingAmountCOP: '49000',
-    editingDate: '2026-09-08',
-    editingNoteText: 'Transferencia Bancolombia verificada',
   },
 }
 
 export const SinMovimientos = {
   args: {
     billing: { history: [] },
-    visibleHistory: [],
   },
 }

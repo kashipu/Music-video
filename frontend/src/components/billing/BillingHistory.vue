@@ -1,29 +1,21 @@
 <script setup>
+import { computed, ref } from 'vue'
 import Badge from '../ui/Badge.vue'
 import UiInput from '../ui/Input.vue'
 
-defineProps({
+const props = defineProps({
   billing: { type: Object, required: true },
-  visibleHistory: { type: Array, required: true },
-  showAllHistory: Boolean,
-  editingEventId: { type: [String, Number], default: null },
-  editingNoteText: { type: String, default: '' },
-  editingAmountCOP: { type: String, default: '' },
-  editingDate: { type: String, default: '' },
   savingNote: Boolean,
   voidingEventId: { type: [String, Number], default: null },
 })
 
-defineEmits([
-  'toggle-history',
-  'start-edit',
-  'void',
-  'save',
-  'cancel',
-  'update:editingNoteText',
-  'update:editingAmountCOP',
-  'update:editingDate',
-])
+const emit = defineEmits(['save', 'void', 'error'])
+
+const showAllHistory = ref(false)
+const editingEventId = ref(null)
+const editingNoteText = ref('')
+const editingAmountCOP = ref('')
+const editingDate = ref('')
 
 const currency = new Intl.NumberFormat('es-CO', {
   style: 'currency',
@@ -49,8 +41,51 @@ function eventTitle(item) {
   return 'Registro previo'
 }
 
+const visibleHistory = computed(() => {
+  const list = props.billing.history || []
+  if (showAllHistory.value) return list
+  return list.slice(0, 4)
+})
+
 const canEditAmount = item => item.kind === 'payment' && item.source === 'manual' && item.status !== 'voided'
 const canEditDate = item => (item.kind === 'payment' || item.kind === 'trial') && item.source === 'manual' && item.status !== 'voided'
+
+function startEditNote(item) {
+  editingEventId.value = item.id
+  editingNoteText.value = item.notes || ''
+  editingAmountCOP.value = item.amount_cents != null ? String(item.amount_cents / 100) : ''
+  editingDate.value = item.period_end ? item.period_end.slice(0, 10) : ''
+}
+
+function cancelEditNote() {
+  editingEventId.value = null
+  editingNoteText.value = ''
+  editingAmountCOP.value = ''
+  editingDate.value = ''
+}
+
+function saveEditNote(item) {
+  if (!item) return
+  const body = { notes: editingNoteText.value.trim() || null }
+  if (canEditAmount(item) && editingAmountCOP.value) {
+    const n = Number(editingAmountCOP.value)
+    if (isNaN(n) || n <= 0) {
+      emit('error', 'Monto inválido')
+      return
+    }
+    body.amount_cents = Math.round(n * 100)
+  }
+  const dateChanged = canEditDate(item) && editingDate.value && editingDate.value !== (item.period_end || '').slice(0, 10)
+  if (dateChanged) body.period_end = editingDate.value
+
+  emit('save', {
+    item,
+    body,
+    dateChanged,
+    newDate: editingDate.value,
+    onSuccess: cancelEditNote,
+  })
+}
 </script>
 
 <template>
@@ -61,7 +96,7 @@ const canEditDate = item => (item.kind === 'payment' || item.kind === 'trial') &
         v-if="billing.history?.length > 4"
         type="button"
         class="toggle-history-btn"
-        @click="$emit('toggle-history')"
+        @click="showAllHistory = !showAllHistory"
       >
         {{ showAllHistory ? 'Ver menos' : `Ver todos (${billing.history.length})` }}
       </button>
@@ -105,7 +140,7 @@ const canEditDate = item => (item.kind === 'payment' || item.kind === 'trial') &
                 class="action-icon-btn"
                 title="Editar nota"
                 aria-label="Editar nota"
-                @click="$emit('start-edit', item)"
+                @click="startEditNote(item)"
               >
                 <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                   <path d="M12 20h9" />
@@ -139,32 +174,29 @@ const canEditDate = item => (item.kind === 'payment' || item.kind === 'trial') &
         <div v-if="editingEventId === item.id" class="note-edit-row">
           <UiInput
             v-if="canEditAmount(item)"
-            :model-value="editingAmountCOP"
+            v-model="editingAmountCOP"
             type="number"
             inputmode="numeric"
             placeholder="Monto COP..."
             aria-label="Editar monto en pesos COP"
             class="edit-inline-amount"
-            @update:model-value="$emit('update:editingAmountCOP', $event)"
-            @keydown.esc="$emit('cancel')"
+            @keydown.esc="cancelEditNote"
           />
           <UiInput
             v-if="canEditDate(item)"
-            :model-value="editingDate"
+            v-model="editingDate"
             type="date"
             aria-label="Editar fecha de fin del período"
             class="edit-inline-date"
-            @update:model-value="$emit('update:editingDate', $event)"
-            @keydown.esc="$emit('cancel')"
+            @keydown.esc="cancelEditNote"
           />
           <UiInput
-            :model-value="editingNoteText"
+            v-model="editingNoteText"
             placeholder="Nota del movimiento..."
             aria-label="Editar nota del movimiento"
             class="note-inline-input"
-            @update:model-value="$emit('update:editingNoteText', $event)"
-            @keydown.enter="$emit('save', item)"
-            @keydown.esc="$emit('cancel')"
+            @keydown.enter="saveEditNote(item)"
+            @keydown.esc="cancelEditNote"
           />
           <div class="note-inline-buttons">
             <button
@@ -173,7 +205,7 @@ const canEditDate = item => (item.kind === 'payment' || item.kind === 'trial') &
               :disabled="savingNote"
               title="Guardar nota"
               aria-label="Guardar nota"
-              @click="$emit('save', item)"
+              @click="saveEditNote(item)"
             >
               ✓
             </button>
@@ -183,7 +215,7 @@ const canEditDate = item => (item.kind === 'payment' || item.kind === 'trial') &
               :disabled="savingNote"
               title="Cancelar edición"
               aria-label="Cancelar edición"
-              @click="$emit('cancel')"
+              @click="cancelEditNote"
             >
               ✕
             </button>
@@ -205,265 +237,53 @@ const canEditDate = item => (item.kind === 'payment' || item.kind === 'trial') &
 /* =========================================
    CSS GENERAL
    ========================================= */
-.history-section {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.history-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-}
-
-.history-title {
-  margin: 0;
-  color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-}
-
-.toggle-history-btn {
-  background: transparent;
-  border: none;
-  color: var(--primary);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 2px 4px;
-}
-
-.toggle-history-btn:hover {
-  text-decoration: underline;
-}
-
-.history-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.history-card {
-  background: var(--bg-elevated);
-  border-radius: var(--radius-sm, 8px);
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  transition: opacity 0.15s ease;
-}
-
-.history-card-voided {
-  opacity: 0.55;
-}
-
-.history-card-voided .payment-amount,
-.history-card-voided .adjustment-amount,
-.history-card-voided .legacy-amount {
-  text-decoration: line-through;
-}
-
-.history-line-1 {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-}
-
-.payment-amount {
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text);
-}
-
-.adjustment-amount {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--warning);
-}
-
-.legacy-amount {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-muted);
-}
-
-.history-right-wrap {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.history-badges {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.item-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.action-icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  padding: 0;
-}
-
-.action-icon-btn:hover {
-  color: var(--text);
-  border-color: var(--primary);
-  background: var(--bg-card);
-}
-
-.action-void-btn:hover {
-  color: var(--danger);
-  border-color: var(--danger);
-  background: var(--danger-soft);
-}
-
-.action-icon-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.history-line-2 {
-  font-size: 12px;
-  color: var(--text-muted);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-wrap: wrap;
-  font-variant-numeric: tabular-nums;
-}
-
-.provider-ref {
-  font-family: ui-monospace, monospace;
-  font-size: 11px;
-  overflow-wrap: anywhere;
-}
-
-.history-line-3 {
-  font-size: 12px;
-  color: var(--text-muted);
-  font-style: italic;
-  margin-top: 2px;
-  word-break: break-word;
-}
-
-.note-edit-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 4px;
-  flex-wrap: wrap;
-}
-
-.note-inline-input {
-  flex: 1;
-  min-width: 140px;
-  font-size: 12px;
-  padding: 4px 8px;
-}
-
-.edit-inline-amount {
-  flex: 0 0 110px;
-  font-size: 12px;
-  padding: 4px 8px;
-}
-
-.edit-inline-date {
-  flex: 0 0 130px;
-  font-size: 12px;
-  padding: 4px 8px;
-}
-
-.note-inline-buttons {
-  display: flex;
-  gap: 4px;
-}
-
-.note-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  border: 1px solid var(--border);
-  transition: all 0.15s ease;
-}
-
-.note-save-btn {
-  background: var(--success-soft);
-  color: var(--success);
-  border-color: var(--border-soft);
-}
-
-.note-save-btn:hover {
-  background: var(--success);
-  color: var(--bg);
-}
-
-.note-cancel-btn {
-  background: var(--bg-card);
-  color: var(--text-muted);
-}
-
-.note-cancel-btn:hover {
-  color: var(--text);
-  border-color: var(--text-muted);
-}
-
-.history-empty {
-  text-align: center;
-  padding: 16px 0;
-  color: var(--text-muted);
-  font-size: 13px;
-  margin: 0;
-}
+.history-section { display: flex; flex-direction: column; gap: 10px; }
+.history-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.history-title { margin: 0; color: var(--text-muted); font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+.toggle-history-btn { background: transparent; border: none; color: var(--primary); font-size: 12px; font-weight: 600; cursor: pointer; padding: 2px 4px; }
+.toggle-history-btn:hover { text-decoration: underline; }
+.history-list { display: flex; flex-direction: column; gap: 8px; }
+.history-card { background: var(--bg-elevated); border-radius: var(--radius-sm, 8px); padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; transition: opacity 0.15s ease; }
+.history-card-voided { opacity: 0.55; }
+.history-card-voided .payment-amount, .history-card-voided .adjustment-amount, .history-card-voided .legacy-amount { text-decoration: line-through; }
+.history-line-1 { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.payment-amount { font-size: 14px; font-weight: 700; color: var(--text); }
+.adjustment-amount { font-size: 13px; font-weight: 700; color: var(--warning); }
+.legacy-amount { font-size: 13px; font-weight: 600; color: var(--text-muted); }
+.history-right-wrap { display: flex; align-items: center; gap: 8px; }
+.history-badges { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.item-actions { display: flex; align-items: center; gap: 4px; }
+.action-icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 4px; background: transparent; border: 1px solid var(--border); color: var(--text-muted); cursor: pointer; transition: all 0.15s ease; padding: 0; }
+.action-icon-btn:hover { color: var(--text); border-color: var(--primary); background: var(--bg-card); }
+.action-void-btn:hover { color: var(--danger); border-color: var(--danger); background: var(--danger-soft); }
+.action-icon-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.history-line-2 { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
+.provider-ref { font-family: ui-monospace, monospace; font-size: 11px; overflow-wrap: anywhere; }
+.history-line-3 { font-size: 12px; color: var(--text-muted); font-style: italic; margin-top: 2px; word-break: break-word; }
+.note-edit-row { display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+.note-inline-input { flex: 1; min-width: 140px; font-size: 12px; padding: 4px 8px; }
+.edit-inline-amount { flex: 0 0 110px; font-size: 12px; padding: 4px 8px; }
+.edit-inline-date { flex: 0 0 130px; font-size: 12px; padding: 4px 8px; }
+.note-inline-buttons { display: flex; gap: 4px; }
+.note-btn { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 4px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid var(--border); transition: all 0.15s ease; }
+.note-save-btn { background: var(--success-soft); color: var(--success); border-color: var(--border-soft); }
+.note-save-btn:hover { background: var(--success); color: var(--bg); }
+.note-cancel-btn { background: var(--bg-card); color: var(--text-muted); }
+.note-cancel-btn:hover { color: var(--text); border-color: var(--text-muted); }
+.history-empty { text-align: center; padding: 16px 0; color: var(--text-muted); font-size: 13px; margin: 0; }
 
 /* =========================================
    BREAKPOINT 850px
    ========================================= */
 @media (min-width: 850px) {
-  .payment-amount {
-    font-size: 15px;
-  }
+  .payment-amount { font-size: 15px; }
 }
 
 /* =========================================
    BREAKPOINT 360px
    ========================================= */
 @media (max-width: 360px) {
-  .history-line-1 {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-  }
-
-  .history-right-wrap {
-    width: 100%;
-    justify-content: space-between;
-  }
+  .history-line-1 { flex-direction: column; align-items: flex-start; gap: 6px; }
+  .history-right-wrap { width: 100%; justify-content: space-between; }
 }
 </style>
