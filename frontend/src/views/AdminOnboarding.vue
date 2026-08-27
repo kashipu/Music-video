@@ -4,6 +4,9 @@ import { useRouter } from 'vue-router'
 import AuthSplitLayout from '../components/AuthSplitLayout.vue'
 import Button from '../components/ui/Button.vue'
 import Input from '../components/ui/Input.vue'
+import FormField from '../components/ui/FormField.vue'
+import FormError from '../components/ui/FormError.vue'
+import Select from '../components/ui/Select.vue'
 import { useAuthStore } from '../stores/auth.js'
 import { LATAM_COUNTRIES } from '../data/countries.js'
 
@@ -106,77 +109,46 @@ async function submit() {
     </header>
     <form class="onboarding-form" @submit.prevent="submit">
       <div class="form-grid">
-        <label class="form-group">
-          <span>Nombre completo</span>
-          <Input v-model="fullName" required autocomplete="name" />
-        </label>
-        <label class="form-group">
-          <span>Teléfono</span>
-          <Input v-model="phone" type="tel" required autocomplete="tel" placeholder="Ej: +57 300 123 4567" />
-        </label>
-        <label class="form-group">
-          <span>Cargo</span>
-          <select v-model="role" class="input-field select-field" required>
+        <FormField label="Nombre completo" required v-slot="{ id }"><Input :id="id" v-model="fullName" required autocomplete="name" /></FormField>
+        <FormField label="Teléfono" required v-slot="{ id }"><Input :id="id" v-model="phone" type="tel" required autocomplete="tel" placeholder="Ej: +57 300 123 4567" /></FormField>
+        <FormField label="Cargo" required v-slot="{ id }"><Select :id="id" v-model="role" required>
             <option value="owner">Dueño</option>
             <option value="manager">Administrador</option>
-          </select>
-        </label>
-        <label class="form-group">
-          <span>Nombre del bar</span>
-          <Input v-model="venueName" required autocomplete="organization" />
-        </label>
-        <label class="form-group">
-          <span>Dirección del local</span>
-          <Input v-model="venueAddress" required autocomplete="street-address" placeholder="Ej: Calle 10 # 40-20" />
-        </label>
-        <label class="form-group">
-          <span>Temática</span>
-          <select v-model="venueType" class="input-field select-field" required>
+          </Select></FormField>
+        <FormField label="Nombre del bar" required v-slot="{ id }"><Input :id="id" v-model="venueName" required autocomplete="organization" /></FormField>
+        <FormField label="Dirección del local" required v-slot="{ id }"><Input :id="id" v-model="venueAddress" required autocomplete="street-address" placeholder="Ej: Calle 10 # 40-20" /></FormField>
+        <FormField label="Temática" required v-slot="{ id }"><Select :id="id" v-model="venueType" required>
             <option value="discoteca">Discoteca</option>
             <option value="rock">Rock</option>
             <option value="musica_popular">Música popular</option>
             <option value="otro">Otro</option>
-          </select>
-        </label>
-        <label v-if="venueType === 'otro'" class="form-group">
-          <span>¿Cuál temática?</span>
-          <Input v-model="venueTypeOther" required />
-        </label>
-        <label v-if="!customCountry" class="form-group">
-          <span>País</span>
-          <select :value="country" class="input-field select-field" required @change="selectCountry($event.target.value)">
+          </Select></FormField>
+        <FormField v-if="venueType === 'otro'" label="¿Cuál temática?" required v-slot="{ id }"><Input :id="id" v-model="venueTypeOther" required /></FormField>
+        <FormField v-if="!customCountry" label="País" required v-slot="{ id }"><Select :id="id" :model-value="country" required @change="selectCountry($event.target.value)">
             <option v-for="c in LATAM_COUNTRIES" :key="c.code" :value="c.name">
               {{ c.name }}
             </option>
             <option value="__other__">Otro</option>
-          </select>
-        </label>
-        <label v-else class="form-group">
-          <span>País</span>
-          <Input v-model="country" list="country-options" required autocomplete="country-name" placeholder="Escribe tu país" />
+          </Select></FormField>
+        <FormField v-else label="País" required v-slot="{ id }"><Input :id="id" v-model="country" list="country-options" required autocomplete="country-name" placeholder="Escribe tu país" />
           <datalist id="country-options">
             <option v-for="c in LATAM_COUNTRIES" :key="c.code" :value="c.name" />
           </datalist>
-        </label>
-        <label v-if="!customCity" class="form-group">
-          <span>Ciudad</span>
-          <select :value="city" class="input-field select-field" required @change="selectCity($event.target.value)">
+        </FormField>
+        <FormField v-if="!customCity" label="Ciudad" required v-slot="{ id }"><Select :id="id" :model-value="city" required @change="selectCity($event.target.value)">
             <option v-for="cityName in availableCities" :key="cityName" :value="cityName">
               {{ cityName }}
             </option>
             <option value="__other__">Otro</option>
-          </select>
-        </label>
-        <label v-else class="form-group">
-          <span>Ciudad</span>
-          <Input v-model="city" list="city-options" required autocomplete="address-level2" placeholder="Escribe tu ciudad" />
+          </Select></FormField>
+        <FormField v-else label="Ciudad" required v-slot="{ id }"><Input :id="id" v-model="city" list="city-options" required autocomplete="address-level2" placeholder="Escribe tu ciudad" />
           <datalist id="city-options">
             <option v-for="cityName in availableCities" :key="cityName" :value="cityName" />
           </datalist>
-        </label>
+        </FormField>
       </div>
 
-      <p v-if="error" class="error-msg" role="alert">{{ error }}</p>
+      <FormError :message="error" />
       <Button type="submit" :disabled="loading">{{ loading ? 'Guardando...' : 'Ir al panel' }}</Button>
     </form>
   </AuthSplitLayout>
@@ -210,31 +182,6 @@ async function submit() {
   display: grid;
   grid-template-columns: 1fr;
   gap: 16px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.select-field {
-  cursor: pointer;
-  appearance: auto;
-}
-
-.select-field option {
-  background: var(--bg-card);
-  color: var(--text);
-}
-
-.error-msg {
-  color: var(--danger);
-  text-align: center;
-  font-size: 13px;
 }
 
 @media (min-width: 700px) {

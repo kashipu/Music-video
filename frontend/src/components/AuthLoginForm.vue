@@ -1,6 +1,9 @@
 <script setup>
 import Button from './ui/Button.vue'
 import Input from './ui/Input.vue'
+import FormField from './ui/FormField.vue'
+import FormError from './ui/FormError.vue'
+import PasswordInput from './ui/PasswordInput.vue'
 import VenueLogo from './VenueLogo.vue'
 import RepitelaLogo from './RepitelaLogo.vue'
 
@@ -37,29 +40,27 @@ const password = defineModel('password', { default: '' })
     <p>{{ subtitle }}</p>
   </header>
   <form class="login-form" @submit.prevent="$emit('submit')">
-    <div class="form-group">
-      <label for="username" class="form-label">Usuario</label>
+    <FormField id="username" label="Usuario" v-slot="{ id }">
       <Input
-        id="username"
+        :id="id"
         v-model="username"
         name="username"
         type="text"
         :placeholder="usernamePlaceholder"
         autocomplete="username"
       />
-    </div>
-    <div class="form-group">
-      <label for="password" class="form-label">Contraseña</label>
-      <Input
-        id="password"
+    </FormField>
+    <FormField id="password" label="Contraseña" v-slot="{ id }">
+      <PasswordInput
+        :id="id"
         v-model="password"
         name="password"
         type="password"
         placeholder="********"
         autocomplete="current-password"
       />
-    </div>
-    <p v-if="error" class="error-msg" role="alert" aria-live="polite">{{ error }}</p>
+    </FormField>
+    <FormError :message="error" />
     <Button type="submit" :disabled="loading">{{ loading ? 'Entrando...' : 'ENTRAR' }}</Button>
 
     <template v-if="showGoogle">
@@ -95,9 +96,6 @@ const password = defineModel('password', { default: '' })
 .login-header h1 { font-size: 24px; font-weight: 700; }
 .login-header p { color: var(--text-muted); font-size: 15px; margin-top: 4px; }
 .login-form { display: flex; flex-direction: column; gap: 16px; }
-.form-group { display: flex; flex-direction: column; gap: 6px; }
-.form-label { font-size: 13px; font-weight: 600; color: var(--text-muted); }
-.error-msg { color: var(--danger); font-size: 14px; text-align: center; }
 
 .auth-divider {
   display: flex;

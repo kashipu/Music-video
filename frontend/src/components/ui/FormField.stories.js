@@ -21,6 +21,11 @@ export const Required = {
   render: args => ({ components: { FormField, Input }, setup: () => ({ args, value: ref('') }), template: '<FormField v-bind="args" v-slot="{ id, required }"><Input :id="id" v-model="value" :required="required" /></FormField>' }),
 }
 
+export const IdExplicito = {
+  args: { id: 'telefono-bar', label: 'Teléfono' },
+  render: args => ({ components: { FormField, Input }, setup: () => ({ args, value: ref('') }), template: '<FormField v-bind="args" v-slot="{ id }"><Input :id="id" v-model="value" type="tel" /></FormField>' }),
+}
+
 export const WithSelect = {
   args: { label: 'Cargo' },
   render: args => ({ components: { FormField, Select }, setup: () => ({ args, value: ref('owner') }), template: '<FormField v-bind="args" v-slot="{ id }"><Select :id="id" v-model="value"><option value="owner">Dueño</option><option value="manager">Administrador</option></Select></FormField>' }),
