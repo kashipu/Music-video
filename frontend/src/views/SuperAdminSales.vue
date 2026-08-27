@@ -5,6 +5,7 @@ import UiButton from '../components/ui/Button.vue'
 import UiInput from '../components/ui/Input.vue'
 import Badge from '../components/ui/Badge.vue'
 import ThemeToggle from '../components/ui/ThemeToggle.vue'
+import BackButton from '../components/ui/BackButton.vue'
 
 const router = useRouter()
 const API = import.meta.env.VITE_API_URL || ''
@@ -116,7 +117,7 @@ onMounted(() => {
   <div class="sales">
     <header class="sales-header">
       <div class="header-left">
-        <button class="back-btn" aria-label="Volver" @click="router.push({ name: 'superadmin' })">&#8592;</button>
+        <BackButton aria-label="Volver" @click="router.push({ name: 'superadmin' })">&#8592;</BackButton>
         <h1>Ventas y facturación</h1>
       </div>
       <ThemeToggle />
@@ -205,7 +206,7 @@ onMounted(() => {
 }
 .header-left { display: flex; align-items: center; gap: 10px; }
 .header-left h1 { font-size: 18px; margin: 0; }
-.back-btn, .theme-toggle {
+.theme-toggle {
   background: transparent;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
