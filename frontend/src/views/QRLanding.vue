@@ -8,6 +8,8 @@ import ThemeToggle from '../components/ui/ThemeToggle.vue'
 import VenueLogo from '../components/VenueLogo.vue'
 import FormField from '../components/ui/FormField.vue'
 import FormError from '../components/ui/FormError.vue'
+import Input from '../components/ui/Input.vue'
+import Button from '../components/ui/Button.vue'
 
 const { applyVenueTheme } = useTheme()
 
@@ -90,37 +92,37 @@ async function handleRegister() {
       </div>
 
       <form class="register-form" @submit.prevent="handleRegister">
-        <FormField label="Tu número de celular" v-slot="{ id }">
-          <input
+        <FormField label="Tu número de celular" required v-slot="{ id }">
+          <Input
             :id="id"
             v-model="phone"
             type="tel"
-            class="input-field"
             placeholder="+57 300 123 4567"
             inputmode="tel"
+            required
           />
         </FormField>
 
         <FormField label="Tu nombre (opcional)" v-slot="{ id }">
-          <input
+          <Input
             :id="id"
             v-model="displayName"
             type="text"
-            class="input-field"
-            placeholder="Como te llamas?"
+            placeholder="¿Cómo te llamas?"
           />
         </FormField>
 
-        <FormField v-if="pinRequired" label="Código PIN (visible en la pantalla del bar)" v-slot="{ id }">
-          <input
+        <FormField v-if="pinRequired" label="Código PIN (visible en la pantalla del bar)" required v-slot="{ id }">
+          <Input
             :id="id"
             v-model="pin"
             type="text"
-            class="input-field pin-input"
+            class="pin-input"
             placeholder="1234"
             inputmode="numeric"
             maxlength="4"
             autocomplete="off"
+            required
           />
         </FormField>
 
@@ -131,15 +133,18 @@ async function handleRegister() {
 
         <FormError :message="error" />
 
-        <button type="submit" class="btn btn-primary" :disabled="loading">
+        <Button type="submit" :disabled="loading">
           {{ loading ? 'Entrando...' : 'ENTRAR' }}
-        </button>
+        </Button>
       </form>
     </div>
   </div>
 </template>
 
 <style scoped>
+/* =========================================
+   CSS GENERAL
+   ========================================= */
 .landing {
   min-height: 100vh;
   min-height: 100dvh;
