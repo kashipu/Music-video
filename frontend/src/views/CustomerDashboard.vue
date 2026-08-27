@@ -9,7 +9,7 @@ import NowPlaying from '../components/NowPlaying.vue'
 import { useTheme } from '../composables/useTheme.js'
 import SongSubmit from '../components/SongSubmit.vue'
 import SongPreview from '../components/SongPreview.vue'
-import ThemeToggle from '../components/ui/ThemeToggle.vue'
+import CustomerHeader from '../components/CustomerHeader.vue'
 import FormError from '../components/ui/FormError.vue'
 import { trackSongConfirmed, trackSongCancelled, trackSessionKicked, trackSessionExpired, setAnalyticsContext } from '../utils/analytics.js'
 
@@ -282,15 +282,10 @@ async function cancelSong(songId) {
     </Transition>
 
     <!-- Header -->
-    <header class="dash-header">
-      <div class="header-left">
-        <span class="venue-name">{{ auth.session?.venue_name || venueSlug.replace(/-/g, ' ') }}</span>
-      </div>
-      <div class="header-right">
-        <ThemeToggle />
-        <button class="logout-btn" @click="handleLogout">Salir</button>
-      </div>
-    </header>
+    <CustomerHeader
+      :venue-name="auth.session?.venue_name || venueSlug.replace(/-/g, ' ')"
+      @logout="handleLogout"
+    />
     <div class="container">
 
       <!-- Greeting -->
@@ -385,25 +380,6 @@ async function cancelSong(songId) {
   min-height: 100vh; min-height: 100dvh;
   background: var(--bg);
 }
-
-/* ── Header ── */
-.dash-header {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: max(14px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 14px max(16px, env(safe-area-inset-left));
-  background: var(--bg-card);
-  border-bottom: 1px solid var(--border-soft);
-  position: -webkit-sticky; position: sticky; top: 0; z-index: 10;
-}
-.header-left { display: flex; align-items: center; min-width: 0; flex-shrink: 1; }
-.venue-name { font-weight: 800; font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.header-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.logout-btn {
-  padding: 6px 14px; border-radius: 20px;
-  background: transparent; border: 1px solid var(--border);
-  color: var(--text-muted); font-size: 12px; font-weight: 600;
-  cursor: pointer; transition: all 0.15s;
-}
-.logout-btn:hover { border-color: var(--danger); color: var(--danger); }
 
 /* ── Greeting ── */
 .user-greeting { padding-top: 18px; padding-bottom: 4px; }
