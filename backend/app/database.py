@@ -63,11 +63,14 @@ async def run_migrations(db: aiosqlite.Connection) -> None:
         if filename in applied:
             continue
         sql = (migrations_dir / filename).read_text(encoding="utf-8")
+        foreign_keys_off = sql.lstrip().startswith("-- migrate: foreign_keys=off")
         # Atomic per file: without this, a migration failing mid-script leaves
         # the DB half-migrated and unregistered — the next boot re-runs it and
         # dies with e.g. "duplicate column". (executescript commits any pending
         # txn first, so BEGIN/COMMIT must live inside the script itself.)
         try:
+            if foreign_keys_off:
+                await db.execute("PRAGMA foreign_keys = OFF")
             await db.executescript("BEGIN;\n" + sql + "\n;COMMIT;")
         except Exception:
             try:
@@ -75,5 +78,8 @@ async def run_migrations(db: aiosqlite.Connection) -> None:
             except Exception:
                 pass
             raise
+        finally:
+            if foreign_keys_off:
+                await db.execute("PRAGMA foreign_keys = ON")
         await db.execute("INSERT INTO _migrations (filename) VALUES (?)", (filename,))
         await db.commit()
