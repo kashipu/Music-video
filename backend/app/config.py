@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     app_debug: bool = False
 
     database_path: str = "data/barqueue.db"
+    db_size_alert_threshold_bytes: int = 400 * 1024 * 1024
 
     youtube_api_key: str = ""
     google_client_id: str = ""
