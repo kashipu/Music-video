@@ -132,8 +132,9 @@ async def finish_song(song_id: int, venue_id: int) -> dict:
         # Idempotency: only mark as played if it's still 'playing'. If admin already
         # skipped it, this is a no-op and we still advance to whatever is current.
         rows = await db.execute_fetchall(
-            "SELECT venue_id, user_id, youtube_id, title, duration_sec, status FROM queue_songs WHERE id = ?",
-            (song_id,),
+            "SELECT venue_id, user_id, youtube_id, title, duration_sec, status FROM queue_songs "
+            "WHERE id = ? AND venue_id = ?",
+            (song_id, venue_id),
         )
         finished_user_id = None
         already_finalized = False
@@ -375,8 +376,9 @@ async def error_song(song_id: int, venue_id: int, error_code: int) -> dict:
     async with _playback_locks[venue_id]:
         # Get song info; only finalize if it's still in a non-terminal state
         rows = await db.execute_fetchall(
-            "SELECT venue_id, user_id, youtube_id, title, duration_sec, status FROM queue_songs WHERE id = ?",
-            (song_id,),
+            "SELECT venue_id, user_id, youtube_id, title, duration_sec, status FROM queue_songs "
+            "WHERE id = ? AND venue_id = ?",
+            (song_id, venue_id),
         )
         finished_user_id = None
         error_title = ""
