@@ -319,19 +319,16 @@ async def cancel_my_song(song_id: int, user: dict = Depends(get_current_user)):
     from app.database import get_db
     db = await get_db()
 
-    # Verify the song belongs to this user and is pending
-    rows = await db.execute_fetchall(
-        "SELECT id FROM queue_songs WHERE id = ? AND user_id = ? AND venue_id = ? AND status = 'pending'",
+    # Single UPDATE re-checking ownership+pending atomically, so a song that
+    # started playing between validation and write can't be cancelled mid-playback.
+    cursor = await db.execute(
+        "UPDATE queue_songs SET status = 'removed' "
+        "WHERE id = ? AND user_id = ? AND venue_id = ? AND status = 'pending'",
         (song_id, user["user_id"], user["venue_id"]),
     )
-    if not rows:
-        raise HTTPException(status_code=404, detail="Cancion no encontrada o no se puede cancelar")
-
-    await db.execute(
-        "UPDATE queue_songs SET status = 'removed' WHERE id = ?",
-        (song_id,),
-    )
     await db.commit()
+    if cursor.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Cancion no encontrada o no se puede cancelar")
 
     await manager.broadcast(user["venue_id"], {
         "event": "song_removed",
