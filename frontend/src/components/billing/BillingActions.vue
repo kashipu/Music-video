@@ -69,7 +69,7 @@ const adjustDeltaLabel = computed(() => {
 })
 
 function handleMarkPaid() {
-  if (!isValidAmount.value || !isValidPaidUntilDate.value) return
+  if (props.busy || !isValidAmount.value || !isValidPaidUntilDate.value) return
   emit('mark-paid', {
     amountCOP: amountCOP.value,
     paidUntilDate: paidUntilDate.value,
@@ -83,7 +83,7 @@ function handleMarkPaid() {
 }
 
 function handleExtendTrial() {
-  if (!isValidTrialDate.value) return
+  if (props.busy || !isValidTrialDate.value) return
   emit('extend-trial', {
     trialUntilDate: trialUntilDate.value,
     onSuccess: () => {
@@ -93,7 +93,7 @@ function handleExtendTrial() {
 }
 
 function handleAdjustExpiry() {
-  if (!isValidAdjust.value) return
+  if (props.busy || !isValidAdjust.value) return
   emit('adjust-expiry', {
     adjustDate: adjustDate.value,
     adjustNotes: adjustNotes.value,

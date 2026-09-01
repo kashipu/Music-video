@@ -65,7 +65,7 @@ function cancelEditNote() {
 }
 
 function saveEditNote(item) {
-  if (!item) return
+  if (!item || props.savingNote) return
   const body = { notes: editingNoteText.value.trim() || null }
   if (canEditAmount(item) && editingAmountCOP.value) {
     const n = Number(editingAmountCOP.value)

@@ -78,6 +78,7 @@ async function fetchBilling() {
 }
 
 async function payNow() {
+  if (paying.value) return
   paying.value = true
   errorMsg.value = ''
   try {

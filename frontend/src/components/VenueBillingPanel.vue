@@ -37,7 +37,7 @@ const billing = computed(() => {
   if (detail.value?.billing) return detail.value.billing
   const status = detail.value?.venue?.payment_status || 'active'
   const paidUntil = detail.value?.venue?.paid_until || null
-  let daysRemaining = 0
+  let daysRemaining = null
   if (paidUntil) {
     const value = new Date(`${paidUntil.slice(0, 10)}T00:00:00`)
     const today = new Date()
@@ -64,7 +64,7 @@ const periodSubtitle = computed(() => {
 })
 
 const definingEvent = computed(() =>
-  (billing.value.history || []).find(e => e.status !== 'voided' && e.status !== 'declined') || null
+  (billing.value.history || []).find(e => e.status !== 'voided' && e.status !== 'declined' && e.status !== 'pending') || null
 )
 
 function eventTitle(item) {
@@ -100,17 +100,11 @@ const referenceStart = computed(() => {
 })
 const referenceStartLabel = computed(() => formatDate(toISODate(referenceStart.value)))
 
-function flashError(msg) {
-  errorMsg.value = msg
-  setTimeout(() => { errorMsg.value = '' }, 5000)
-}
-
-function flashOk(msg) {
-  saveMsg.value = msg
-  setTimeout(() => { saveMsg.value = '' }, 3000)
-}
+function flashError(msg) { errorMsg.value = msg; setTimeout(() => { errorMsg.value = '' }, 5000) }
+function flashOk(msg) { saveMsg.value = msg; setTimeout(() => { saveMsg.value = '' }, 3000) }
 
 async function markAsPaid({ amountCOP, paidUntilDate, paymentNotes, onSuccess }) {
+  if (busy.value) return
   const amountNumber = Number(amountCOP)
   const ok = await confirm({
     title: 'Registrar pago',
@@ -137,6 +131,7 @@ async function markAsPaid({ amountCOP, paidUntilDate, paymentNotes, onSuccess })
 }
 
 async function extendTrial({ trialUntilDate, onSuccess }) {
+  if (busy.value) return
   const ok = await confirm({
     title: 'Dar prueba gratis',
     message: `¿Dar prueba gratis hasta el ${formatDate(trialUntilDate)}? No registra ningún cobro.`,
@@ -160,6 +155,7 @@ async function extendTrial({ trialUntilDate, onSuccess }) {
 }
 
 async function adjustExpiry({ adjustDate, adjustNotes, adjustDeltaLabel, onSuccess }) {
+  if (busy.value) return
   const ok = await confirm({
     title: 'Corregir vencimiento',
     message: `¿Fijar el vencimiento exactamente en el ${formatDate(adjustDate)}? ${adjustDeltaLabel} Queda registrado en el historial y se puede anular.`,
@@ -184,7 +180,7 @@ async function adjustExpiry({ adjustDate, adjustNotes, adjustDeltaLabel, onSucce
 }
 
 async function voidEvent(item) {
-  if (!item || item.status === 'voided') return
+  if (!item || item.status === 'voided' || voidingEventId.value) return
   const ok = await confirm({
     title: 'Anular movimiento',
     message: `¿Anular "${eventTitle(item)}"? El vencimiento se recalcula. Esta acción no se puede deshacer.`,
@@ -205,7 +201,7 @@ async function voidEvent(item) {
 }
 
 async function saveEventNote({ item, body, dateChanged, newDate, onSuccess }) {
-  if (!item) return
+  if (!item || savingNote.value) return
   if (dateChanged && definingEvent.value?.id === item.id) {
     const ok = await confirm({
       title: 'Editar movimiento',
