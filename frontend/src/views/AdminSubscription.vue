@@ -21,6 +21,10 @@ const errorMsg = ref('')
 const billing = ref(null)
 const processingReturn = ref(!!route.query.id)
 
+// Pago manual mientras Wompi esté fuera o como alternativa: transferencia +
+// comprobante por WhatsApp. Mismo número que usa la landing (FloatingWhatsApp.astro).
+const WHATSAPP_RENEW_URL = 'https://wa.me/573028336170?text=' + encodeURIComponent('Quiero renovar Repítela')
+
 const currencyFormatter = new Intl.NumberFormat('es-CO', {
   style: 'currency',
   currency: 'COP',
@@ -51,6 +55,14 @@ const statusBadgeInfo = computed(() => {
   if (s === 'overdue') return { variant: 'warning', label: 'Vencido (período de gracia)' }
   if (s === 'suspended') return { variant: 'danger', label: 'Suspendido (período vencido)' }
   return { variant: 'neutral', label: s || 'Desconocido' }
+})
+
+// Se muestra cuando ya conviene renovar: por vencer pronto, en gracia o suspendido.
+const showRenewalBanner = computed(() => {
+  const b = billing.value
+  if (!b) return false
+  if (b.payment_status === 'overdue' || b.payment_status === 'suspended') return true
+  return b.payment_status === 'active' && b.days_remaining != null && b.days_remaining >= 0 && b.days_remaining <= 3
 })
 
 const periodSubtitle = computed(() => {
@@ -136,6 +148,11 @@ onMounted(async () => {
 
       <template v-else-if="billing">
         <div v-if="processingReturn" class="processing-banner">Procesando tu pago... Actualizaremos el estado en unos segundos.</div>
+
+        <div v-if="showRenewalBanner" class="renewal-banner">
+          <p class="renewal-text">Para renovar, transfiere <strong>$50.000</strong> a la llave <strong>@repitela</strong> (titular Wil*** Mor***, Banco de Bogotá) y envía el comprobante por WhatsApp.</p>
+          <a class="btn btn-primary renewal-cta" :href="WHATSAPP_RENEW_URL" target="_blank" rel="noopener">Quiero renovar</a>
+        </div>
 
         <div
           class="card billing-card"
@@ -228,6 +245,19 @@ onMounted(async () => {
   font-weight: 600;
   margin-bottom: 12px;
 }
+
+.renewal-banner {
+  background: var(--warning-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.renewal-text { margin: 0; font-size: 13px; color: var(--text); line-height: 1.5; }
+.renewal-cta { width: 100%; }
 
 .billing-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg, 12px); padding: 16px; }
 .billing-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; }

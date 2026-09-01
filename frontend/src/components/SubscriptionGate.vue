@@ -34,6 +34,18 @@ const graceDaysLabel = computed(() => {
   return d === 1 ? '1 día' : `${d} días`
 })
 
+// Aviso temprano: suscripción activa mostrando cuenta regresiva, aún sin llegar a
+// vencer (eso ya lo cubre el grace-banner de status==='overdue').
+const showUpcomingBanner = computed(() =>
+  status.value === 'active' && daysRemaining.value != null && daysRemaining.value >= 0 && daysRemaining.value <= 3
+)
+const upcomingMessage = computed(() => {
+  const d = daysRemaining.value
+  if (d === 0) return 'Tu suscripción vence hoy.'
+  if (d === 1) return 'Tu suscripción vence mañana.'
+  return `Tu suscripción vence en ${d} días.`
+})
+
 function handleKeydown(e) {
   if (status.value !== 'suspended' || !paywallRef.value) return
   if (e.key !== 'Tab') return
@@ -100,6 +112,11 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <div v-if="showUpcomingBanner" class="grace-banner upcoming-banner">
+    <span>{{ upcomingMessage }} Renuévala para no perder el servicio.</span>
+    <UiButton class="grace-cta" @click="goToSubscription">Renovar</UiButton>
+  </div>
+
   <div v-if="status === 'overdue'" class="grace-banner">
     <span>Tu suscripción venció. Te quedan {{ graceDaysLabel }} antes de que se suspenda el servicio.</span>
     <UiButton class="grace-cta" @click="goToSubscription">Pagar ahora</UiButton>
