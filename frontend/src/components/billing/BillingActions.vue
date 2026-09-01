@@ -182,7 +182,8 @@ function handleAdjustExpiry() {
 .field-amount, .field-notes, .field-date, .field-btn { width: 100%; }
 .field-date-wrap { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--text-muted); font-weight: 600; }
 .adjust-delta { margin: 0; font-size: 12px; font-weight: 700; color: var(--warning); }
-.save-msg { display: block; margin-top: 8px; color: var(--success); font-size: 13px; font-weight: 600; }
+.save-msg { display: block; margin-top: 8px; color: var(--success); font-size: 13px; font-weight: 600; text-align: right; }
+.billing-actions :deep(.error-msg) { margin-top: 8px; text-align: right; }
 
 /* =========================================
    BREAKPOINT 850px
