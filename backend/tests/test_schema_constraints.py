@@ -118,3 +118,40 @@ async def test_migration_preserves_children_and_quarantines_dirty_values():
         "PRAGMA foreign_key_check"
     )] == existing_fk_violations
     await db.close()
+
+
+async def _columns_by_table(db):
+    tables = await db.execute_fetchall(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+    )
+    return {
+        row[0]: {column[1] for column in await db.execute_fetchall(
+            f"PRAGMA table_info('{row[0]}')"
+        )}
+        for row in tables
+    }
+
+
+@pytest.mark.asyncio
+async def test_ninguna_migracion_pierde_columnas():
+    """Reconstruir una tabla (el único modo de agregar un CHECK en SQLite) copia
+    las columnas a mano. Si la lista se escribió antes de que otra migración
+    agregara una columna, el INSERT…SELECT la omite y el DROP TABLE la borra:
+    los datos se pierden en el despliegue, en silencio y sin error."""
+    db = await _new_db()
+    previous = {}
+    for migration in sorted(MIGRATIONS.glob("*.sql")):
+        sql = migration.read_text()
+        if sql.lstrip().startswith("-- migrate: foreign_keys=off"):
+            await db.execute("PRAGMA foreign_keys = OFF")
+        await db.executescript("BEGIN;\n" + sql + "\n;COMMIT;")
+        await db.execute("PRAGMA foreign_keys = ON")
+
+        current = await _columns_by_table(db)
+        for table, columns in previous.items():
+            if table not in current:
+                continue  # retirar una tabla entera es deliberado, no un descuido
+            lost = columns - current[table]
+            assert not lost, f"{migration.name} eliminó {table}.{sorted(lost)}"
+        previous = current
+    await db.close()
