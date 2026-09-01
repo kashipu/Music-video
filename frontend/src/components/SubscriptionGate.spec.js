@@ -29,18 +29,26 @@ describe('SubscriptionGate', () => {
     expect(wrapper.text()).toBe('')
   })
 
-  it('shows the grace banner for an overdue subscription', async () => {
-    const wrapper = await mountGate({ payment_status: 'overdue', days_remaining: -1, monthly_price_cents: 4900000 })
+  it('shows the grace banner with grace_days_remaining for an overdue subscription', async () => {
+    const wrapper = await mountGate({
+      payment_status: 'overdue',
+      days_remaining: -1,
+      grace_days_remaining: 4,
+      grace_period_days: 5,
+      monthly_price_cents: 4900000,
+    })
 
-    expect(wrapper.text()).toContain('Te quedan 1 día')
+    expect(wrapper.text()).toContain('Te quedan 4 días')
     expect(wrapper.text()).toContain('Pagar ahora')
   })
 
-  it('shows the paywall and formatted price for a suspended subscription', async () => {
-    const wrapper = await mountGate({ payment_status: 'suspended', days_remaining: -3, monthly_price_cents: 4900000 })
+  it('shows the paywall and formatted price for a suspended subscription with focus trap', async () => {
+    const wrapper = await mountGate({ payment_status: 'suspended', days_remaining: -3, monthly_price_cents: 4900000 }, { attachTo: document.body })
 
     expect(wrapper.text()).toContain('Suscripción suspendida')
     expect(wrapper.text()).toMatch(/49.000/)
     expect(wrapper.text()).toContain('Reactivar suscripción')
+    expect(wrapper.find('.paywall-overlay').attributes('role')).toBe('dialog')
+    expect(wrapper.find('.paywall-overlay').attributes('aria-modal')).toBe('true')
   })
 })
