@@ -29,6 +29,19 @@ describe('SubscriptionGate', () => {
     expect(wrapper.text()).toBe('')
   })
 
+  it('shows the upcoming-expiry banner within 3 days of paid_until', async () => {
+    const wrapper = await mountGate({ payment_status: 'active', days_remaining: 2, monthly_price_cents: 4900000 })
+
+    expect(wrapper.text()).toContain('Tu suscripción vence en 2 días')
+    expect(wrapper.text()).toContain('Renovar')
+  })
+
+  it('does not show the upcoming-expiry banner beyond 3 days', async () => {
+    const wrapper = await mountGate({ payment_status: 'active', days_remaining: 4, monthly_price_cents: 4900000 })
+
+    expect(wrapper.text()).toBe('')
+  })
+
   it('shows the grace banner with grace_days_remaining for an overdue subscription', async () => {
     const wrapper = await mountGate({
       payment_status: 'overdue',
