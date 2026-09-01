@@ -31,7 +31,9 @@ async def get_analytics(venue_id: int, period: str = "week") -> dict:
 
     # Summary
     summary_rows = await db.execute_fetchall(
-        "SELECT COUNT(*) as total, COUNT(DISTINCT user_id) as users, "
+        "SELECT COUNT(*) as total, "
+        "COUNT(DISTINCT CASE WHEN user_id NOT IN (SELECT id FROM users WHERE is_system = 1) "
+        "THEN user_id END) as users, "
         "COUNT(DISTINCT youtube_id) as songs "
         "FROM play_history WHERE venue_id = ? AND played_at > datetime('now', ?)",
         (venue_id, period_filter),
@@ -82,7 +84,7 @@ async def get_analytics(venue_id: int, period: str = "week") -> dict:
         "FROM queue_songs qs "
         "JOIN user_sessions us ON qs.session_id = us.id "
         "JOIN users u ON qs.user_id = u.id "
-        "WHERE qs.venue_id = ? AND qs.added_at > datetime('now', ?) "
+        "WHERE qs.venue_id = ? AND qs.added_at > datetime('now', ?) AND u.is_system = 0 "
         "GROUP BY qs.user_id ORDER BY total_songs DESC LIMIT 10",
         (venue_id, period_filter),
     )
@@ -244,7 +246,10 @@ async def get_daily_analytics(venue_id: int, period: str = "week") -> dict:
     """Daily play-history data for the venue detail analytics."""
     db = await get_db()
     rows = await db.execute_fetchall(
-        "SELECT date(played_at) as day, COUNT(DISTINCT user_id) as people, COUNT(*) as songs "
+        "SELECT date(played_at) as day, "
+        "COUNT(DISTINCT CASE WHEN user_id NOT IN (SELECT id FROM users WHERE is_system = 1) "
+        "THEN user_id END) as people, "
+        "COUNT(*) as songs "
         "FROM play_history WHERE venue_id = ? AND played_at > datetime('now', ?) "
         "GROUP BY day ORDER BY day",
         (venue_id, get_period_filter(period)),
