@@ -1,14 +1,16 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
 import { useConfigStore } from '../stores/config.js'
 import Badge from '../components/ui/Badge.vue'
 import UiButton from '../components/ui/Button.vue'
-import AdminHeader from '../components/AdminHeader.vue'
+import BackButton from '../components/ui/BackButton.vue'
+import ThemeToggle from '../components/ui/ThemeToggle.vue'
 import FormError from '../components/ui/FormError.vue'
 
 const route = useRoute()
+const router = useRouter()
 const auth = useAuthStore()
 const config = useConfigStore()
 const API = import.meta.env.VITE_API_URL || ''
@@ -121,7 +123,13 @@ onMounted(async () => {
 
 <template>
   <div class="admin-subscription">
-    <AdminHeader venue-name="Mi suscripción" />
+    <header class="as-header">
+      <div class="header-left">
+        <BackButton aria-label="Volver" @click="router.push({ name: 'admin', params: { venueSlug: route.params.venueSlug } })">&#8592;</BackButton>
+        <h1>Mi suscripción</h1>
+      </div>
+      <ThemeToggle />
+    </header>
 
     <main class="as-content">
       <p v-if="loading" class="loading">Cargando...</p>
@@ -196,6 +204,17 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.as-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border);
+}
+.header-left { display: flex; align-items: center; gap: 10px; }
+.header-left h1 { font-size: 18px; margin: 0; }
 .as-content { max-width: 560px; margin: auto; padding: 16px 12px; }
 .loading { color: var(--text-muted); text-align: center; padding: 24px 0; }
 
