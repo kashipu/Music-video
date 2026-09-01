@@ -39,6 +39,13 @@ async def billing_db(monkeypatch):
         CREATE UNIQUE INDEX idx_billing_events_provider_ref
         ON venue_billing_events(source, provider_ref)
         WHERE provider_ref IS NOT NULL;
+        CREATE TABLE platform_settings (
+            id INTEGER PRIMARY KEY,
+            trial_days INTEGER NOT NULL DEFAULT 15,
+            grace_period_days INTEGER NOT NULL DEFAULT 5,
+            monthly_price_cents INTEGER NOT NULL DEFAULT 0
+        );
+        INSERT INTO platform_settings (id, grace_period_days) VALUES (1, 5);
         """
     )
     today = date.today()
@@ -84,6 +91,54 @@ async def test_void_last_event_restores_period_start(monkeypatch):
     assert result["paid_until"] == period_start
     assert result["paid_until_reverted"] is True
     assert (await db.execute_fetchall("SELECT paid_until FROM venues WHERE id = 1"))[0][0] == period_start
+    await db.close()
+
+
+@pytest.mark.asyncio
+async def test_void_reverting_past_grace_period_suspends_venue(monkeypatch):
+    db = await billing_db(monkeypatch)
+    # El evento anulado revierte paid_until a una fecha ya fuera del periodo
+    # de gracia (grace_period_days=5): el bar debe quedar active=FALSE. Se
+    # inserta directo (no via record_event) porque period_start solo queda
+    # en el pasado cuando el pago se concilia contra un vencimiento ya viejo
+    # (ej. webhook de Wompi reconciliando tarde), no en el flujo normal.
+    stale_period_start = (date.today() - timedelta(days=20)).isoformat()
+    await db.execute(
+        "INSERT INTO venue_billing_events "
+        "(venue_id, kind, source, created_by_id, created_by_username, days, "
+        "period_start, period_end, status) "
+        "VALUES (1, 'payment', 'manual', 1, 'root', 30, ?, ?, 'approved')",
+        (stale_period_start, (date.today() + timedelta(days=10)).isoformat()),
+    )
+    event_id = (await db.execute_fetchall(
+        "SELECT id FROM venue_billing_events WHERE venue_id = 1 ORDER BY id DESC LIMIT 1"
+    ))[0][0]
+
+    result = await billing_service.void_event(1, event_id)
+
+    assert result["paid_until_reverted"] is True
+    assert result["paid_until"] == stale_period_start
+    assert (await db.execute_fetchall(
+        "SELECT active FROM venues WHERE id = 1"
+    ))[0][0] == 0
+    await db.close()
+
+
+@pytest.mark.asyncio
+async def test_void_reverting_within_grace_period_keeps_venue_active(monkeypatch):
+    db = await billing_db(monkeypatch)
+    creator = {"created_by_id": 1, "created_by_username": "root"}
+    period_start = (date.today() + timedelta(days=10)).isoformat()
+
+    await billing_service.record_event(1, "trial", 7, **creator)
+    event_id = (await db.execute_fetchall("SELECT id FROM venue_billing_events WHERE venue_id = 1"))[0][0]
+
+    result = await billing_service.void_event(1, event_id)
+
+    assert result["paid_until"] == period_start
+    assert (await db.execute_fetchall(
+        "SELECT active FROM venues WHERE id = 1"
+    ))[0][0] == 1
     await db.close()
 
 

@@ -63,12 +63,20 @@ async def get_billing(admin: dict = Depends(get_current_admin)):
     )
     current = next((e for e in events if e[8] != "voided"), None)
     settings_row = await get_platform_settings()
+    grace_period_days = settings_row["grace_period_days"]
+    grace_days_remaining = None
+    if payment_status == "overdue" and days_remaining is not None:
+        grace_days_remaining = max(0, grace_period_days + days_remaining)
+    elif payment_status == "overdue":
+        grace_days_remaining = grace_period_days
 
     return {
         "payment_status": payment_status,
         "paid_until": paid_until,
         "period_start": current[5] if current else None,
         "days_remaining": days_remaining,
+        "grace_days_remaining": grace_days_remaining,
+        "grace_period_days": grace_period_days,
         "monthly_price_cents": settings_row["monthly_price_cents"],
         "history": [
             {

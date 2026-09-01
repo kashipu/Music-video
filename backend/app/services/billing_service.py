@@ -169,6 +169,17 @@ async def void_event(venue_id: int, event_id: int) -> dict:
                 "UPDATE venues SET paid_until = ? WHERE id = ?",
                 (event["period_start"], venue_id),
             )
+            # La fecha revertida puede caer fuera del periodo de gracia: el bar
+            # queda activo en la DB con un pago que ya no lo respalda (WIL-119).
+            settings_rows = await db.execute_fetchall(
+                "SELECT grace_period_days FROM platform_settings WHERE id = 1"
+            )
+            grace_period_days = settings_rows[0][0] if settings_rows else 5
+            reverted_date = date.fromisoformat(event["period_start"])
+            if reverted_date < date.today() - timedelta(days=grace_period_days):
+                await db.execute(
+                    "UPDATE venues SET active = FALSE WHERE id = ?", (venue_id,)
+                )
         paid_until = (await db.execute_fetchall(
             "SELECT paid_until FROM venues WHERE id = ?", (venue_id,)
         ))[0][0]
