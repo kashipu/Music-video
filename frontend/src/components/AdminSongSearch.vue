@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { onUnmounted, ref } from 'vue'
 import { formatDuration, thumbFallback } from '../utils/youtube.js'
 import { searchSongs } from '../services/admin.js'
 
@@ -17,6 +17,8 @@ const ytResults = ref([])
 const ytSearching = ref(false)
 const librarySearch = ref('')
 let ytSearchTimeout = null
+
+onUnmounted(() => { if (ytSearchTimeout) clearTimeout(ytSearchTimeout) })
 
 function onYtSearch() {
   if (ytSearchTimeout) clearTimeout(ytSearchTimeout)

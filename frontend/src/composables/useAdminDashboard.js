@@ -246,6 +246,7 @@ export function useAdminDashboard() {
   }
 
   async function startPlayback() {
+    if (loadingStart.value) return
     loadingStart.value = true
     try {
       await apiStartPlayback(auth.adminHeaders())
@@ -255,6 +256,7 @@ export function useAdminDashboard() {
   }
 
   async function skipSong() {
+    if (loadingSkip.value) return
     loadingSkip.value = true
     try {
       const res = await skipQueueSong(auth.adminHeaders())
@@ -269,6 +271,7 @@ export function useAdminDashboard() {
   }
 
   async function pausePlayback() {
+    if (loadingPause.value) return
     loadingPause.value = true
     const prev = playbackStatus.value
     playbackStatus.value = 'paused'
@@ -285,6 +288,7 @@ export function useAdminDashboard() {
   }
 
   async function resumePlayback() {
+    if (loadingResume.value) return
     loadingResume.value = true
     const prev = playbackStatus.value
     playbackStatus.value = 'playing'
@@ -301,6 +305,7 @@ export function useAdminDashboard() {
   }
 
   async function playFallbackNow() {
+    if (loadingFallbackPlay.value) return
     loadingFallbackPlay.value = true
     try {
       fallbackPaused.value = false
@@ -311,6 +316,7 @@ export function useAdminDashboard() {
   }
 
   async function skipFallbackSong() {
+    if (loadingFallbackSkip.value) return
     loadingFallbackSkip.value = true
     try {
       const res = await apiSkipFallback(auth.adminHeaders())
@@ -324,6 +330,7 @@ export function useAdminDashboard() {
   }
 
   async function nextSong() {
+    if (loadingSkip.value || loadingFallbackSkip.value) return
     if (nowPlaying.value && !nowPlaying.value.is_fallback) {
       await skipSong()
     } else {
@@ -332,6 +339,7 @@ export function useAdminDashboard() {
   }
 
   async function toggleFallback() {
+    if (loadingFallbackToggle.value) return
     loadingFallbackToggle.value = true
     fallbackPaused.value = !fallbackPaused.value
     try {
@@ -367,7 +375,7 @@ export function useAdminDashboard() {
   }
 
   async function activateBanner() {
-    if (!bannerText.value) return
+    if (!bannerText.value || loadingBanner.value) return
     loadingBanner.value = true
     try {
       bannerActive.value = true
@@ -377,6 +385,7 @@ export function useAdminDashboard() {
   }
 
   async function deactivateBanner() {
+    if (loadingBanner.value) return
     loadingBanner.value = true
     try {
       bannerActive.value = false
@@ -386,6 +395,7 @@ export function useAdminDashboard() {
   }
 
   async function toggleQr() {
+    if (loadingQr.value) return
     loadingQr.value = true
     try {
       showQr.value = !showQr.value
@@ -395,7 +405,7 @@ export function useAdminDashboard() {
   }
 
   async function setQrSize(size) {
-    if (size === qrSize.value) return
+    if (size === qrSize.value || loadingQrSize.value) return
     loadingQrSize.value = true
     try {
       qrSize.value = size
@@ -404,6 +414,7 @@ export function useAdminDashboard() {
   }
 
   async function toggleBrand() {
+    if (loadingBrand.value) return
     loadingBrand.value = true
     try {
       showBrand.value = !showBrand.value
@@ -413,6 +424,7 @@ export function useAdminDashboard() {
   }
 
   async function playNow(songId) {
+    if (loadingPlayNow.value[songId]) return
     loadingPlayNow.value = { ...loadingPlayNow.value, [songId]: true }
     try {
       const res = await playSongNow(songId, auth.adminHeaders())
@@ -427,6 +439,7 @@ export function useAdminDashboard() {
   }
 
   async function clearQueue() {
+    if (loadingClearQueue.value) return
     if (!confirm('Vaciar toda la cola?')) return
     loadingClearQueue.value = true
     try {
@@ -443,6 +456,7 @@ export function useAdminDashboard() {
   }
 
   async function removeSong(songId) {
+    if (loadingRemove.value[songId]) return
     loadingRemove.value = { ...loadingRemove.value, [songId]: true }
     try {
       const res = await removeQueueSong(songId, auth.adminHeaders())
@@ -493,6 +507,7 @@ export function useAdminDashboard() {
   }
 
   async function kickTable(tableNumber) {
+    if (loadingKick.value[tableNumber]) return
     if (!confirm(`Expulsar al usuario de la mesa #${tableNumber}? Sus canciones pendientes serán removidas.`)) return
     loadingKick.value = { ...loadingKick.value, [tableNumber]: true }
     try {
@@ -508,6 +523,7 @@ export function useAdminDashboard() {
   }
 
   async function resetTableLimit(tableNumber) {
+    if (loadingResetLimit.value[tableNumber]) return
     loadingResetLimit.value = { ...loadingResetLimit.value, [tableNumber]: true }
     try {
       const res = await apiResetTableLimit(tableNumber, auth.adminHeaders())
@@ -572,6 +588,7 @@ export function useAdminDashboard() {
   }
 
   async function addToFallback(youtubeId) {
+    if (loadingAddToFallback.value[youtubeId]) return
     loadingAddToFallback.value = { ...loadingAddToFallback.value, [youtubeId]: true }
     try {
       const res = await addFallbackSong(youtubeId, auth.adminHeaders())
@@ -583,6 +600,7 @@ export function useAdminDashboard() {
   }
 
   async function deleteFallbackSong(songId) {
+    if (loadingDeleteFallback.value[songId]) return
     loadingDeleteFallback.value = { ...loadingDeleteFallback.value, [songId]: true }
     try {
       const res = await removeFallbackSong(songId, auth.adminHeaders())
@@ -623,7 +641,11 @@ export function useAdminDashboard() {
     }, 30000)
   })
 
-  onUnmounted(() => { if (adminPoll) clearInterval(adminPoll) })
+  onUnmounted(() => {
+    if (adminPoll) clearInterval(adminPoll)
+    if (toastTimer) clearTimeout(toastTimer)
+    if (volumeDebounce) clearTimeout(volumeDebounce)
+  })
 
   return {
     venueSlug,

@@ -489,7 +489,12 @@ async function togglePlayPause() {
 onUnmounted(() => {
   if (pollInterval) clearInterval(pollInterval)
   if (kioskControlsTimer) clearTimeout(kioskControlsTimer)
+  if (bannerTimer) clearTimeout(bannerTimer)
+  if (overlayTimer) clearTimeout(overlayTimer)
   stopProgressTracking()
+  if (window.onYouTubeIframeAPIReady === initPlayer) window.onYouTubeIframeAPIReady = null
+  if (ytPlayer && typeof ytPlayer.destroy === 'function') { try { ytPlayer.destroy() } catch { /* */ } }
+  if (preloadPlayer && typeof preloadPlayer.destroy === 'function') { try { preloadPlayer.destroy() } catch { /* */ } }
 })
 </script>
 

@@ -156,6 +156,7 @@ function handleLogout() {
 }
 
 async function onConfirm(youtubeId) {
+  if (confirmLoading.value) return
   confirmLoading.value = true
   try {
     const result = await queueStore.confirmSong(youtubeId)
@@ -173,6 +174,7 @@ async function onConfirm(youtubeId) {
 }
 
 async function cancelSong(songId) {
+  if (cancelLoading.value[songId]) return
   cancelLoading.value = { ...cancelLoading.value, [songId]: true }
   try {
     await queueStore.cancelMySong(songId)

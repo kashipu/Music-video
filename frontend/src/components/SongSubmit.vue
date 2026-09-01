@@ -52,7 +52,7 @@ watch(() => props.rateLimit?.songs_remaining, (val) => {
   else { stopCountdown(); countdown.value = '' }
 }, { immediate: true })
 
-onUnmounted(stopCountdown)
+onUnmounted(() => { stopCountdown(); if (searchTimeout) clearTimeout(searchTimeout) })
 
 function onSearchInput() {
   if (searchTimeout) clearTimeout(searchTimeout)

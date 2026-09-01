@@ -1,5 +1,5 @@
 <script setup>
-import { formatDuration } from '../utils/youtube.js'
+import { formatDuration, thumbFallback } from '../utils/youtube.js'
 
 defineProps({
   queue: {
@@ -77,7 +77,7 @@ defineEmits([
       >
         <div class="q-handle">&#9776;</div>
         <span class="q-pos">{{ idx + 1 }}</span>
-        <img :src="`https://i.ytimg.com/vi/${song.youtube_id}/mqdefault.jpg`" class="q-thumb" />
+        <img :src="song.thumbnail_url || `https://i.ytimg.com/vi/${song.youtube_id}/mqdefault.jpg`" class="q-thumb" @error="thumbFallback" />
         <div class="q-info">
           <p class="q-title">{{ song.title }}</p>
           <p class="q-meta">{{ song.user_name }} &middot; #{{ song.table_number }} &middot; {{ formatDuration(song.duration_sec) }}</p>

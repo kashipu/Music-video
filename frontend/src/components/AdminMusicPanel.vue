@@ -27,7 +27,7 @@ defineProps({
   loadingBrand: { type: Boolean, default: false },
   showQr: { type: Boolean, default: true },
   loadingQr: { type: Boolean, default: false },
-  qrSize: { type: Number, default: 140 },
+  qrSize: { type: String, default: 'M' },
   loadingQrSize: { type: Boolean, default: false },
   bannerText: { type: String, default: '' },
   bannerActive: { type: Boolean, default: false },
