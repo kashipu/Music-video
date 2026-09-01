@@ -5,7 +5,7 @@ from datetime import date, timedelta
 
 import asyncio
 import bcrypt
-from fastapi import APIRouter, HTTPException, Depends, Header, Query, UploadFile, File
+from fastapi import APIRouter, HTTPException, Depends, Header, Query, UploadFile, File, Form
 from pydantic import BaseModel, Field, StrictInt
 
 from app.services import analytics_service, auth_service, billing_service
@@ -75,6 +75,8 @@ class CreateVenueRequest(BaseModel):
     admin_address: str
     admin_city: str
     logo_url: str | None = None
+    logo_url_light: str | None = None
+    logo_url_dark: str | None = None
     qr_url: str | None = None
     max_duration_sec: int = 600
     max_songs_per_window: int = 3
@@ -113,6 +115,8 @@ class UpdatePlatformSettingsRequest(BaseModel):
 class UpdateVenueRequest(BaseModel):
     name: str | None = None
     logo_url: str | None = ""
+    logo_url_light: str | None = ""
+    logo_url_dark: str | None = ""
     qr_url: str | None = ""
     active: bool | None = None
     max_duration_sec: int | None = None
@@ -239,7 +243,7 @@ async def list_venues(admin: dict = Depends(get_current_super_admin)):
         for r in kpi_rows
     }
     rows = await db.execute_fetchall(
-        "SELECT v.id, v.name, v.slug, v.active, v.config, v.created_at, v.logo_url, v.qr_url, "
+        "SELECT v.id, v.name, v.slug, v.active, v.config, v.created_at, v.logo_url, v.logo_url_light, v.logo_url_dark, v.qr_url, "
         "(SELECT COUNT(*) FROM admins a WHERE a.venue_id = v.id) as admin_count, "
         "(SELECT COUNT(*) FROM queue_songs qs WHERE qs.venue_id = v.id AND qs.status IN ('pending','playing')) as queue_count, "
         "(SELECT COUNT(*) FROM user_sessions us WHERE us.venue_id = v.id AND us.ended_at IS NULL) as active_sessions, "
@@ -263,13 +267,13 @@ async def list_venues(admin: dict = Depends(get_current_super_admin)):
         venues.append({
             "id": r[0], "name": r[1], "slug": r[2],
             "active": bool(r[3]), "config": config,
-            "created_at": r[5], "logo_url": r[6], "qr_url": r[7],
-            "admin_count": r[8], "queue_count": r[9], "active_sessions": r[10],
-            "paid_until": r[11], "payment_notes": r[12],
-            "last_used_at": r[13],
-            "last_admin_login": r[14],
-            "on_trial": r[15] in ("trial", None),
-            "payment_status": await compute_payment_status(r[11], grace_period_days),
+            "created_at": r[5], "logo_url": r[6], "logo_url_light": r[7], "logo_url_dark": r[8], "qr_url": r[9],
+            "admin_count": r[10], "queue_count": r[11], "active_sessions": r[12],
+            "paid_until": r[13], "payment_notes": r[14],
+            "last_used_at": r[15],
+            "last_admin_login": r[16],
+            "on_trial": r[17] in ("trial", None),
+            "payment_status": await compute_payment_status(r[13], grace_period_days),
         })
     return {"venues": venues, "kpis": kpis}
 
@@ -295,9 +299,9 @@ async def create_venue(req: CreateVenueRequest, admin: dict = Depends(require_ro
     })
 
     cursor = await db.execute(
-        "INSERT INTO venues (name, slug, fallback_mode, config, active, logo_url, qr_url) "
-        "VALUES (?, ?, 'playlist', ?, TRUE, ?, ?)",
-        (req.name, req.slug, config, req.logo_url, req.qr_url),
+        "INSERT INTO venues (name, slug, fallback_mode, config, active, logo_url, logo_url_light, logo_url_dark, qr_url) "
+        "VALUES (?, ?, 'playlist', ?, TRUE, ?, ?, ?, ?)",
+        (req.name, req.slug, config, req.logo_url, req.logo_url_light, req.logo_url_dark, req.qr_url),
     )
     venue_id = cursor.lastrowid
     await billing_service.record_event(
@@ -355,6 +359,10 @@ async def update_venue(venue_id: int, req: UpdateVenueRequest,
         await db.execute("UPDATE venues SET name = ? WHERE id = ?", (req.name, venue_id))
     if req.logo_url != "":
         await db.execute("UPDATE venues SET logo_url = ? WHERE id = ?", (req.logo_url, venue_id))
+    if req.logo_url_light != "":
+        await db.execute("UPDATE venues SET logo_url_light = ? WHERE id = ?", (req.logo_url_light, venue_id))
+    if req.logo_url_dark != "":
+        await db.execute("UPDATE venues SET logo_url_dark = ? WHERE id = ?", (req.logo_url_dark, venue_id))
     if req.qr_url != "":
         await db.execute("UPDATE venues SET qr_url = ? WHERE id = ?", (req.qr_url, venue_id))
     if req.active is not None:
@@ -401,7 +409,7 @@ async def delete_venue(venue_id: int, admin: dict = Depends(require_role("super_
 async def venue_stats(venue_id: int, admin: dict = Depends(get_current_super_admin)):
     db = await get_db()
 
-    rows = await db.execute_fetchall("SELECT name, slug, active, created_at, logo_url, qr_url, config, paid_until, payment_notes FROM venues WHERE id = ?", (venue_id,))
+    rows = await db.execute_fetchall("SELECT name, slug, active, created_at, logo_url, logo_url_light, logo_url_dark, qr_url, config, paid_until, payment_notes FROM venues WHERE id = ?", (venue_id,))
     if not rows:
         raise HTTPException(status_code=404, detail="Bar no encontrado")
 
@@ -435,17 +443,17 @@ async def venue_stats(venue_id: int, admin: dict = Depends(get_current_super_adm
     )
     current_billing = next((event for event in billing_rows if event[11] != "voided"), None)
     period_start = current_billing[5] if current_billing else None
-    period_end = current_billing[6] if current_billing else v[7]
+    period_end = current_billing[6] if current_billing else v[9]
     days_remaining = None
     if period_end:
         try:
             days_remaining = (date.fromisoformat(period_end) - date.today()).days
         except (TypeError, ValueError):
             pass
-    payment_status = await compute_payment_status(v[7])
+    payment_status = await compute_payment_status(v[9])
 
     return {
-        "venue": {"id": venue_id, "name": v[0], "slug": v[1], "active": bool(v[2]), "created_at": v[3], "logo_url": v[4], "qr_url": v[5], "config": v[6], "paid_until": v[7], "payment_notes": v[8], "payment_status": payment_status},
+        "venue": {"id": venue_id, "name": v[0], "slug": v[1], "active": bool(v[2]), "created_at": v[3], "logo_url": v[4], "logo_url_light": v[5], "logo_url_dark": v[6], "qr_url": v[7], "config": v[8], "paid_until": v[9], "payment_notes": v[10], "payment_status": payment_status},
         "stats": {
             "total_songs_played": s[0], "total_users": s[1],
             "active_sessions": s[2], "songs_in_queue": s[3],
@@ -685,9 +693,12 @@ async def clear_venue_playlist(venue_id: int, admin: dict = Depends(get_current_
 async def upload_venue_logo(
     venue_id: int,
     file: UploadFile = File(...),
+    variant: str = Form(...),
     admin: dict = Depends(get_current_super_admin),
 ):
-    """Upload a logo image (PNG, JPG, SVG) for a venue."""
+    """Upload a logo image for the requested light or dark theme."""
+    if variant not in {"light", "dark"}:
+        raise HTTPException(status_code=400, detail="La variante debe ser clara u oscura")
     # Validate file type
     allowed = {"image/png", "image/jpeg", "image/jpg", "image/svg+xml"}
     if file.content_type not in allowed:
@@ -702,28 +713,27 @@ async def upload_venue_logo(
     ext = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else "png"
     if ext not in ("png", "jpg", "jpeg", "svg"):
         ext = "png"
-    filename = f"{venue_id}_{uuid.uuid4().hex[:8]}.{ext}"
+    filename = f"{venue_id}_{variant}_{uuid.uuid4().hex[:8]}.{ext}"
 
     # Save file
     from app.main import get_logos_dir
     logos_dir = get_logos_dir()
 
-    # Delete old logo files for this venue
+    # Delete only the previous file for this variant.
     for f in os.listdir(logos_dir):
-        if f.startswith(f"{venue_id}_"):
+        if f.startswith(f"{venue_id}_{variant}_"):
             os.remove(os.path.join(logos_dir, f))
 
     filepath = os.path.join(logos_dir, filename)
     with open(filepath, "wb") as f:
         f.write(content)
 
-    # Update venue logo_url in DB
     logo_url = f"/api/uploads/{filename}"
     db = await get_db()
-    await db.execute("UPDATE venues SET logo_url = ? WHERE id = ?", (logo_url, venue_id))
+    await db.execute(f"UPDATE venues SET logo_url_{variant} = ? WHERE id = ?", (logo_url, venue_id))
     await db.commit()
 
-    return {"logo_url": logo_url}
+    return {f"logo_url_{variant}": logo_url}
 
 
 @router.post("/venues/{venue_id}/mark-paid")

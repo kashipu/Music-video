@@ -1,13 +1,13 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useTheme } from '../composables/useTheme.js'
 import UiButton from '../components/ui/Button.vue'
 import UiInput from '../components/ui/Input.vue'
 import Badge from '../components/ui/Badge.vue'
+import ThemeToggle from '../components/ui/ThemeToggle.vue'
+import BackButton from '../components/ui/BackButton.vue'
 
 const router = useRouter()
-const { currentMode, toggleMode } = useTheme()
 const API = import.meta.env.VITE_API_URL || ''
 
 const loading = ref(true)
@@ -117,10 +117,10 @@ onMounted(() => {
   <div class="sales">
     <header class="sales-header">
       <div class="header-left">
-        <button class="back-btn" aria-label="Volver" @click="router.push({ name: 'superadmin' })">&#8592;</button>
+        <BackButton aria-label="Volver" @click="router.push({ name: 'superadmin' })">&#8592;</BackButton>
         <h1>Ventas y facturación</h1>
       </div>
-      <button class="theme-toggle" aria-label="Cambiar tema" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button>
+      <ThemeToggle />
     </header>
 
     <main class="sales-content">
@@ -206,7 +206,7 @@ onMounted(() => {
 }
 .header-left { display: flex; align-items: center; gap: 10px; }
 .header-left h1 { font-size: 18px; margin: 0; }
-.back-btn, .theme-toggle {
+.theme-toggle {
   background: transparent;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -218,6 +218,7 @@ onMounted(() => {
 .sales-content { max-width: 900px; margin: auto; padding: 16px 12px; display: flex; flex-direction: column; gap: 20px; }
 .loading, .empty { color: var(--text-muted); text-align: center; padding: 16px 0; }
 
+/* Título compacto para secciones de analítica densa. */
 .section-title { margin: 0 0 10px; color: var(--text-muted); font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
 
 .revenue-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }

@@ -1,11 +1,9 @@
 <script setup>
 import { useRouter } from 'vue-router'
-import { useTheme } from '../composables/useTheme.js'
-import logoPositive from '../assets/logo-color-positivo.svg'
-import logoNegative from '../assets/logo-color-negativo.svg'
+import ThemeToggle from '../components/ui/ThemeToggle.vue'
+import RepitelaLogo from '../components/RepitelaLogo.vue'
 
 const router = useRouter()
-const { currentMode, toggleMode } = useTheme()
 
 function goBack() {
   if (window.history.length > 1) {
@@ -21,12 +19,10 @@ function goBack() {
     <header class="privacy-header">
       <div class="privacy-header-content">
         <router-link to="/admin" class="brand-link">
-          <img :src="currentMode === 'dark' ? logoNegative : logoPositive" alt="Repítela" class="privacy-logo" />
+          <RepitelaLogo class="privacy-logo" />
         </router-link>
         <div class="header-actions">
-          <button class="theme-toggle" :aria-label="`Cambiar a tema ${currentMode === 'dark' ? 'claro' : 'oscuro'}`" @click="toggleMode">
-            {{ currentMode === 'dark' ? '☀' : '☾' }}
-          </button>
+          <ThemeToggle />
         </div>
       </div>
     </header>
@@ -157,7 +153,7 @@ function goBack() {
         </section>
 
         <div class="footer-actions">
-          <button type="button" class="btn btn-primary back-btn" @click="goBack">
+          <button type="button" class="btn btn-primary footer-back-action" @click="goBack">
             Entendido, volver
           </button>
         </div>
@@ -326,7 +322,7 @@ function goBack() {
   justify-content: flex-end;
 }
 
-.back-btn {
+.footer-back-action {
   max-width: 220px;
 }
 
@@ -341,7 +337,7 @@ function goBack() {
   .policy-title {
     font-size: 22px;
   }
-  .back-btn {
+  .footer-back-action {
     max-width: 100%;
     width: 100%;
   }

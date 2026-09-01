@@ -171,7 +171,7 @@ async def google_signup(token: str, venue_name: str | None, terms_version: str,
     info = await verify_google_token(token)
     db = await get_db()
     rows = await db.execute_fetchall(
-        "SELECT a.id, a.username, a.venue_id, v.name, v.slug, v.logo_url, v.qr_url, v.config, a.onboarding_completed_at "
+        "SELECT a.id, a.username, a.venue_id, v.name, v.slug, v.logo_url, v.logo_url_light, v.logo_url_dark, v.qr_url, v.config, a.onboarding_completed_at "
         "FROM admins a JOIN venues v ON a.venue_id = v.id "
         "WHERE a.google_sub = ? OR a.email = ? OR a.username = ? LIMIT 1",
         (info["sub"], info["email"].lower(), info["email"].lower()),
@@ -182,8 +182,8 @@ async def google_signup(token: str, venue_name: str | None, terms_version: str,
         await db.commit()
         return {"token": auth_service.create_admin_token(admin[0], admin[1], admin[2]), "admin": {
             "id": admin[0], "username": admin[1], "venue_id": admin[2], "venue_name": admin[3],
-            "venue_slug": admin[4], "logo_url": admin[5], "qr_url": admin[6], "config": admin[7],
-            "onboarding_completed_at": admin[8],
+            "venue_slug": admin[4], "logo_url": admin[5], "logo_url_light": admin[6], "logo_url_dark": admin[7], "qr_url": admin[8], "config": admin[9],
+            "onboarding_completed_at": admin[10],
         }}
     if not venue_name:
         venue_name = f"Bar de {info['email'].split('@')[0]}"

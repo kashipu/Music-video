@@ -120,6 +120,11 @@ a { color: var(--color-link, var(--primary)); text-decoration: none; }
   letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 12px;
 }
 
+.text-muted {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
 /* ===== LANDING-STYLE ACCENTS (paywall) ===== */
 .font-display { font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif; }
 
@@ -155,15 +160,6 @@ a { color: var(--color-link, var(--primary)); text-decoration: none; }
 
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
-
-/* ===== LOGO DEL BAR =====
-   Los logos monocromos oscuros se invierten a blanco sobre fondo oscuro; los
-   que tienen color quedan intactos (invertirlos los dejaría en negativo). La
-   clase la decide VenueLogo.vue mirando los píxeles, no la extensión. */
-[data-theme="dark"] .logo-adaptive,
-.logo-adaptive.logo-on-dark {
-  filter: invert(1);
-}
 
 /* ===== THEME TOGGLE ===== */
 .theme-toggle {

@@ -1,643 +1,40 @@
 <script setup>
-import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useAuthStore } from '../stores/auth.js'
-import { useWebSocket } from '../composables/useWebSocket.js'
-import { useTheme } from '../composables/useTheme.js'
-import { useToast, safeFetch } from '../composables/useToast.js'
-import { formatDuration, thumbFallback } from '../utils/youtube.js'
-import { trackAdminAction } from '../utils/analytics.js'
+import { useRouter } from 'vue-router'
+import AdminHeader from '../components/AdminHeader.vue'
+import AdminSidebar from '../components/AdminSidebar.vue'
 import SubscriptionGate from '../components/SubscriptionGate.vue'
-import VenueLogo from '../components/VenueLogo.vue'
+import BackButton from '../components/ui/BackButton.vue'
+import AdminBrandingPanel from '../components/AdminBrandingPanel.vue'
+import AdminQrCard from '../components/AdminQrCard.vue'
+import AdminTablesCard from '../components/AdminTablesCard.vue'
+import AdminSidebarSummary from '../components/AdminSidebarSummary.vue'
+import AdminRightTabs from '../components/AdminRightTabs.vue'
+import AdminMusicPanel from '../components/AdminMusicPanel.vue'
+import AdminTablesView from '../components/AdminTablesView.vue'
+import AdminAnalyticsPanel from '../components/AdminAnalyticsPanel.vue'
+import { useAdminDashboard } from '../composables/useAdminDashboard.js'
 
-const toast = useToast()
-
-const route = useRoute()
 const router = useRouter()
-const auth = useAuthStore()
-const { currentMode, toggleMode, applyVenueTheme } = useTheme()
+const {
+  venueSlug, auth, adminToast, nowPlaying, queue, played, playbackStatus,
+  volume, muted, tables, analytics, library, analyticsPeriod, fallbackSongs,
+  fallbackPaused, bannerText, bannerActive, showBrand, showQr, qrSize,
+  selectedTable, rightTab, addError, queueLimit, playedLimit, dragIdx,
+  dropIdx, sidebarOpen, fallbackYoutubeIds, totalDuration, registroUrl,
+  qrCodeUrl, wsState, playbackBadge, loadingSkip, loadingPause, loadingResume,
+  loadingStart, loadingPlayNow, loadingRemove, loadingClearQueue, loadingKick,
+  loadingResetLimit, loadingFallbackPlay, loadingFallbackToggle, loadingFallbackSkip,
+  loadingBanner, loadingBrand, loadingQr, loadingQrSize, loadingAddFromLib,
+  loadingDeleteFallback, loadingAddToFallback, fetchTables, fetchAnalytics,
+  fetchLibrary, startPlayback, nextSong, pausePlayback, resumePlayback,
+  playFallbackNow, toggleFallback, changeVolume, toggleMute, activateBanner,
+  deactivateBanner, toggleQr, setQrSize, toggleBrand, playNow, clearQueue,
+  removeSong, addFromLibrary, requeueSong, kickTable, resetTableLimit,
+  downloadQR, printQR, addToFallback, deleteFallbackSong,
+  onDragStart, onDragOver, onDragLeave, onDrop, onDragEnd,
+} = useAdminDashboard()
 
-const API = import.meta.env.VITE_API_URL || ''
-const venueSlug = route.params.venueSlug || auth.adminInfo?.venue_slug || 'default'
 document.title = `${auth.adminInfo?.venue_name || venueSlug} - Admin`
-
-// State
-const adminToast = ref('')
-let toastTimer = null
-function showAdminToast(msg) {
-  adminToast.value = msg
-  if (toastTimer) clearTimeout(toastTimer)
-  toastTimer = setTimeout(() => { adminToast.value = '' }, 3000)
-}
-const nowPlaying = ref(null)
-const queue = ref([])
-const played = ref([])
-const playbackStatus = ref('playing')
-const volume = ref(80)
-const muted = ref(false)
-const volumeBeforeMute = ref(80)
-const tables = ref([])
-const analytics = ref(null)
-const library = ref([])
-const librarySearch = ref('')
-const analyticsPeriod = ref('week')
-const fallbackSongs = ref([])
-const fallbackPaused = ref(false)
-const bannerText = ref('')
-const bannerActive = ref(false)
-const showBrand = ref(true)
-const rightTab = ref('music')
-const selectedTable = ref(null)
-const addMode = ref('search')
-// Per-button loading states
-const loadingSkip = ref(false)
-const loadingPause = ref(false)
-const loadingResume = ref(false)
-const loadingStart = ref(false)
-const loadingPlayNow = ref({})
-const loadingRemove = ref({})
-const loadingClearQueue = ref(false)
-const loadingKick = ref({})
-const loadingResetLimit = ref({})
-const loadingFallbackPlay = ref(false)
-const loadingFallbackToggle = ref(false)
-const loadingFallbackSkip = ref(false)
-const loadingBanner = ref(false)
-const loadingBrand = ref(false)
-const loadingQr = ref(false)
-const showQr = ref(false)
-const qrSize = ref('M')
-const loadingQrSize = ref(false)
-const loadingAddFromLib = ref({})
-const loadingDeleteFallback = ref({})
-const loadingAddToFallback = ref({})
-const queueLimit = ref(15)
-const playedLimit = ref(15)
-const ytSearch = ref('')
-const ytResults = ref([])
-const ytSearching = ref(false)
-let ytSearchTimeout = null
-const dragIdx = ref(null)
-const dropIdx = ref(null)
-let ignoreNextReorder = false
-const sidebarOpen = ref(false)
-
-// Set of youtube_ids already in fallback playlist (for button state)
-const fallbackYoutubeIds = computed(() => new Set(fallbackSongs.value.map(s => s.youtube_id)))
-
-// Computed
-const totalDuration = computed(() => {
-  const secs = queue.value.reduce((sum, s) => sum + (s.duration_sec || 0), 0)
-  return `${Math.floor(secs / 60)} min`
-})
-
-const registroUrl = computed(() => {
-  if (auth.adminInfo?.qr_url) return auth.adminInfo.qr_url
-  return `${window.location.origin}/${venueSlug}/registro`
-})
-const qrCodeUrl = computed(() =>
-  `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(registroUrl.value)}`
-)
-
-// WebSocket
-const { onEvent, onReconnect, connected: wsConnected } = useWebSocket(venueSlug)
-
-// Track when we lost connection (for the indicator color)
-const wsState = computed(() => {
-  if (wsConnected.value) return { label: 'Conectado', cls: 'ws-ok', dotCls: 'ws-dot-ok' }
-  return { label: 'Reconectando…', cls: 'ws-bad', dotCls: 'ws-dot-bad' }
-})
-
-// Notify admin when WS goes offline so they know live updates are paused.
-// watch se desmonta con el componente; el setInterval anterior no se limpiaba nunca.
-// wsHadDrop evita el toast espurio en la primera conexion (false -> true al montar).
-let wsHadDrop = false
-watch(wsConnected, (connected) => {
-  if (!connected) {
-    wsHadDrop = true
-    toast.warn('Conexión perdida — reintentando…')
-  } else if (wsHadDrop) {
-    toast.success('Conexión restaurada')
-  }
-})
-
-// Unified playback status badge — single source of truth for what's happening
-const playbackBadge = computed(() => {
-  if (!wsConnected.value) return { label: 'SIN CONEXIÓN', cls: 'badge-offline' }
-  if (playbackStatus.value === 'paused') return { label: 'PAUSADO', cls: 'badge-paused' }
-  if (nowPlaying.value && !nowPlaying.value.is_fallback) return { label: 'SONANDO USUARIO', cls: 'badge-user' }
-  if (nowPlaying.value && nowPlaying.value.is_fallback) {
-    if (fallbackPaused.value) return { label: 'PLAYLIST PAUSADA', cls: 'badge-paused' }
-    return { label: 'SONANDO PLAYLIST', cls: 'badge-fallback' }
-  }
-  if (queue.value.length > 0) return { label: 'LISTA PARA EMPEZAR', cls: 'badge-ready' }
-  if (fallbackSongs.value.length > 0 && !fallbackPaused.value) return { label: 'SIN COLA — ESPERANDO PLAYLIST', cls: 'badge-idle' }
-  return { label: 'SIN REPRODUCCIÓN', cls: 'badge-idle' }
-})
-
-// On reconnect, re-fetch everything since events were missed
-onReconnect(() => {
-  fetchQueue()
-  fetchTables()
-  fetchAnalytics()
-  fetchFallbackPlaylist()
-})
-
-onEvent((event) => {
-  if (event.event === 'queue_reordered') {
-    // Skip if this was triggered by our own drag-and-drop (we already fetched)
-    if (ignoreNextReorder) { ignoreNextReorder = false; return }
-    fetchQueue()
-  } else if (event.event === 'now_playing_changed') {
-    if (event.data.fallback_active && event.data.song?.is_fallback) {
-      nowPlaying.value = event.data.song
-    } else {
-      fetchQueue()
-    }
-    fetchTables()
-  } else if (['song_added', 'song_removed'].includes(event.event)) {
-    fetchQueue()
-    fetchTables()
-  } else if (event.event === 'table_registered') {
-    fetchTables()
-  } else if (event.event === 'playback_status_changed') {
-    playbackStatus.value = event.data.status
-  } else if (event.event === 'song_error') {
-    showAdminToast(`Error de video: ${event.data.title || 'desconocido'} (codigo ${event.data.error_code})`)
-    fetchQueue()
-  } else if (event.event === 'volume_changed') {
-    // Sync volume slider when another admin panel changes it
-    volume.value = event.data.volume
-    muted.value = event.data.volume === 0
-    if (event.data.volume > 0) volumeBeforeMute.value = event.data.volume
-  } else if (event.event === 'fallback_status_changed') {
-    fallbackPaused.value = event.data.paused
-  } else if (event.event === 'banner_changed') {
-    bannerText.value = event.data.banner_text || ''
-    bannerActive.value = !!event.data.banner_text
-    if (event.data.show_brand !== undefined) showBrand.value = event.data.show_brand
-  } else if (event.event === 'qr_visibility_changed') {
-    showQr.value = event.data.show_qr
-    if (event.data.qr_size) qrSize.value = event.data.qr_size
-  }
-})
-
-// Polling fallback: if WS events are lost, keep admin in sync
-let adminPoll = null
-
-async function refreshAdminInfo() {
-  try {
-    const res = await fetch(`${API}/api/playback/now-playing?venue=${venueSlug}`)
-    if (res.ok) {
-      const data = await res.json()
-      if (data.venue_logo !== undefined && auth.adminInfo) {
-        auth.adminInfo.logo_url = data.venue_logo
-        try { localStorage.setItem('bq_admin', JSON.stringify(auth.adminInfo)) } catch { /* */ }
-      }
-    }
-  } catch { /* */ }
-}
-
-onMounted(async () => {
-  applyVenueTheme(auth.adminInfo?.config)
-  // Load banner from venue config
-  try {
-    const cfg = typeof auth.adminInfo?.config === 'string' ? JSON.parse(auth.adminInfo.config) : auth.adminInfo?.config
-    bannerText.value = cfg?.banner_text || ''
-    showBrand.value = cfg?.show_brand !== false
-    showQr.value = cfg?.show_qr === true
-    qrSize.value = cfg?.qr_size || 'M'
-  } catch { /* */ }
-  await Promise.all([fetchQueue(), fetchTables(), fetchAnalytics(), fetchFallbackPlaylist(), refreshAdminInfo()])
-  adminPoll = setInterval(() => {
-    fetchQueue()
-    fetchTables()
-  }, 30000)
-})
-
-onUnmounted(() => { if (adminPoll) clearInterval(adminPoll) })
-
-// ===== FETCH =====
-async function fetchQueue() {
-  const res = await fetch(`${API}/api/admin/queue`, { headers: auth.adminHeaders() })
-  if (!res.ok) return
-  const data = await res.json()
-  // When a real song is playing, use it. When the queue is empty but a fallback is sounding,
-  // fall back to the cached fallback now-playing (so the admin keeps the title across polls).
-  nowPlaying.value = data.now_playing || data.fallback_now_playing || null
-  queue.value = data.queue
-  playbackStatus.value = data.playback_status
-  fetchPlayed()
-}
-
-async function fetchPlayed() {
-  const res = await fetch(`${API}/api/admin/played`, { headers: auth.adminHeaders() })
-  if (res.ok) { const data = await res.json(); played.value = data.songs }
-}
-
-async function fetchTables() {
-  const res = await fetch(`${API}/api/admin/tables`, { headers: auth.adminHeaders() })
-  if (!res.ok) return
-  const data = await res.json()
-  tables.value = data.tables
-  // Keep selectedTable in sync with fresh data
-  if (selectedTable.value) {
-    const updated = data.tables.find(t => t.table_number === selectedTable.value.table_number)
-    selectedTable.value = updated || null
-  }
-}
-
-async function fetchAnalytics() {
-  const res = await fetch(`${API}/api/admin/analytics?period=${analyticsPeriod.value}`, { headers: auth.adminHeaders() })
-  if (res.ok) analytics.value = await res.json()
-}
-
-async function fetchFallbackPlaylist() {
-  const res = await fetch(`${API}/api/admin/playlist`, { headers: auth.adminHeaders() })
-  if (res.ok) { const data = await res.json(); fallbackSongs.value = data.songs }
-}
-
-async function fetchLibrary() {
-  const q = librarySearch.value ? `&search=${encodeURIComponent(librarySearch.value)}` : ''
-  const res = await fetch(`${API}/api/admin/library?${q}`, { headers: auth.adminHeaders() })
-  if (res.ok) { const data = await res.json(); library.value = data.songs }
-}
-
-// ===== PLAYBACK =====
-async function startPlayback() {
-  loadingStart.value = true
-  try {
-    await fetch(`${API}/api/admin/playback/start`, { method: 'POST', headers: auth.adminHeaders() })
-    trackAdminAction('start_playback')
-    await fetchQueue()
-  } finally { loadingStart.value = false }
-}
-async function skipSong() {
-  loadingSkip.value = true
-  try {
-    const r = await safeFetch('Saltar canción',
-      () => fetch(`${API}/api/admin/queue/skip`, { method: 'POST', headers: auth.adminHeaders() }),
-      { success: 'Canción saltada' })
-    if (r.ok) trackAdminAction('skip_song')
-    await fetchQueue()
-  } finally { loadingSkip.value = false }
-}
-async function pausePlayback() {
-  loadingPause.value = true
-  const prev = playbackStatus.value
-  playbackStatus.value = 'paused'
-  try {
-    const r = await safeFetch('Pausar',
-      () => fetch(`${API}/api/admin/playback/pause`, { method: 'POST', headers: auth.adminHeaders() }),
-      { success: 'Pausado' })
-    if (r.ok) trackAdminAction('pause_playback')
-    else playbackStatus.value = prev  // revert optimistic update on failure
-  } finally { loadingPause.value = false }
-}
-async function resumePlayback() {
-  loadingResume.value = true
-  const prev = playbackStatus.value
-  playbackStatus.value = 'playing'
-  try {
-    const r = await safeFetch('Reanudar',
-      () => fetch(`${API}/api/admin/playback/resume`, { method: 'POST', headers: auth.adminHeaders() }),
-      { success: 'Reanudado' })
-    if (r.ok) trackAdminAction('resume_playback')
-    else playbackStatus.value = prev
-  } finally { loadingResume.value = false }
-}
-
-// ===== VOLUME =====
-async function playFallbackNow() {
-  loadingFallbackPlay.value = true
-  try {
-    fallbackPaused.value = false
-    await safeFetch('Activar playlist',
-      () => fetch(`${API}/api/admin/fallback-status?paused=false`, {
-        method: 'POST', headers: auth.adminHeaders(),
-      }))
-    const r = await safeFetch('Reproducir playlist',
-      () => fetch(`${API}/api/admin/fallback-play`, {
-        method: 'POST', headers: auth.adminHeaders(),
-      }),
-      { success: 'Playlist iniciada' })
-  } finally { loadingFallbackPlay.value = false }
-}
-
-async function skipFallbackSong() {
-  loadingFallbackSkip.value = true
-  try {
-    const r = await safeFetch('Siguiente',
-      () => fetch(`${API}/api/admin/fallback-skip`, { method: 'POST', headers: auth.adminHeaders() }),
-      { success: 'Siguiente canción' })
-    if (r.ok) trackAdminAction('skip_fallback')
-  } finally { loadingFallbackSkip.value = false }
-}
-
-// Universal "Siguiente": skips user song if one is playing, otherwise skips fallback song
-// (fallback-skip handles switching to user queue songs when they are pending)
-async function nextSong() {
-  if (nowPlaying.value && !nowPlaying.value.is_fallback) {
-    await skipSong()
-  } else {
-    await skipFallbackSong()
-  }
-}
-
-async function toggleFallback() {
-  loadingFallbackToggle.value = true
-  fallbackPaused.value = !fallbackPaused.value
-  try {
-    const r = await safeFetch(fallbackPaused.value ? 'Pausar playlist' : 'Reanudar playlist',
-      () => fetch(`${API}/api/admin/fallback-status?paused=${fallbackPaused.value}`, {
-        method: 'POST', headers: auth.adminHeaders(),
-      }),
-      { success: fallbackPaused.value ? 'Playlist pausada' : 'Playlist reanudada' })
-    if (!r.ok) fallbackPaused.value = !fallbackPaused.value  // revert
-  } finally { loadingFallbackToggle.value = false }
-}
-
-let volumeDebounce = null
-function changeVolume() {
-  muted.value = false
-  if (volumeDebounce) clearTimeout(volumeDebounce)
-  volumeDebounce = setTimeout(() => {
-    fetch(`${API}/api/admin/volume?volume=${volume.value}`, { method: 'POST', headers: auth.adminHeaders() })
-  }, 150)
-}
-function toggleMute() {
-  if (muted.value) { muted.value = false; volume.value = volumeBeforeMute.value }
-  else { volumeBeforeMute.value = volume.value; muted.value = true; volume.value = 0 }
-  fetch(`${API}/api/admin/volume?volume=${volume.value}`, { method: 'POST', headers: auth.adminHeaders() })
-}
-
-// ===== BANNER & BRANDING =====
-async function activateBanner() {
-  if (!bannerText.value) return
-  loadingBanner.value = true
-  try {
-    bannerActive.value = true
-    await fetch(`${API}/api/admin/banner?text=${encodeURIComponent(bannerText.value)}`, {
-      method: 'POST', headers: auth.adminHeaders(),
-    })
-    showAdminToast('Banner activado (3 min)')
-  } finally { loadingBanner.value = false }
-}
-async function deactivateBanner() {
-  loadingBanner.value = true
-  try {
-    bannerActive.value = false
-    await fetch(`${API}/api/admin/banner?text=`, {
-      method: 'POST', headers: auth.adminHeaders(),
-    })
-    showAdminToast('Banner desactivado')
-  } finally { loadingBanner.value = false }
-}
-async function toggleQr() {
-  loadingQr.value = true
-  try {
-    showQr.value = !showQr.value
-    await fetch(`${API}/api/admin/show-qr?show=${showQr.value}`, {
-      method: 'POST', headers: auth.adminHeaders(),
-    })
-    showAdminToast(showQr.value ? 'QR visible en pantalla' : 'QR oculto')
-  } finally { loadingQr.value = false }
-}
-
-async function setQrSize(size) {
-  if (size === qrSize.value) return
-  loadingQrSize.value = true
-  try {
-    qrSize.value = size
-    await fetch(`${API}/api/admin/show-qr?size=${size}`, {
-      method: 'POST', headers: auth.adminHeaders(),
-    })
-  } finally { loadingQrSize.value = false }
-}
-
-async function toggleBrand() {
-  loadingBrand.value = true
-  try {
-    showBrand.value = !showBrand.value
-    await fetch(`${API}/api/admin/banner?text=${encodeURIComponent(bannerActive.value ? bannerText.value : '')}&show_brand=${showBrand.value}`, {
-      method: 'POST', headers: auth.adminHeaders(),
-    })
-    showAdminToast(showBrand.value ? 'Logo visible' : 'Logo oculto')
-  } finally { loadingBrand.value = false }
-}
-
-// ===== QUEUE ACTIONS =====
-async function playNow(songId) {
-  loadingPlayNow.value = { ...loadingPlayNow.value, [songId]: true }
-  try {
-    const r = await safeFetch('Reproducir ahora',
-      () => fetch(`${API}/api/admin/queue/songs/${songId}/play-now`, { method: 'POST', headers: auth.adminHeaders() }),
-      { success: 'Canción promovida' })
-    if (r.ok) trackAdminAction('play_now', { song_id: songId })
-    await fetchQueue()
-  } finally { loadingPlayNow.value = { ...loadingPlayNow.value, [songId]: false } }
-}
-async function clearQueue() {
-  if (!confirm('Vaciar toda la cola?')) return
-  loadingClearQueue.value = true
-  try {
-    const count = queue.value.length
-    const results = await Promise.all(queue.value.map(song =>
-      fetch(`${API}/api/admin/queue/songs/${song.id}`, { method: 'DELETE', headers: auth.adminHeaders() })
-        .then(r => r.ok).catch(() => false)
-    ))
-    const okCount = results.filter(Boolean).length
-    if (okCount === count) toast.success(`Cola vaciada (${count} canciones)`)
-    else toast.warn(`Vaciado parcial: ${okCount}/${count}`)
-    trackAdminAction('clear_queue', { songs_cleared: okCount })
-    await fetchQueue()
-  } finally { loadingClearQueue.value = false }
-}
-
-async function removeSong(songId) {
-  loadingRemove.value = { ...loadingRemove.value, [songId]: true }
-  try {
-    const r = await safeFetch('Quitar canción',
-      () => fetch(`${API}/api/admin/queue/songs/${songId}`, { method: 'DELETE', headers: auth.adminHeaders() }),
-      { success: 'Canción quitada' })
-    if (r.ok) trackAdminAction('remove_song', { song_id: songId })
-    await fetchQueue()
-  } finally { loadingRemove.value = { ...loadingRemove.value, [songId]: false } }
-}
-async function moveSong(songId, newPosition) {
-  // Optimistic: reorder locally so UI feels instant
-  const fromIdx = queue.value.findIndex(s => s.id === songId)
-  const toIdx = queue.value.findIndex(s => s.position === newPosition)
-  if (fromIdx !== -1 && toIdx !== -1) {
-    const [moved] = queue.value.splice(fromIdx, 1)
-    queue.value.splice(toIdx, 0, moved)
-    queue.value.forEach((s, i) => { s.position = i + 1 })
-  }
-
-  ignoreNextReorder = true
-  await fetch(`${API}/api/admin/queue/songs/${songId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...auth.adminHeaders() },
-    body: JSON.stringify({ position: newPosition }),
-  })
-  // Confirm with server state
-  await fetchQueue()
-}
-const addError = ref('')
-
-async function addFromLibrary(youtubeId) {
-  if (loadingAddFromLib.value[youtubeId]) return
-  loadingAddFromLib.value = { ...loadingAddFromLib.value, [youtubeId]: true }
-  addError.value = ''
-  try {
-    const res = await fetch(`${API}/api/admin/queue/songs`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...auth.adminHeaders() },
-      body: JSON.stringify({ youtube_url: `https://www.youtube.com/watch?v=${youtubeId}` }),
-    })
-    if (!res.ok) {
-      const err = await res.json()
-      addError.value = err.detail || 'Error al agregar'
-      setTimeout(() => { addError.value = '' }, 3000)
-    } else {
-      await fetchQueue()
-    }
-  } finally { loadingAddFromLib.value = { ...loadingAddFromLib.value, [youtubeId]: false } }
-}
-async function requeueSong(youtubeId) {
-  await addFromLibrary(youtubeId)
-}
-
-// ===== DRAG & DROP =====
-function onDragStart(idx, event) { dragIdx.value = idx; event.dataTransfer.effectAllowed = 'move' }
-function onDragOver(idx) { if (dragIdx.value !== null && dragIdx.value !== idx) dropIdx.value = idx }
-function onDragLeave() { dropIdx.value = null }
-async function onDrop(idx) {
-  if (dragIdx.value === null || dragIdx.value === idx) return
-  const song = queue.value[dragIdx.value]
-  const target = queue.value[idx]
-  if (song && target) await moveSong(song.id, target.position)
-  dragIdx.value = null; dropIdx.value = null
-}
-function onDragEnd() { dragIdx.value = null; dropIdx.value = null }
-
-// ===== TABLES =====
-async function kickTable(tableNumber) {
-  if (!confirm(`Expulsar al usuario de la mesa #${tableNumber}? Sus canciones pendientes serán removidas.`)) return
-  loadingKick.value = { ...loadingKick.value, [tableNumber]: true }
-  try {
-    const r = await safeFetch(`Expulsar mesa #${tableNumber}`,
-      () => fetch(`${API}/api/admin/tables/${tableNumber}/kick`, { method: 'POST', headers: auth.adminHeaders() }),
-      { success: `Usuario de mesa #${tableNumber} expulsado` })
-    await fetchTables()
-    if (r.ok) trackAdminAction('kick_table', { table_number: tableNumber })
-  } finally { loadingKick.value = { ...loadingKick.value, [tableNumber]: false } }
-}
-async function resetTableLimit(tableNumber) {
-  loadingResetLimit.value = { ...loadingResetLimit.value, [tableNumber]: true }
-  try {
-    const r = await safeFetch(`Resetear límite #${tableNumber}`,
-      () => fetch(`${API}/api/admin/tables/${tableNumber}/reset-limit`, { method: 'POST', headers: auth.adminHeaders() }),
-      { success: `Límite de mesa #${tableNumber} reseteado` })
-    await fetchTables()
-    if (r.ok) trackAdminAction('reset_limit', { table_number: tableNumber })
-  } finally { loadingResetLimit.value = { ...loadingResetLimit.value, [tableNumber]: false } }
-}
-
-function onYtSearch() {
-  if (ytSearchTimeout) clearTimeout(ytSearchTimeout)
-  if (ytSearch.value.length < 2) { ytResults.value = []; return }
-  ytSearchTimeout = setTimeout(doYtSearch, 400)
-}
-
-async function doYtSearch() {
-  if (ytSearch.value.length < 2) return
-  ytSearching.value = true
-  try {
-    const res = await fetch(`${API}/api/queue/search?q=${encodeURIComponent(ytSearch.value)}`)
-    if (res.ok) { const data = await res.json(); ytResults.value = data.results }
-  } catch { /* */ }
-  finally { ytSearching.value = false }
-}
-
-function downloadQR() {
-  const canvas = document.createElement('canvas')
-  const ctx = canvas.getContext('2d')
-  const img = new Image()
-  img.crossOrigin = 'anonymous'
-  img.onload = () => {
-    const padding = 40
-    const textHeight = 80
-    canvas.width = img.width + padding * 2
-    canvas.height = img.height + padding * 2 + textHeight
-    // White background
-    ctx.fillStyle = '#ffffff'
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-    // QR image
-    ctx.drawImage(img, padding, padding)
-    // Bar name
-    ctx.fillStyle = '#000000'
-    ctx.font = 'bold 24px Inter, sans-serif'
-    ctx.textAlign = 'center'
-    ctx.fillText(auth.adminInfo?.venue_name || venueSlug, canvas.width / 2, img.height + padding + 35)
-    // URL small
-    ctx.font = '14px Inter, sans-serif'
-    ctx.fillStyle = '#666666'
-    ctx.fillText(registroUrl.value, canvas.width / 2, img.height + padding + 60)
-    // Download
-    const link = document.createElement('a')
-    link.download = `qr-${venueSlug}.png`
-    link.href = canvas.toDataURL('image/png')
-    link.click()
-  }
-  img.src = qrCodeUrl.value
-}
-
-function printQR() {
-  const printWin = window.open('', '_blank', 'width=500,height=600')
-  printWin.document.write(`
-    <html><head><title>QR - ${auth.adminInfo?.venue_name || venueSlug}</title>
-    <style>
-      body { margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; }
-      img { width: 300px; height: 300px; }
-      h1 { margin-top: 20px; font-size: 28px; }
-      p { color: #666; font-size: 14px; margin-top: 8px; }
-    </style></head><body>
-      <img src="${qrCodeUrl.value}" />
-      <h1>${auth.adminInfo?.venue_name || venueSlug}</h1>
-      <p>${registroUrl.value}</p>
-      <script>window.onload = () => { window.print(); window.close(); }<\/script>
-    </body></html>
-  `)
-  printWin.document.close()
-}
-
-async function addToFallback(youtubeId) {
-  loadingAddToFallback.value = { ...loadingAddToFallback.value, [youtubeId]: true }
-  try {
-    const res = await fetch(`${API}/api/admin/fallback/add?youtube_id=${youtubeId}`, {
-      method: 'POST', headers: auth.adminHeaders(),
-    })
-    const data = await res.json()
-    if (!res.ok) { showAdminToast(data.detail || 'Error al agregar'); return }
-    showAdminToast('Cancion agregada a la playlist de respaldo')
-    await fetchFallbackPlaylist()
-  } catch { showAdminToast('Error de conexion') }
-  finally { loadingAddToFallback.value = { ...loadingAddToFallback.value, [youtubeId]: false } }
-}
-
-async function deleteFallbackSong(songId) {
-  loadingDeleteFallback.value = { ...loadingDeleteFallback.value, [songId]: true }
-  try {
-    const res = await fetch(`${API}/api/admin/fallback/${songId}`, {
-      method: 'DELETE', headers: auth.adminHeaders(),
-    })
-    if (!res.ok) { showAdminToast('Error al eliminar'); return }
-    showAdminToast('Cancion eliminada de la playlist')
-    await fetchFallbackPlaylist()
-  } catch { showAdminToast('Error de conexion') }
-  finally { loadingDeleteFallback.value = { ...loadingDeleteFallback.value, [songId]: false } }
-}
 
 function logout() {
   auth.adminLogout()
@@ -655,18 +52,14 @@ function logout() {
     </Transition>
 
     <!-- HEADER -->
-    <header class="admin-header">
-      <div class="header-brand">
-        <button class="menu-btn" @click="sidebarOpen = !sidebarOpen">&#9776;</button>
-        <VenueLogo v-if="auth.adminInfo?.logo_url" :src="auth.adminInfo.logo_url" class="header-logo" />
-        <!-- El logo ya lleva el nombre del bar: repetirlo al lado es redundante -->
-        <h1 v-if="!auth.adminInfo?.logo_url">{{ auth.adminInfo?.venue_name || venueSlug }}</h1>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;">
-        <button class="theme-toggle" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button>
-        <button class="btn-logout" @click="logout">Salir</button>
-      </div>
-    </header>
+    <AdminHeader
+      :venue-name="auth.adminInfo?.venue_name || venueSlug"
+      :logo-url="auth.adminInfo?.logo_url"
+      :logo-url-light="auth.adminInfo?.logo_url_light"
+      :logo-url-dark="auth.adminInfo?.logo_url_dark"
+      @toggle-sidebar="sidebarOpen = !sidebarOpen"
+      @logout="logout"
+    />
 
     <!-- MOBILE SIDEBAR OVERLAY -->
     <Transition name="drawer">
@@ -675,481 +68,151 @@ function logout() {
 
     <!-- TWO COLUMN LAYOUT -->
     <div class="admin-layout">
-
       <!-- ===== LEFT: BAR INFO ===== -->
-      <aside class="sidebar" :class="{ open: sidebarOpen }">
-        <button class="sidebar-close" @click="sidebarOpen = false">&#10005;</button>
+      <AdminSidebar
+        :venue-name="auth.adminInfo?.venue_name"
+        :logo-url="auth.adminInfo?.logo_url"
+        :logo-url-light="auth.adminInfo?.logo_url_light"
+        :logo-url-dark="auth.adminInfo?.logo_url_dark"
+        :active-users="tables.length"
+        :queued-count="queue.length"
+        :venue-slug="venueSlug"
+        :open="sidebarOpen"
+        @close="sidebarOpen = false"
+      >
+        <AdminQrCard
+          :venue-slug="venueSlug"
+          :venue-name="auth.adminInfo?.venue_name"
+          :qr-code-url="qrCodeUrl"
+          :registro-url="registroUrl"
+          @download="downloadQR"
+          @print="printQR"
+        />
 
-        <!-- Bar Info Card -->
-        <div class="card sidebar-info">
-          <VenueLogo v-if="auth.adminInfo?.logo_url" :src="auth.adminInfo.logo_url" class="sidebar-logo" />
-          <h2 class="bar-name">{{ auth.adminInfo?.venue_name }}</h2>
-          <div class="info-stats">
-            <div class="info-stat">
-              <span class="info-val">{{ tables.length }}</span>
-              <span class="info-label">Usuarios activos</span>
-            </div>
-            <div class="info-stat">
-              <span class="info-val">{{ queue.length }}</span>
-              <span class="info-label">En cola</span>
-            </div>
-          </div>
-        </div>
+        <AdminTablesCard
+          :tables="tables"
+          :loading-reset-limit="loadingResetLimit"
+          :loading-kick="loadingKick"
+          @reset-limit="resetTableLimit"
+          @kick-table="kickTable"
+        />
 
-        <!-- Quick Actions -->
-        <div class="card">
-          <p class="section-title">ABRIR VISTAS</p>
-          <div class="quick-actions">
-            <a :href="`/${venueSlug}/registro`" target="_blank" class="action-btn action-registro">
-              <span>&#128221;</span> Registro (QR)
-            </a>
-            <a :href="`/${venueSlug}/video`" target="_blank" class="action-btn action-video">
-              <span>&#127909;</span> Pantalla Video
-            </a>
-            <a :href="`/${venueSlug}/usuario`" target="_blank" class="action-btn action-usuario">
-              <span>&#128241;</span> Vista Usuario
-            </a>
-            <RouterLink :to="{ name: 'admin-subscription', params: { venueSlug } }" class="action-btn action-subscription">
-              <span>&#128179;</span> Mi suscripción
-            </RouterLink>
-          </div>
-        </div>
-
-        <!-- QR Code -->
-        <div class="card qr-card">
-          <p class="section-title">QR DEL BAR</p>
-          <div class="qr-wrapper" id="qr-print-area">
-            <img :src="qrCodeUrl" :alt="`QR ${venueSlug}`" class="qr-img" crossorigin="anonymous" />
-            <p class="qr-bar-name">{{ auth.adminInfo?.venue_name }}</p>
-            <p class="qr-url">{{ registroUrl }}</p>
-          </div>
-          <div class="qr-btns">
-            <button class="qr-btn" @click="downloadQR">Descargar</button>
-            <button class="qr-btn" @click="printQR">Imprimir</button>
-          </div>
-        </div>
-
-        <!-- Tables -->
-        <div class="card">
-          <p class="section-title">MESAS ({{ tables.length }})</p>
-          <div v-if="tables.length" class="tables-list">
-            <div v-for="table in tables" :key="table.table_number" class="table-item">
-              <div class="table-top">
-                <span class="table-num">#{{ table.table_number }}</span>
-                <span class="table-user">{{ table.user_name }}</span>
-                <span class="table-count">{{ table.songs.length }}</span>
-              </div>
-              <div class="table-status-row" v-if="table.songs.length">
-                <span v-if="table.songs_playing" class="ts-badge ts-playing">{{ table.songs_playing }} sonando</span>
-                <span v-if="table.songs_pending" class="ts-badge ts-pending">{{ table.songs_pending }} en cola</span>
-                <span v-if="table.songs_played" class="ts-badge ts-played">{{ table.songs_played }} reproducidas</span>
-              </div>
-              <div class="table-btns">
-                <button class="t-btn t-btn-reset" @click="resetTableLimit(table.table_number)" :disabled="loadingResetLimit[table.table_number]">{{ loadingResetLimit[table.table_number] ? '...' : 'Resetear' }}</button>
-                <button class="t-btn t-btn-kick" @click="kickTable(table.table_number)" :disabled="loadingKick[table.table_number]">{{ loadingKick[table.table_number] ? '...' : 'Expulsar' }}</button>
-              </div>
-            </div>
-          </div>
-          <p v-else class="text-muted">Sin mesas activas</p>
-        </div>
-
-        <!-- Analytics Summary -->
-        <div class="card" v-if="analytics">
-          <p class="section-title">RESUMEN SEMANAL</p>
-          <div class="analytics-mini">
-            <div class="am"><strong>{{ analytics.summary.total_songs_played }}</strong> canciones</div>
-            <div class="am"><strong>{{ analytics.summary.unique_users }}</strong> usuarios</div>
-          </div>
-          <div v-if="analytics.top_songs.length" class="top-mini">
-            <p class="mini-label">Top canciones:</p>
-            <div v-for="s in analytics.top_songs.slice(0, 3)" :key="s.youtube_id" class="top-mini-item">
-              <span class="top-mini-title">{{ s.title }}</span>
-              <span class="top-mini-count">{{ s.times_played }}x</span>
-            </div>
-          </div>
-        </div>
-      </aside>
+        <AdminSidebarSummary :analytics="analytics" />
+      </AdminSidebar>
 
       <!-- ===== RIGHT COLUMN ===== -->
       <main class="music-col">
-
         <!-- Right Tabs -->
-        <div class="right-tabs">
-          <button class="rt" :class="{ active: rightTab === 'music' }" @click="rightTab = 'music'">Musica</button>
-          <button class="rt" :class="{ active: rightTab === 'tables' }" @click="rightTab = 'tables'; fetchTables()">Mesas</button>
-          <button class="rt" :class="{ active: rightTab === 'analytics' }" @click="rightTab = 'analytics'; fetchAnalytics()">Analytics</button>
-        </div>
+        <AdminRightTabs
+          v-model="rightTab"
+          @change="tab => { if (tab === 'tables') fetchTables(); if (tab === 'analytics') fetchAnalytics(); }"
+        />
 
         <!-- ========== MUSIC TAB ========== -->
-        <template v-if="rightTab === 'music'">
-
-        <!-- Stats Bar -->
-        <div class="stats-bar">
-          <!-- Unified playback state badge — single source of truth -->
-          <div class="stat-pill stat-state" :class="playbackBadge.cls" :title="`Estado: ${playbackBadge.label}`">
-            <span class="state-dot"></span>
-            {{ playbackBadge.label }}
-          </div>
-          <div class="stat-pill"><span>&#9835;</span> <strong>{{ queue.length }}</strong> en cola</div>
-          <div class="stat-pill"><span>&#9201;</span> {{ totalDuration }}</div>
-          <!-- WebSocket connection indicator -->
-          <div class="stat-pill ws-pill" :class="wsState.cls" :title="`WebSocket: ${wsState.label}`">
-            <span class="ws-dot" :class="wsState.dotCls"></span>
-            {{ wsState.label }}
-          </div>
-        </div>
-
-        <!-- Now Playing (unified: user song or fallback) -->
-        <div class="card np-card" :class="{ 'np-fallback': !nowPlaying || nowPlaying.is_fallback }"
-             v-if="nowPlaying || fallbackSongs.length">
-          <!-- User song -->
-          <div class="np-left" v-if="nowPlaying && !nowPlaying.is_fallback">
-            <img :src="`https://i.ytimg.com/vi/${nowPlaying.youtube_id}/mqdefault.jpg`" class="np-thumb" />
-            <div class="np-info">
-              <p class="section-title">SONANDO AHORA</p>
-              <p class="np-title">{{ nowPlaying.title }}</p>
-              <p class="np-meta">{{ nowPlaying.user_name }} &middot; #{{ nowPlaying.table_number }}</p>
-            </div>
-          </div>
-          <!-- Fallback (with or without specific song info) -->
-          <div class="np-left" v-else>
-            <span class="np-fallback-icon" v-if="playbackStatus === 'playing'">&#9835;</span>
-            <span class="np-fallback-icon" v-else>&#9646;&#9646;</span>
-            <div class="np-info">
-              <p class="section-title">{{ playbackStatus === 'playing' ? 'PLAYLIST DE RESPALDO' : 'PAUSADO' }}</p>
-              <p class="np-title">{{ nowPlaying?.title || 'Sonando automaticamente' }}</p>
-              <p class="np-meta" v-if="queue.length">{{ queue.length }} {{ queue.length === 1 ? 'cancion en cola' : 'canciones en cola' }}</p>
-            </div>
-          </div>
-          <!-- Universal controls -->
-          <div class="np-controls">
-            <button v-if="playbackStatus === 'playing'" class="ctrl-labeled ctrl-pause" @click="pausePlayback" :disabled="loadingPause">
-              <span class="ctrl-icon">&#10074;&#10074;</span><span class="ctrl-text">{{ loadingPause ? '...' : 'Pausar' }}</span>
-            </button>
-            <button v-else class="ctrl-labeled ctrl-play" @click="resumePlayback" :disabled="loadingResume">
-              <span class="ctrl-icon">&#9654;</span><span class="ctrl-text">{{ loadingResume ? '...' : 'Reanudar' }}</span>
-            </button>
-            <button class="ctrl-labeled ctrl-skip" @click="nextSong" :disabled="loadingSkip || loadingFallbackSkip">
-              <span class="ctrl-icon">&#9197;</span><span class="ctrl-text">{{ (loadingSkip || loadingFallbackSkip) ? '...' : 'Siguiente' }}</span>
-            </button>
-          </div>
-        </div>
-        <!-- Empty state: nothing playing and no fallback configured -->
-        <div v-else class="card np-empty">
-          <p class="np-empty-text" v-if="!queue.length">Sin reproduccion &mdash; agrega una cancion</p>
-          <div v-else class="np-start">
-            <p class="np-empty-text">{{ queue.length }} {{ queue.length === 1 ? 'cancion en cola' : 'canciones en cola' }}</p>
-            <button class="ctrl-btn-lg ctrl-play" @click="startPlayback" :disabled="loadingStart">{{ loadingStart ? 'Iniciando...' : '&#9654; REPRODUCIR' }}</button>
-          </div>
-        </div>
-
-        <!-- Volume -->
-        <div class="card volume-card">
-          <div class="volume-row">
-            <button class="mute-btn" :class="{ muted: muted }" @click="toggleMute">
-              <span class="mute-icon" v-if="muted">&#128263;</span>
-              <span class="mute-icon" v-else-if="volume < 50">&#128265;</span>
-              <span class="mute-icon" v-else>&#128266;</span>
-              <span class="mute-text">{{ muted ? 'Unmute' : 'Mute' }}</span>
-            </button>
-            <input type="range" min="0" max="100" v-model.number="volume" class="volume-slider" :disabled="muted" @input="changeVolume" />
-            <span class="volume-value" :class="{ muted: muted }">{{ muted ? 'MUTE' : volume + '%' }}</span>
-          </div>
-        </div>
-
-        <!-- Kiosk Controls -->
-        <div class="card volume-card">
-          <p class="section-title">PANTALLA VIDEO</p>
-
-          <!-- Logo/Nombre toggle -->
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-            <span style="font-size:13px;font-weight:600;">Logo / Nombre del bar</span>
-            <button class="t-btn" :class="showBrand ? 't-btn-kick' : 't-btn-reset'" @click="toggleBrand" :disabled="loadingBrand" style="padding:5px 12px;font-size:11px;">
-              {{ loadingBrand ? '...' : (showBrand ? 'Ocultar' : 'Mostrar') }}
-            </button>
-          </div>
-
-          <!-- QR en pantalla -->
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-            <span style="font-size:13px;font-weight:600;">QR en pantalla</span>
-            <button class="t-btn" :class="showQr ? 't-btn-kick' : 't-btn-reset'" @click="toggleQr" :disabled="loadingQr" style="padding:5px 12px;font-size:11px;">
-              {{ loadingQr ? '...' : (showQr ? 'Ocultar' : 'Mostrar') }}
-            </button>
-          </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-            <span style="font-size:13px;font-weight:600;">Tamano del QR</span>
-            <div style="display:flex;gap:4px;">
-              <button v-for="s in ['S', 'M', 'L']" :key="s" class="t-btn" :class="qrSize === s ? 't-btn-kick' : 't-btn-reset'" @click="setQrSize(s)" :disabled="loadingQrSize" style="padding:5px 10px;font-size:11px;">{{ s }}</button>
-            </div>
-          </div>
-
-          <!-- Banner -->
-          <div style="border-top:1px solid var(--border);padding-top:12px;">
-            <span style="font-size:13px;font-weight:600;display:block;margin-bottom:8px;">Banner publicitario</span>
-            <input type="text" v-model="bannerText" class="input-field"
-              placeholder="Escribe el texto del banner..." />
-            <div style="display:flex;gap:8px;margin-top:8px;">
-              <button class="btn btn-primary" style="flex:1;" @click="activateBanner" :disabled="!bannerText || bannerActive || loadingBanner">
-                {{ loadingBanner ? '...' : 'Mostrar (3 min)' }}
-              </button>
-              <button class="btn btn-danger" style="flex:1;" @click="deactivateBanner" :disabled="!bannerActive || loadingBanner">
-                {{ loadingBanner ? '...' : 'Apagar' }}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Add Song -->
-        <div class="card add-card">
-          <div class="add-tabs">
-            <button class="add-tab" :class="{ active: addMode === 'search' }" @click="addMode = 'search'">Buscar</button>
-            <button class="add-tab" :class="{ active: addMode === 'library' }" @click="addMode = 'library'; if (!library.length) fetchLibrary()">Biblioteca</button>
-          </div>
-
-          <!-- Search YouTube -->
-          <div v-if="addMode === 'search'">
-            <input v-model="ytSearch" class="input-field" placeholder="Buscar en YouTube..." @input="onYtSearch" @keydown.enter.prevent="doYtSearch" />
-            <p v-if="ytSearching" class="search-status">Buscando...</p>
-            <div class="library-list" v-if="ytResults.length">
-              <div v-for="r in ytResults" :key="r.youtube_id" class="lib-item">
-                <img :src="r.thumbnail_url" class="lib-thumb" @error="thumbFallback" />
-                <div class="lib-info">
-                  <p class="lib-title">{{ r.title }}</p>
-                  <p class="lib-artist">{{ r.duration }}</p>
-                </div>
-                <button class="ctrl-add-sm" :disabled="loadingAddFromLib[r.youtube_id]" @click.stop="addFromLibrary(r.youtube_id)">{{ loadingAddFromLib[r.youtube_id] ? '...' : '+' }}</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Library -->
-          <div v-if="addMode === 'library'" class="library">
-            <input v-model="librarySearch" class="input-field" placeholder="Buscar en biblioteca..." @input="fetchLibrary" />
-            <div class="library-list">
-              <div v-for="song in library" :key="song.youtube_id" class="lib-item">
-                <img :src="song.thumbnail_url" class="lib-thumb" @error="thumbFallback" />
-                <div class="lib-info">
-                  <p class="lib-title">{{ song.title }}</p>
-                  <p class="lib-artist">{{ song.artist }} &middot; {{ formatDuration(song.duration_sec) }}</p>
-                </div>
-                <button class="ctrl-add-sm" @click="addFromLibrary(song.youtube_id)" :disabled="loadingAddFromLib[song.youtube_id]">{{ loadingAddFromLib[song.youtube_id] ? '...' : '+' }}</button>
-              </div>
-              <p v-if="!library.length" class="text-muted">Sin canciones guardadas</p>
-            </div>
-          </div>
-          <p v-if="addError" class="add-error">{{ addError }}</p>
-        </div>
-
-        <!-- Queue -->
-        <div class="card">
-          <div style="display:flex;justify-content:space-between;align-items:center;">
-            <p class="section-title">COLA ({{ queue.length }})</p>
-            <button v-if="queue.length" class="q-btn-label q-btn-remove" style="font-size:11px;" @click="clearQueue" :disabled="loadingClearQueue">{{ loadingClearQueue ? 'Vaciando...' : 'Vaciar cola' }}</button>
-          </div>
-          <div class="q-list">
-            <div v-for="(song, idx) in queue.slice(0, queueLimit)" :key="song.id" class="q-item"
-              :class="{ 'q-dragging': dragIdx === idx, 'q-drop-above': dropIdx === idx && dropIdx < dragIdx, 'q-drop-below': dropIdx === idx && dropIdx > dragIdx }"
-              draggable="true" @dragstart="onDragStart(idx, $event)" @dragover.prevent="onDragOver(idx)"
-              @dragleave="onDragLeave" @drop.prevent="onDrop(idx)" @dragend="onDragEnd">
-              <div class="q-handle">&#9776;</div>
-              <span class="q-pos">{{ idx + 1 }}</span>
-              <img :src="`https://i.ytimg.com/vi/${song.youtube_id}/mqdefault.jpg`" class="q-thumb" />
-              <div class="q-info">
-                <p class="q-title">{{ song.title }}</p>
-                <p class="q-meta">{{ song.user_name }} &middot; #{{ song.table_number }} &middot; {{ formatDuration(song.duration_sec) }}</p>
-              </div>
-              <button class="q-btn-label q-btn-play" @click="playNow(song.id)" :disabled="loadingPlayNow[song.id]">{{ loadingPlayNow[song.id] ? '...' : '&#9654; Play' }}</button>
-              <button class="q-btn-label q-btn-remove" @click="removeSong(song.id)" :disabled="loadingRemove[song.id]">{{ loadingRemove[song.id] ? '...' : '&#10005; Quitar' }}</button>
-            </div>
-          </div>
-          <button v-if="queue.length > queueLimit" class="load-more-btn" @click="queueLimit += 15">
-            Ver {{ Math.min(15, queue.length - queueLimit) }} más ({{ queue.length - queueLimit }} restantes)
-          </button>
-          <p v-if="!queue.length" class="text-muted">Cola vacia</p>
-        </div>
-
-        <!-- Played -->
-        <div class="card">
-          <p class="section-title">YA SONARON ({{ played.length }})</p>
-          <div class="q-list" v-if="played.length">
-            <div v-for="song in played.slice(0, playedLimit)" :key="song.id" class="q-item q-item-played">
-              <img :src="`https://i.ytimg.com/vi/${song.youtube_id}/mqdefault.jpg`" class="q-thumb" />
-              <div class="q-info">
-                <p class="q-title">{{ song.title }}</p>
-                <p class="q-meta">{{ song.user_name }} &middot; {{ song.played_at_label }}</p>
-              </div>
-              <button class="q-btn-label q-btn-requeue" @click="requeueSong(song.youtube_id)" :disabled="loadingAddFromLib[song.youtube_id]">{{ loadingAddFromLib[song.youtube_id] ? '...' : '&#8634; Encolar' }}</button>
-              <button class="q-btn-label q-btn-fallback"
-                @click="addToFallback(song.youtube_id)"
-                :disabled="fallbackYoutubeIds.has(song.youtube_id) || loadingAddToFallback[song.youtube_id]"
-                :title="fallbackYoutubeIds.has(song.youtube_id) ? 'Ya en playlist' : 'Agregar a playlist de respaldo'">
-                {{ loadingAddToFallback[song.youtube_id] ? '...' : fallbackYoutubeIds.has(song.youtube_id) ? '&#10003;' : '+ Respaldo' }}
-              </button>
-            </div>
-          </div>
-          <button v-if="played.length > playedLimit" class="load-more-btn" @click="playedLimit += 15">
-            Ver {{ Math.min(15, played.length - playedLimit) }} más ({{ played.length - playedLimit }} restantes)
-          </button>
-          <p v-if="!played.length" class="text-muted">Sin historial de hoy</p>
-        </div>
-
-        <!-- Fallback Playlist -->
-        <div class="card">
-          <div class="fb-header">
-            <p class="section-title">PLAYLIST DE RESPALDO ({{ fallbackSongs.length }})</p>
-            <div class="fb-btns" v-if="fallbackSongs.length">
-              <button class="fb-toggle fb-play-now" @click="playFallbackNow" v-if="!nowPlaying && queue.length === 0" :disabled="loadingFallbackPlay">
-                {{ loadingFallbackPlay ? '...' : '&#9654; Reproducir' }}
-              </button>
-              <button class="fb-toggle" :class="fallbackPaused ? 'fb-paused' : 'fb-playing'" @click="toggleFallback" :disabled="loadingFallbackToggle">
-                {{ loadingFallbackToggle ? '...' : (fallbackPaused ? '&#9654; Activar' : '&#10074;&#10074; Pausar') }}
-              </button>
-            </div>
-          </div>
-          <p class="text-hint">{{ fallbackPaused ? 'Playlist pausada — no suena cuando la cola esta vacia' : 'Suena automaticamente cuando no hay canciones de las mesas' }}</p>
-          <div class="fb-scroll" v-if="fallbackSongs.length">
-            <div v-for="song in fallbackSongs" :key="song.id" class="q-item" :class="{ 'q-item-played': !song.active }">
-              <img :src="song.thumbnail_url" class="q-thumb" @error="thumbFallback" />
-              <div class="q-info">
-                <p class="q-title">{{ song.title }}</p>
-                <p class="q-meta">{{ formatDuration(song.duration_sec) }}</p>
-              </div>
-              <button class="q-btn-label q-btn-remove"
-                @click="deleteFallbackSong(song.id)"
-                :disabled="loadingDeleteFallback[song.id]"
-                title="Eliminar de la playlist">
-                {{ loadingDeleteFallback[song.id] ? '...' : '&#10005; Quitar' }}
-              </button>
-            </div>
-          </div>
-          <p v-else class="text-muted">Sin playlist. Configurala desde el Super Admin.</p>
-        </div>
-
-        </template>
+        <AdminMusicPanel
+          v-if="rightTab === 'music'"
+          v-model:volume="volume"
+          v-model:banner-text="bannerText"
+          :playback-badge="playbackBadge"
+          :queue="queue"
+          :total-duration="totalDuration"
+          :ws-state="wsState"
+          :now-playing="nowPlaying"
+          :fallback-songs="fallbackSongs"
+          :playback-status="playbackStatus"
+          :loading-pause="loadingPause"
+          :loading-resume="loadingResume"
+          :loading-skip="loadingSkip"
+          :loading-fallback-skip="loadingFallbackSkip"
+          :loading-start="loadingStart"
+          :muted="muted"
+          :show-brand="showBrand"
+          :loading-brand="loadingBrand"
+          :show-qr="showQr"
+          :loading-qr="loadingQr"
+          :qr-size="qrSize"
+          :loading-qr-size="loadingQrSize"
+          :banner-active="bannerActive"
+          :loading-banner="loadingBanner"
+          :library="library"
+          :loading-add-from-lib="loadingAddFromLib"
+          :add-error="addError"
+          :queue-limit="queueLimit"
+          :drag-idx="dragIdx"
+          :drop-idx="dropIdx"
+          :loading-play-now="loadingPlayNow"
+          :loading-remove="loadingRemove"
+          :loading-clear-queue="loadingClearQueue"
+          :played="played"
+          :played-limit="playedLimit"
+          :fallback-youtube-ids="fallbackYoutubeIds"
+          :loading-add-to-fallback="loadingAddToFallback"
+          :fallback-paused="fallbackPaused"
+          :loading-fallback-play="loadingFallbackPlay"
+          :loading-fallback-toggle="loadingFallbackToggle"
+          :loading-delete-fallback="loadingDeleteFallback"
+          @pause="pausePlayback"
+          @resume="resumePlayback"
+          @next="nextSong"
+          @start="startPlayback"
+          @change-volume="changeVolume"
+          @toggle-mute="toggleMute"
+          @toggle-brand="toggleBrand"
+          @toggle-qr="toggleQr"
+          @set-qr-size="setQrSize"
+          @activate-banner="activateBanner"
+          @deactivate-banner="deactivateBanner"
+          @add-from-library="addFromLibrary"
+          @fetch-library="fetchLibrary"
+          @clear-queue="clearQueue"
+          @play-now="playNow"
+          @remove-song="removeSong"
+          @load-more-queue="queueLimit += 15"
+          @drag-start="onDragStart"
+          @drag-over="onDragOver"
+          @drag-leave="onDragLeave"
+          @drop="onDrop"
+          @drag-end="onDragEnd"
+          @requeue-song="requeueSong"
+          @add-to-fallback="addToFallback"
+          @load-more-played="playedLimit += 15"
+          @play-fallback-now="playFallbackNow"
+          @toggle-fallback="toggleFallback"
+          @delete-fallback-song="deleteFallbackSong"
+        />
 
         <!-- ========== TABLES TAB ========== -->
-        <template v-if="rightTab === 'tables'">
-          <div v-if="!selectedTable">
-            <div v-if="!tables.length" class="card"><p class="text-muted">Sin mesas activas</p></div>
-            <div v-for="table in tables" :key="table.table_number" class="card table-detail-card" @click="selectedTable = table" style="cursor:pointer;">
-              <div class="td-row">
-                <div>
-                  <span class="td-num">#{{ table.table_number }}</span>
-                  <span class="td-user">{{ table.user_name }} ({{ table.user_phone }})</span>
-                </div>
-                <span class="td-count">{{ table.songs.length }}</span>
-              </div>
-              <div class="td-status-row" v-if="table.songs.length">
-                <span v-if="table.songs_playing" class="ts-badge ts-playing">{{ table.songs_playing }} sonando</span>
-                <span v-if="table.songs_pending" class="ts-badge ts-pending">{{ table.songs_pending }} en cola</span>
-                <span v-if="table.songs_played" class="ts-badge ts-played">{{ table.songs_played }} reproducidas</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Table detail -->
-          <div v-else>
-            <button class="back-btn" @click="selectedTable = null">&#8592; Volver a mesas</button>
-            <div class="card" style="margin-top:10px;">
-              <div class="td-header">
-                <div>
-                  <h3>Usuario #{{ selectedTable.table_number }}</h3>
-                  <p class="td-user-detail">{{ selectedTable.user_name }} &middot; {{ selectedTable.user_phone }}</p>
-                </div>
-                <div class="td-actions">
-                  <button class="t-btn t-btn-reset" @click="resetTableLimit(selectedTable.table_number)" :disabled="loadingResetLimit[selectedTable.table_number]">{{ loadingResetLimit[selectedTable.table_number] ? '...' : 'Resetear limite' }}</button>
-                  <button class="t-btn t-btn-kick" @click="kickTable(selectedTable.table_number); selectedTable = null" :disabled="loadingKick[selectedTable.table_number]">{{ loadingKick[selectedTable.table_number] ? '...' : 'Expulsar' }}</button>
-                </div>
-              </div>
-            </div>
-            <div class="card" style="margin-top:10px;">
-              <p class="section-title">CANCIONES PEDIDAS ({{ selectedTable.songs.length }})</p>
-              <div v-if="selectedTable.songs.length" class="td-songs">
-                <div v-for="(s, i) in selectedTable.songs" :key="i" class="td-song">
-                  <span class="td-song-status" :class="s.status"></span>
-                  <div class="td-song-info">
-                    <p class="td-song-title">{{ s.title }}</p>
-                    <p class="td-song-meta">{{ s.added_at }} &middot; {{ { playing: 'Sonando', pending: 'En cola', played: 'Reproducida', removed: 'Removida' }[s.status] || s.status }}</p>
-                  </div>
-                </div>
-              </div>
-              <p v-else class="text-muted">No ha pedido canciones</p>
-            </div>
-          </div>
-        </template>
+        <AdminTablesView
+          v-if="rightTab === 'tables'"
+          :tables="tables"
+          :selected-table="selectedTable"
+          :loading-reset-limit="loadingResetLimit"
+          :loading-kick="loadingKick"
+          @select-table="t => selectedTable = t"
+          @back="selectedTable = null"
+          @reset-limit="resetTableLimit"
+          @kick-table="tableNumber => { kickTable(tableNumber); selectedTable = null }"
+        />
 
         <!-- ========== ANALYTICS TAB ========== -->
-        <template v-if="rightTab === 'analytics'">
-          <!-- Period selector -->
-          <div class="an-period">
-            <button v-for="p in [{k:'day',l:'Hoy'},{k:'week',l:'Semana'},{k:'month',l:'Mes'},{k:'all',l:'Todo'}]" :key="p.k"
-              class="an-period-btn" :class="{ active: analyticsPeriod === p.k }"
-              @click="analyticsPeriod = p.k; fetchAnalytics()">{{ p.l }}</button>
-          </div>
-
-          <div v-if="analytics">
-            <div class="an-grid">
-              <div class="an-card"><p class="an-val">{{ analytics.summary.total_songs_played }}</p><p class="an-label">Canciones</p></div>
-              <div class="an-card"><p class="an-val">{{ analytics.summary.unique_users }}</p><p class="an-label">Usuarios</p></div>
-              <div class="an-card"><p class="an-val">{{ analytics.summary.unique_songs }}</p><p class="an-label">Unicas</p></div>
-              <div class="an-card"><p class="an-val">{{ analytics.summary.avg_queue_length }}</p><p class="an-label">Prom. Cola</p></div>
-              <div class="an-card" v-if="analytics.summary.active_days !== undefined"><p class="an-val">{{ analytics.summary.active_days }}</p><p class="an-label">Dias activos</p></div>
-              <div class="an-card" v-if="analytics.summary.skip_count !== undefined"><p class="an-val">{{ analytics.summary.skip_count }} <small>({{ analytics.summary.skip_rate }}%)</small></p><p class="an-label">Skips</p></div>
-              <div class="an-card" v-if="analytics.summary.error_count !== undefined"><p class="an-val">{{ analytics.summary.error_count }} <small>({{ analytics.summary.error_rate }}%)</small></p><p class="an-label">Errores</p></div>
-              <div class="an-card" v-if="analytics.summary.fallback_activations !== undefined"><p class="an-val">{{ analytics.summary.fallback_activations }}</p><p class="an-label">Fallbacks</p></div>
-              <div class="an-card" v-if="analytics.summary.new_users !== undefined"><p class="an-val">{{ analytics.summary.new_users }}</p><p class="an-label">Nuevos</p></div>
-              <div class="an-card" v-if="analytics.summary.returning_users !== undefined"><p class="an-val">{{ analytics.summary.returning_users }}</p><p class="an-label">Recurrentes</p></div>
-            </div>
-            <div class="card" v-if="analytics.top_songs.length">
-              <p class="section-title">TOP CANCIONES</p>
-              <div v-for="(s, i) in analytics.top_songs" :key="s.youtube_id" class="an-song">
-                <span class="an-pos">{{ i + 1 }}</span>
-                <img :src="`https://i.ytimg.com/vi/${s.youtube_id}/mqdefault.jpg`" class="an-thumb" />
-                <span class="an-title">{{ s.title }}</span>
-                <span class="an-count">{{ s.times_played }}x</span>
-                <button class="q-btn-label q-btn-fallback"
-                  @click="addToFallback(s.youtube_id)"
-                  :disabled="fallbackYoutubeIds.has(s.youtube_id) || loadingAddToFallback[s.youtube_id]"
-                  :title="fallbackYoutubeIds.has(s.youtube_id) ? 'Ya en playlist de respaldo' : 'Agregar a playlist de respaldo'">
-                  {{ loadingAddToFallback[s.youtube_id] ? '...' : fallbackYoutubeIds.has(s.youtube_id) ? '&#10003; En respaldo' : '+ Respaldo' }}
-                </button>
-              </div>
-            </div>
-            <div class="card" v-if="analytics.top_artists && analytics.top_artists.length" style="margin-top:12px;">
-              <p class="section-title">TOP ARTISTAS</p>
-              <div v-for="(a, i) in analytics.top_artists" :key="a.artist" class="an-song">
-                <span class="an-pos">{{ i + 1 }}</span>
-                <span class="an-title">{{ a.artist }}</span>
-                <span class="an-count">{{ a.count }}x</span>
-              </div>
-            </div>
-            <div class="card" v-if="analytics.peak_hours.length" style="margin-top:12px;">
-              <p class="section-title">HORAS PICO</p>
-              <div v-for="h in analytics.peak_hours.slice(0, 8)" :key="h.hour" class="an-hour">
-                <span class="an-hour-label">{{ h.hour }}</span>
-                <div class="an-hour-bar"><div class="an-hour-fill" :style="{ width: (h.requests / analytics.peak_hours[0].requests * 100) + '%' }"></div></div>
-                <span class="an-hour-count">{{ h.requests }}</span>
-              </div>
-            </div>
-            <div class="card" v-if="analytics.top_tables && analytics.top_tables.length" style="margin-top:12px;">
-              <p class="section-title">USUARIOS MAS ACTIVOS</p>
-              <div v-for="(t, i) in analytics.top_tables" :key="t.table_number" class="an-song">
-                <span class="an-pos">{{ i + 1 }}</span>
-                <span class="an-title">{{ t.table_number }}</span>
-                <span class="an-count">{{ t.total_songs }} canciones</span>
-              </div>
-            </div>
-          </div>
-          <div v-else class="card"><p class="text-muted">Cargando analytics...</p></div>
-        </template>
-
+        <AdminAnalyticsPanel
+          v-if="rightTab === 'analytics'"
+          :analytics="analytics"
+          :analytics-period="analyticsPeriod"
+          :fallback-youtube-ids="fallbackYoutubeIds"
+          :loading-add-to-fallback="loadingAddToFallback"
+          @period="p => { analyticsPeriod = p; fetchAnalytics() }"
+          @add-fallback="addToFallback"
+        />
       </main>
     </div>
   </div>
 </template>
 
 <style scoped>
-/* ===== ROOT ===== */
+/* =========================================
+   CSS GENERAL
+   ========================================= */
 .admin {
   width: 100%;
   min-height: 100vh;
@@ -1157,508 +220,64 @@ function logout() {
   overflow-x: hidden;
 }
 
-/* ===== HEADER ===== */
-.admin-header {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 10px 20px; background: var(--bg-card);
-  border-bottom: 1px solid var(--border);
+.sidebar-overlay {
+  display: none;
 }
-.header-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.header-logo { max-width: 120px; max-height: 36px; width: auto; height: auto; object-fit: contain; }
-.admin-header h1 { font-size: 18px; text-transform: capitalize; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.menu-btn {
-  display: none; width: 40px; height: 40px; border-radius: 8px;
-  background: var(--bg-elevated); border: 1px solid var(--border);
-  color: var(--text); font-size: 20px; flex-shrink: 0;
-  align-items: center; justify-content: center;
-}
-.sidebar-close {
-  display: none; position: absolute; top: 12px; right: 12px;
-  width: 36px; height: 36px; border-radius: 8px;
-  background: var(--bg-elevated); border: 1px solid var(--border);
-  color: var(--text-muted); font-size: 18px;
-  align-items: center; justify-content: center; z-index: 1;
-}
-.sidebar-overlay { display: none; }
-.btn-logout {
-  padding: 6px 14px; border-radius: 6px;
-  background: var(--danger); color: white;
-  font-size: 13px; font-weight: 600; opacity: 0.8;
-}
-.btn-logout:hover { opacity: 1; }
 
-/* ===== TWO COLUMN LAYOUT ===== */
 .admin-layout {
-  display: grid; grid-template-columns: 320px 1fr;
-  gap: 20px; max-width: 1200px;
-  margin: 0 auto; padding: 16px;
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px;
   min-width: 0;
 }
 
-/* ===== SIDEBAR ===== */
-.sidebar {
-  display: flex; flex-direction: column; gap: 14px;
-  position: -webkit-sticky; position: sticky; top: 16px; align-self: start;
-  max-height: calc(100vh - 80px); overflow-y: auto;
+.music-col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
   min-width: 0;
-}
-.sidebar-info { text-align: center; }
-.sidebar-logo { max-width: 160px; max-height: 80px; width: auto; height: auto; object-fit: contain; margin: 0 auto 8px; }
-.bar-name { font-size: 22px; margin-bottom: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.info-stats { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; }
-.info-stat { text-align: center; min-width: 0; }
-.info-val { font-size: 28px; font-weight: 700; display: block; }
-.info-label { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
-
-/* Quick Actions */
-.quick-actions { display: flex; flex-direction: column; gap: 6px; }
-.action-btn {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 14px; border-radius: var(--radius-sm);
-  background: var(--bg-elevated); border: 1px solid var(--border);
-  color: var(--text); font-weight: 600; font-size: 13px;
-  text-decoration: none; transition: all 0.15s;
-}
-.action-btn:hover { border-color: var(--primary); color: var(--primary); }
-.action-registro:hover { border-color: var(--success); color: var(--success); }
-.action-video:hover { border-color: var(--warning); color: var(--warning); }
-.action-usuario:hover { border-color: var(--secondary); color: var(--secondary); }
-.action-subscription:hover { border-color: var(--primary); color: var(--primary); }
-
-/* QR */
-.qr-card { text-align: center; }
-.qr-wrapper { padding: 16px; }
-.qr-img { width: 180px; height: 180px; border-radius: 8px; background: white; padding: 6px; }
-.qr-bar-name { font-size: 16px; font-weight: 700; margin-top: 10px; }
-.qr-url { font-size: 10px; color: var(--text-muted); margin-top: 4px; word-break: break-all; }
-.qr-btns { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
-.qr-btn {
-  padding: 6px 16px; border-radius: 6px; font-size: 12px; font-weight: 600;
-  background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text);
-  cursor: pointer; transition: all 0.15s;
-}
-.qr-btn:hover { border-color: var(--primary); color: var(--primary); }
-
-/* Tables in sidebar */
-.tables-list { display: flex; flex-direction: column; gap: 8px; max-height: 400px; overflow-y: auto; }
-.table-item {
-  padding: 8px; background: var(--bg-elevated);
-  border-radius: 8px; border: 1px solid var(--border);
-  min-width: 0;
-}
-.table-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 8px; min-width: 0; }
-.table-num { font-weight: 700; font-size: 13px; white-space: nowrap; flex-shrink: 0; }
-.table-user { font-size: 11px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
-.table-count {
-  font-size: 12px; font-weight: 700; color: var(--primary);
-  background: var(--primary-soft); padding: 2px 8px; border-radius: 10px;
-  flex-shrink: 0;
-}
-.table-status-row, .td-status-row { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
-.ts-badge {
-  font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px;
-}
-.ts-playing { background: var(--success-soft); color: var(--success); }
-.ts-pending { background: var(--warning-soft); color: var(--warning); }
-.ts-played { background: var(--border-soft); color: var(--text-muted); }
-.table-btns { display: flex; gap: 4px; }
-.t-btn {
-  padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; border: 1px solid;
-}
-.t-btn-reset { border-color: var(--secondary); color: var(--secondary); background: transparent; }
-.t-btn-reset:hover { background: var(--secondary); color: #000; }
-.t-btn-kick { border-color: var(--danger); color: var(--danger); background: transparent; }
-.t-btn-kick:hover { background: var(--danger); color: white; }
-
-/* Analytics mini */
-.analytics-mini { display: flex; gap: 12px; margin-bottom: 10px; }
-.am {
-  flex: 1; text-align: center; padding: 8px;
-  background: var(--bg-elevated); border-radius: 6px; font-size: 12px;
-}
-.top-mini { margin-top: 4px; }
-.mini-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
-.top-mini-item { display: flex; justify-content: space-between; font-size: 12px; padding: 2px 0; }
-.top-mini-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; margin-right: 8px; }
-.top-mini-count { font-weight: 600; color: var(--primary); }
-
-/* ===== MUSIC COLUMN ===== */
-.music-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-
-/* Stats Bar */
-.stats-bar { display: flex; gap: 8px; flex-wrap: wrap; }
-.stat-pill {
-  display: flex; align-items: center; gap: 6px;
-  padding: 6px 14px; border-radius: 20px;
-  background: var(--bg-card); border: 1px solid var(--border);
-  font-size: 13px;
-}
-.stat-live { background: var(--success-soft); border-color: var(--success); color: var(--success); font-weight: 700; }
-.stat-paused { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); font-weight: 700; }
-.stat-fallback { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); font-weight: 700; font-size: 12px; }
-
-/* Unified state badge */
-.stat-state { font-weight: 700; font-size: 12px; letter-spacing: 0.4px; text-transform: uppercase; }
-.stat-state .state-dot { width: 8px; height: 8px; border-radius: 50%; }
-.badge-user      { background: var(--success-soft); border-color: var(--success); color: var(--success); }
-.badge-user .state-dot      { background: var(--success); animation: pulse-dot 2s infinite; }
-.badge-fallback  { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); }
-.badge-fallback .state-dot  { background: var(--primary); animation: pulse-dot 2s infinite; }
-.badge-paused    { background: var(--warning-soft, rgba(245,158,11,0.15)); border-color: var(--warning, #f59e0b); color: var(--warning, #f59e0b); }
-.badge-paused .state-dot    { background: var(--warning, #f59e0b); }
-.badge-ready     { background: var(--success-soft); border-color: var(--success); color: var(--success); }
-.badge-ready .state-dot     { background: var(--success); }
-.badge-idle      { background: var(--bg-elevated, rgba(255,255,255,0.05)); border-color: var(--border); color: var(--text-muted); }
-.badge-idle .state-dot      { background: var(--text-muted); }
-.badge-offline   { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
-.badge-offline .state-dot   { background: var(--danger); animation: pulse-dot 1s infinite; }
-
-/* WebSocket indicator */
-.ws-pill { font-size: 11px; }
-.ws-pill .ws-dot { width: 7px; height: 7px; border-radius: 50%; }
-.ws-ok { color: var(--text-muted); }
-.ws-ok .ws-dot-ok { background: #22c55e; box-shadow: 0 0 0 2px rgba(34,197,94,0.2); }
-.ws-bad { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); font-weight: 700; }
-.ws-bad .ws-dot-bad { background: var(--danger); animation: pulse-dot 1s infinite; }
-@keyframes pulse-dot { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
-
-/* Now Playing */
-.np-card {
-  display: flex; justify-content: space-between; align-items: center;
-  gap: 12px; border-left: 4px solid var(--primary);
-}
-.np-left { display: flex; gap: 12px; align-items: center; flex: 1; min-width: 0; }
-.np-thumb { width: 72px; height: 54px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
-.np-title { font-weight: 700; font-size: 15px; }
-.np-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-.np-controls { display: flex; gap: 8px; flex-shrink: 0; }
-.np-fallback { border-left-color: var(--warning); }
-.np-fallback-paused { border-left-color: var(--border); opacity: 0.8; }
-.np-fallback-icon { font-size: 32px; flex-shrink: 0; }
-.np-empty { text-align: center; padding: 24px; }
-.np-empty-text { color: var(--text-muted); font-size: 14px; }
-.np-start { display: flex; flex-direction: column; align-items: center; gap: 16px; }
-.ctrl-btn-lg {
-  display: flex; align-items: center; gap: 8px;
-  padding: 14px 32px; border-radius: 12px;
-  font-size: 16px; font-weight: 700; border: 2px solid;
-  background: var(--success-soft); border-color: var(--success); color: var(--success);
-}
-.ctrl-btn-lg:hover { background: var(--success); color: #000; }
-
-/* Control Buttons */
-.ctrl-labeled {
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
-  padding: 12px 20px; border-radius: 12px; font-weight: 700; border: 2px solid;
-  transition: all 0.15s; min-width: 88px;
-}
-.ctrl-icon { font-size: 20px; }
-.ctrl-text { font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; }
-.ctrl-pause { background: var(--warning-soft); border-color: var(--warning); color: var(--warning); }
-.ctrl-pause .ctrl-icon { font-size: 14px; letter-spacing: -2px; }
-.ctrl-pause:hover { background: var(--warning); color: #000; }
-.ctrl-play { background: var(--success-soft); border-color: var(--success); color: var(--success); }
-.ctrl-play:hover { background: var(--success); color: #000; }
-.ctrl-skip { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); }
-.ctrl-skip:hover { background: var(--primary); color: white; }
-
-/* Volume */
-.volume-card { padding: 14px 16px; }
-.volume-row { display: flex; align-items: center; gap: 12px; }
-.mute-btn {
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 16px; border-radius: 10px; font-size: 14px; flex-shrink: 0;
-  background: var(--bg-elevated); border: 1px solid var(--border);
-  color: var(--text); cursor: pointer;
-}
-.mute-icon { font-size: 20px; }
-.mute-text { font-size: 12px; font-weight: 700; text-transform: uppercase; }
-.mute-btn.muted { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
-.volume-value { font-size: 13px; font-weight: 700; color: var(--primary); min-width: 44px; text-align: right; }
-.volume-value.muted { color: var(--danger); }
-.volume-slider {
-  flex: 1; height: 6px; outline: none;
-  -webkit-appearance: none; appearance: none;
-  background: var(--bg-elevated); border-radius: 3px;
-  cursor: pointer;
-}
-.volume-slider:disabled { opacity: 0.3; cursor: not-allowed; }
-/* Webkit (Safari, Chrome) track */
-.volume-slider::-webkit-slider-runnable-track {
-  height: 6px; border-radius: 3px;
-  background: var(--bg-elevated);
-}
-/* Webkit thumb */
-.volume-slider::-webkit-slider-thumb {
-  -webkit-appearance: none; appearance: none;
-  width: 20px; height: 20px;
-  background: var(--primary); border-radius: 50%;
-  cursor: pointer; margin-top: -7px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
-}
-/* Firefox track */
-.volume-slider::-moz-range-track {
-  height: 6px; border-radius: 3px;
-  background: var(--bg-elevated); border: none;
-}
-/* Firefox thumb */
-.volume-slider::-moz-range-thumb {
-  width: 20px; height: 20px;
-  background: var(--primary); border-radius: 50%;
-  border: none; cursor: pointer;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
-}
-
-/* Add Song */
-.add-card { padding: 14px; }
-.add-tabs {
-  display: flex; gap: 4px; background: var(--bg-elevated);
-  border-radius: 8px; padding: 3px; margin-bottom: 10px;
-}
-.add-tab {
-  flex: 1; padding: 6px; border-radius: 6px; background: transparent;
-  color: var(--text-muted); font-size: 12px; font-weight: 600;
-  text-align: center; transition: all 0.15s;
-}
-.add-tab.active { background: var(--primary); color: var(--text-on-primary); }
-.search-status { font-size: 13px; color: var(--text-muted); text-align: center; padding: 12px 0; }
-.add-error { color: var(--danger); font-size: 13px; margin-top: 8px; font-weight: 500; }
-.add-row { display: flex; gap: 8px; }
-.add-row .input-field { flex: 1; }
-.ctrl-add {
-  width: 44px; min-width: 44px; height: 44px; border-radius: 50%;
-  background: var(--primary); border: 2px solid var(--primary);
-  color: white; font-size: 22px; display: flex; align-items: center; justify-content: center;
-}
-.ctrl-add:disabled { opacity: 0.4; }
-.ctrl-add-sm { width: 32px; height: 32px; min-width: 32px; background: var(--primary); border: 2px solid var(--primary); color: white; font-size: 18px; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
-.library { display: flex; flex-direction: column; gap: 10px; }
-.library-list { max-height: 300px; overflow-y: auto; }
-.lib-item { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--border); }
-.lib-item:last-child { border-bottom: none; }
-.lib-thumb { width: 48px; height: 36px; border-radius: 4px; object-fit: cover; }
-.lib-info { flex: 1; min-width: 0; }
-.lib-title { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.lib-artist { font-size: 11px; color: var(--text-muted); }
-
-/* Queue List */
-.q-list { display: flex; flex-direction: column; gap: 6px; }
-.q-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 12px; border-radius: 10px;
-  background: var(--bg-elevated); border: 1px solid transparent; transition: all 0.2s;
-}
-.q-item:hover { border-color: var(--border); }
-.q-dragging { opacity: 0.3; }
-.q-drop-above { border-top: 2px solid var(--primary); }
-.q-drop-below { border-bottom: 2px solid var(--primary); }
-.q-handle { cursor: grab; font-size: 14px; color: var(--text-muted); flex-shrink: 0; opacity: 0.5; user-select: none; }
-.q-handle:hover { opacity: 1; }
-.q-pos { font-weight: 700; font-size: 13px; color: var(--text-muted); width: 20px; text-align: center; flex-shrink: 0; }
-.q-thumb { width: 48px; height: 36px; border-radius: 4px; object-fit: cover; flex-shrink: 0; }
-.q-info { flex: 1; min-width: 0; }
-.q-title { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.q-meta { font-size: 11px; color: var(--text-muted); }
-.q-btn-label {
-  padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;
-  white-space: nowrap; border: 1px solid var(--border);
-  background: var(--bg-card); color: var(--text-muted); flex-shrink: 0;
-  transition: all 0.15s;
-}
-.q-btn-play:hover { background: var(--success); color: #000; border-color: var(--success); }
-.q-btn-requeue:hover { background: var(--primary); color: white; border-color: var(--primary); }
-.q-btn-remove:hover { background: var(--danger); color: white; border-color: var(--danger); }
-.q-btn-fallback { border-color: var(--secondary); color: var(--secondary); }
-.q-btn-fallback:hover:not(:disabled) { background: var(--secondary); color: #000; }
-.q-btn-fallback:disabled { opacity: 0.5; cursor: default; }
-.q-item-played { opacity: 0.7; }
-.q-item-played:hover { opacity: 1; }
-
-/* Load more button */
-.load-more-btn {
-  width: 100%; margin-top: 10px; padding: 10px;
-  border-radius: 8px; border: 1px dashed var(--border);
-  background: transparent; color: var(--text-muted);
-  font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.15s;
-}
-.load-more-btn:hover { border-color: var(--primary); color: var(--primary); }
-
-/* Fallback playlist */
-.fb-scroll {
-  max-height: 520px; overflow-y: auto;
-  display: flex; flex-direction: column; gap: 6px;
-  padding-right: 2px;
-}
-.fb-scroll::-webkit-scrollbar { width: 4px; }
-.fb-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-.text-hint { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
-.fb-header { display: flex; justify-content: space-between; align-items: center; }
-.fb-btns { display: flex; gap: 6px; }
-.fb-play-now { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); }
-.fb-play-now:hover { background: var(--primary); color: white; }
-.fb-toggle {
-  padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 600;
-  border: 1px solid; cursor: pointer; transition: all 0.15s;
-}
-.fb-playing { background: var(--warning-soft); border-color: var(--warning); color: var(--warning); }
-.fb-playing:hover { background: var(--warning); color: #000; }
-.fb-paused { background: var(--success-soft); border-color: var(--success); color: var(--success); }
-.fb-paused:hover { background: var(--success); color: #000; }
-.fb-status { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; flex-shrink: 0; }
-.fb-status.active { background: var(--success-soft); color: var(--success); }
-.fb-status.inactive { background: var(--border-soft); color: var(--text-muted); }
-
-/* Right Tabs */
-.right-tabs {
-  display: flex; gap: 4px; background: var(--bg-card);
-  border-radius: 10px; padding: 3px;
-}
-.rt {
-  flex: 1; padding: 8px; border-radius: 8px;
-  background: transparent; color: var(--text-muted);
-  font-size: 13px; font-weight: 600; text-align: center;
-  transition: all 0.15s;
-}
-.rt.active { background: var(--primary); color: white; }
-
-/* Tables Tab */
-.table-detail-card { transition: border-color 0.15s; }
-.table-detail-card:hover { border-color: var(--primary); }
-.td-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-width: 0; }
-.td-row > div { min-width: 0; flex: 1; }
-.td-num { font-weight: 700; font-size: 15px; margin-right: 8px; white-space: nowrap; }
-.td-user { font-size: 12px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.td-count { font-size: 13px; color: var(--primary); font-weight: 600; white-space: nowrap; flex-shrink: 0; }
-.back-btn {
-  padding: 6px 12px; border-radius: 6px; background: var(--bg-card);
-  border: 1px solid var(--border); color: var(--text-muted);
-  font-size: 13px; font-weight: 600; cursor: pointer;
-}
-.back-btn:hover { border-color: var(--primary); color: var(--primary); }
-.td-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
-.td-header h3 { font-size: 18px; }
-.td-user-detail { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
-.td-actions { display: flex; gap: 6px; }
-.td-songs { display: flex; flex-direction: column; gap: 4px; }
-.td-song {
-  display: flex; align-items: center; gap: 10px;
-  padding: 8px; background: var(--bg-elevated); border-radius: 8px;
-}
-.td-song-status {
-  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-}
-.td-song-status.playing { background: var(--success); }
-.td-song-status.pending { background: var(--warning); }
-.td-song-status.played { background: var(--text-muted); }
-.td-song-status.removed { background: var(--danger); }
-.td-song-info { flex: 1; min-width: 0; }
-.td-song-title { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.td-song-meta { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-
-/* Analytics Tab */
-.an-period { display: flex; gap: 6px; margin-bottom: 12px; }
-.an-period-btn { padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; background: var(--bg-card); color: var(--text-muted); border: 1px solid var(--border); cursor: pointer; }
-.an-period-btn.active { background: var(--primary); color: var(--text-on-primary, #fff); border-color: var(--primary); }
-.an-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 12px; }
-.an-card { background: var(--bg-card); border: 1px solid var(--border-soft); border-radius: var(--radius-sm); padding: 16px; text-align: center; }
-.an-val { font-size: 26px; font-weight: 700; }
-.an-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-.an-song {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 0; border-bottom: 1px solid var(--border-soft);
-}
-.an-song:last-child { border-bottom: none; }
-.an-pos { font-weight: 700; font-size: 13px; color: var(--text-muted); width: 20px; text-align: center; flex-shrink: 0; }
-.an-thumb { width: 48px; height: 36px; border-radius: 4px; object-fit: cover; flex-shrink: 0; }
-.an-title { flex: 1; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.an-count { font-weight: 600; color: var(--primary); font-size: 13px; flex-shrink: 0; min-width: 28px; text-align: right; }
-.an-hour {
-  display: flex; align-items: center; gap: 10px;
-  padding: 6px 0;
-}
-.an-hour-label { font-size: 13px; font-weight: 600; width: 45px; flex-shrink: 0; }
-.an-hour-bar { flex: 1; height: 8px; background: var(--bg-elevated); border-radius: 4px; overflow: hidden; }
-.an-hour-fill { height: 100%; background: var(--primary); border-radius: 4px; transition: width 0.3s; }
-.an-hour-count { font-size: 12px; color: var(--text-muted); width: 30px; text-align: right; flex-shrink: 0; }
-
-/* Common */
-.text-muted { color: var(--text-muted); font-size: 14px; }
-
-/* ===== RESPONSIVE ===== */
-@media (max-width: 900px) {
-  .menu-btn { display: flex; }
-  .sidebar-close { display: flex; }
-  .admin-layout { grid-template-columns: 1fr; padding: 12px; gap: 12px; }
-  .sidebar {
-    display: none; position: fixed; top: 0; left: 0; bottom: 0;
-    width: 320px; max-width: 85vw; z-index: 100;
-    background: var(--bg); padding: 16px; padding-top: 56px; padding-bottom: 200px;
-    overflow-y: auto; max-height: 100vh;
-    box-shadow: 4px 0 20px rgba(0,0,0,0.3);
-  }
-  .sidebar.open { display: flex; }
-  .sidebar-overlay {
-    display: block; position: fixed; inset: 0; z-index: 99;
-    background: rgba(0,0,0,0.5);
-  }
-  .tables-list { max-height: none; }
-  .np-card { flex-direction: column; align-items: stretch; }
-  .np-left { flex-direction: column; gap: 8px; }
-  .np-thumb { width: 100%; height: auto; max-height: 200px; }
-  .np-controls { justify-content: center; flex-wrap: wrap; }
-  .ctrl-labeled { flex: 1; min-width: 0; }
-  .stats-bar { flex-wrap: wrap; }
-  .stat-pill { font-size: 12px; padding: 5px 10px; }
-  .volume-row { flex-wrap: wrap; }
-  .volume-slider { width: 100%; order: 3; }
-  .q-item { padding: 10px 8px; }
-  .q-handle { display: none; }
-  .q-pos { display: none; }
-  .q-thumb { width: 40px; height: 30px; }
-  .q-btn-label { font-size: 10px; padding: 3px 8px; }
-  .fb-header { flex-direction: column; align-items: flex-start; gap: 8px; }
-  .fb-btns { width: 100%; }
-  .fb-toggle { flex: 1; text-align: center; }
-  .add-row { flex-wrap: wrap; }
-  .add-row .input-field { width: 100%; }
-  .admin-header { padding: 10px 12px; }
-  .admin-header h1 { font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .header-brand { min-width: 0; flex: 1; }
-  .info-stats { gap: 12px; }
-  .info-val { font-size: 22px; }
-  .quick-actions { gap: 4px; }
-  .action-btn { padding: 8px 12px; font-size: 12px; }
-  .qr-img { width: 150px; height: 150px; }
-  .table-item { padding: 6px; }
-  .table-btns { flex-wrap: wrap; }
-  .table-songs-mini { max-height: none; }
-  .an-grid { grid-template-columns: repeat(3, 1fr); }
-  .td-header { flex-direction: column; }
-  .td-actions { width: 100%; }
-  .td-actions .t-btn { flex: 1; text-align: center; }
-  .lib-item { gap: 8px; }
-  .lib-thumb { width: 40px; height: 30px; }
-  .ctrl-add { width: 36px; min-width: 36px; height: 36px; font-size: 18px; }
-  .ctrl-add-sm { width: 28px; height: 28px; min-width: 28px; font-size: 16px; }
-}
-
-@media (max-width: 480px) {
-  .admin-layout { padding: 8px; gap: 8px; }
-  .q-item { gap: 6px; }
-  .q-info { font-size: 12px; }
-  .q-title { font-size: 12px; }
-  .q-meta { font-size: 10px; }
-  .q-btn-label { font-size: 9px; padding: 2px 6px; }
-  .td-row { flex-direction: column; align-items: flex-start; gap: 4px; }
-  .td-count { align-self: flex-end; }
-  .song-pill { max-width: 120px; }
-  .an-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
-  .an-val { font-size: 20px; }
-  .section-title { font-size: 11px; }
 }
 
 /* Drawer transition */
-.drawer-enter-active, .drawer-leave-active { transition: opacity 0.25s ease; }
-.drawer-enter-from, .drawer-leave-to { opacity: 0; }
+.drawer-enter-active,
+.drawer-leave-active {
+  transition: opacity 0.25s ease;
+}
 
+.drawer-enter-from,
+.drawer-leave-to {
+  opacity: 0;
+}
+
+/* =========================================
+   BREAKPOINT 900px
+   ========================================= */
+@media (max-width: 900px) {
+  .admin-layout {
+    grid-template-columns: 1fr;
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 99;
+    background: rgba(0, 0, 0, 0.5);
+  }
+}
+
+/* =========================================
+   BREAKPOINT 480px
+   ========================================= */
+@media (max-width: 480px) {
+  .admin-layout {
+    padding: 8px;
+    gap: 8px;
+  }
+}
 </style>

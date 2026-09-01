@@ -1,10 +1,11 @@
 <script setup>
 import Button from './ui/Button.vue'
 import Input from './ui/Input.vue'
+import FormField from './ui/FormField.vue'
+import FormError from './ui/FormError.vue'
+import PasswordInput from './ui/PasswordInput.vue'
 import VenueLogo from './VenueLogo.vue'
-import { useTheme } from '../composables/useTheme.js'
-import logoPositive from '../assets/logo-color-positivo.svg'
-import logoNegative from '../assets/logo-color-negativo.svg'
+import RepitelaLogo from './RepitelaLogo.vue'
 
 defineProps({
   title: { type: String, required: true },
@@ -13,6 +14,8 @@ defineProps({
   loading: Boolean,
   usernamePlaceholder: { type: String, default: 'admin' },
   logoUrl: { type: String, default: null },
+  logoUrlLight: { type: String, default: null },
+  logoUrlDark: { type: String, default: null },
   showGoogle: { type: Boolean, default: false },
 })
 
@@ -20,52 +23,44 @@ defineEmits(['submit', 'google'])
 const username = defineModel('username', { default: '' })
 const password = defineModel('password', { default: '' })
 
-// Este fondo (--bg del form panel) SI cambia con el tema, a diferencia del
-// panel de marca -- por eso el icono sigue el modo claro/oscuro.
-const { currentMode } = useTheme()
 </script>
 
 <template>
   <header class="login-header">
     <VenueLogo
-      v-if="logoUrl"
+      v-if="logoUrl || logoUrlLight || logoUrlDark"
       :src="logoUrl"
+      :src-light="logoUrlLight"
+      :src-dark="logoUrlDark"
       :alt="title"
       class="login-icon venue-logo"
     />
-    <img
-      v-else
-      :src="currentMode === 'dark' ? logoNegative : logoPositive"
-      alt="Repítela"
-      class="login-icon"
-    />
+    <RepitelaLogo v-else class="login-icon" />
     <h1 v-if="title !== 'Repitela' && title !== 'Repítela'">{{ title }}</h1>
     <p>{{ subtitle }}</p>
   </header>
   <form class="login-form" @submit.prevent="$emit('submit')">
-    <div class="form-group">
-      <label for="username" class="form-label">Usuario</label>
+    <FormField id="username" label="Usuario" v-slot="{ id }">
       <Input
-        id="username"
+        :id="id"
         v-model="username"
         name="username"
         type="text"
         :placeholder="usernamePlaceholder"
         autocomplete="username"
       />
-    </div>
-    <div class="form-group">
-      <label for="password" class="form-label">Contraseña</label>
-      <Input
-        id="password"
+    </FormField>
+    <FormField id="password" label="Contraseña" v-slot="{ id }">
+      <PasswordInput
+        :id="id"
         v-model="password"
         name="password"
         type="password"
         placeholder="********"
         autocomplete="current-password"
       />
-    </div>
-    <p v-if="error" class="error-msg" role="alert" aria-live="polite">{{ error }}</p>
+    </FormField>
+    <FormError :message="error" />
     <Button type="submit" :disabled="loading">{{ loading ? 'Entrando...' : 'ENTRAR' }}</Button>
 
     <template v-if="showGoogle">
@@ -101,9 +96,6 @@ const { currentMode } = useTheme()
 .login-header h1 { font-size: 24px; font-weight: 700; }
 .login-header p { color: var(--text-muted); font-size: 15px; margin-top: 4px; }
 .login-form { display: flex; flex-direction: column; gap: 16px; }
-.form-group { display: flex; flex-direction: column; gap: 6px; }
-.form-label { font-size: 13px; font-weight: 600; color: var(--text-muted); }
-.error-msg { color: var(--danger); font-size: 14px; text-align: center; }
 
 .auth-divider {
   display: flex;

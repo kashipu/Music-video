@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
 
-const routes = [
+export const routes = [
   // Super Admin
   {
     path: '/superadmin/login',

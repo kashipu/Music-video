@@ -141,7 +141,7 @@
   --text-on-primary: var(--color-on-primary);
 
   --secondary: var(--color-secondary);
-  --accent: var(--color-info);
+  --accent: var(--color-accent);
 
   --success: var(--color-success);
   --warning: var(--color-warning);

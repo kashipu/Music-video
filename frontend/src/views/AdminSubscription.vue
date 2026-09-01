@@ -3,17 +3,17 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
 import { useConfigStore } from '../stores/config.js'
-import { useTheme } from '../composables/useTheme.js'
 import Badge from '../components/ui/Badge.vue'
 import UiButton from '../components/ui/Button.vue'
+import BackButton from '../components/ui/BackButton.vue'
+import ThemeToggle from '../components/ui/ThemeToggle.vue'
+import FormError from '../components/ui/FormError.vue'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const config = useConfigStore()
-const { currentMode, toggleMode } = useTheme()
 const API = import.meta.env.VITE_API_URL || ''
-const venueSlug = route.params.venueSlug
 
 const loading = ref(true)
 const paying = ref(false)
@@ -32,7 +32,7 @@ function formatCurrency(cents) {
 function formatDate(dateStr) {
   if (!dateStr) return ''
   // Fecha pura (sin hora) se ancla a medianoche LOCAL; si no, un huso horario
-  // negativo (ej. Colombia UTC-5) la corre un día atrás al formatear.
+  // hacia atrás (ej. Colombia UTC-5) la corre un día atrás al formatear.
   const hasTime = dateStr.includes('T') || dateStr.includes(' ')
   const d = new Date(hasTime ? dateStr.replace(' ', 'T') : `${dateStr}T00:00:00`)
   if (isNaN(d.getTime())) return dateStr
@@ -80,6 +80,7 @@ async function fetchBilling() {
 }
 
 async function payNow() {
+  if (paying.value) return
   paying.value = true
   errorMsg.value = ''
   try {
@@ -122,12 +123,12 @@ onMounted(async () => {
 
 <template>
   <div class="admin-subscription">
-    <header class="admin-header">
-      <div class="header-brand">
-        <button class="back-btn" aria-label="Volver" @click="router.push({ name: 'admin', params: { venueSlug } })">&#8592;</button>
+    <header class="as-header">
+      <div class="header-left">
+        <BackButton aria-label="Volver" @click="router.push({ name: 'admin', params: { venueSlug: route.params.venueSlug } })">&#8592;</BackButton>
         <h1>Mi suscripción</h1>
       </div>
-      <button class="theme-toggle" aria-label="Cambiar tema" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button>
+      <ThemeToggle />
     </header>
 
     <main class="as-content">
@@ -170,7 +171,7 @@ onMounted(async () => {
           <UiButton v-if="config.pagos" class="pay-btn" :disabled="paying" @click="payNow">
             {{ paying ? 'Redirigiendo a Wompi...' : 'Pagar con Wompi' }}
           </UiButton>
-          <span v-if="errorMsg" class="error-msg" role="alert">{{ errorMsg }}</span>
+          <FormError :message="errorMsg" />
 
           <div class="billing-divider" />
 
@@ -197,13 +198,13 @@ onMounted(async () => {
         </div>
       </template>
 
-      <p v-else class="error-msg" role="alert">{{ errorMsg || 'No se pudo cargar tu suscripción' }}</p>
+      <FormError v-else :message="errorMsg || 'No se pudo cargar tu suscripción'" />
     </main>
   </div>
 </template>
 
 <style scoped>
-.admin-header {
+.as-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -212,17 +213,8 @@ onMounted(async () => {
   background: var(--bg-card);
   border-bottom: 1px solid var(--border);
 }
-.header-brand { display: flex; align-items: center; gap: 10px; }
-.header-brand h1 { font-size: 18px; margin: 0; }
-.back-btn, .theme-toggle {
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text);
-  font-size: 16px;
-  padding: 6px 10px;
-  cursor: pointer;
-}
+.header-left { display: flex; align-items: center; gap: 10px; }
+.header-left h1 { font-size: 18px; margin: 0; }
 .as-content { max-width: 560px; margin: auto; padding: 16px 12px; }
 .loading { color: var(--text-muted); text-align: center; padding: 24px 0; }
 
@@ -239,6 +231,7 @@ onMounted(async () => {
 
 .billing-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg, 12px); padding: 16px; }
 .billing-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; }
+/* El encabezado de facturación ya tiene separación en .billing-header. */
 .section-title { margin: 0; color: var(--text-muted); font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
 .billing-overdue { border-color: var(--warning) !important; }
 .billing-suspended { border-color: var(--danger) !important; }
@@ -259,8 +252,6 @@ onMounted(async () => {
 .price-value { font-size: 18px; }
 
 .pay-btn { width: 100%; }
-.error-msg { display: block; margin-top: 8px; color: var(--danger); font-size: 13px; font-weight: 600; }
-
 .history-title { margin: 0 0 10px; color: var(--text-muted); font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
 .history-list { display: flex; flex-direction: column; gap: 8px; }
 .history-card { background: var(--bg-elevated); border-radius: var(--radius-sm, 8px); padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }

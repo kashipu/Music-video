@@ -1,4 +1,6 @@
 <script setup>
+import Card from './ui/Card.vue'
+
 defineProps({
   dailyAnalytics: { type: Object, default: null },
   bestDay: { type: Object, default: null },
@@ -10,8 +12,7 @@ function shortDate(date) {
 </script>
 
 <template>
-  <div v-if="dailyAnalytics" class="card">
-    <p class="section-title">ACTIVIDAD</p>
+  <Card v-if="dailyAnalytics" title="ACTIVIDAD">
     <p v-if="bestDay && bestDay.people > 0" class="activity-best">
       Mejor día: <strong>{{ shortDate(bestDay.date) }}</strong> · {{ bestDay.people }} personas
     </p>
@@ -25,19 +26,16 @@ function shortDate(date) {
         <strong>{{ day.people }}</strong>
       </div>
     </div>
-  </div>
+  </Card>
 </template>
 
 <style scoped>
-.card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; }
-.section-title { margin: 0 0 12px; color: var(--text-muted); font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
 .activity-best { margin-bottom: 12px; color: var(--text-muted); font-size: 13px; }
 .activity-best strong, .activity-day strong { color: var(--text); }
 .activity-days { display: flex; flex-direction: column; gap: 8px; }
 .activity-day { display: grid; grid-template-columns: 40px 1fr 28px; gap: 8px; align-items: center; color: var(--text-muted); font-size: 12px; }
 .activity-bar { height: 8px; overflow: hidden; border-radius: 999px; background: var(--bg-elevated); }
 .activity-bar i { display: block; min-width: 4px; height: 100%; border-radius: inherit; background: var(--primary); }
-.text-muted { color: var(--text-muted); font-size: 13px; }
 
 @media (min-width: 850px) {
   .card { padding: 20px; }

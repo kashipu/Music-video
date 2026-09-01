@@ -3,6 +3,7 @@ import { ref, computed, onUnmounted, watch } from 'vue'
 import { useQueueStore } from '../stores/queue.js'
 import { trackSongSearched, trackSongSubmitted, trackSearchResultSelected } from '../utils/analytics.js'
 import { thumbFallback } from '../utils/youtube.js'
+import FormError from './ui/FormError.vue'
 
 const API = import.meta.env.VITE_API_URL || ''
 
@@ -51,7 +52,7 @@ watch(() => props.rateLimit?.songs_remaining, (val) => {
   else { stopCountdown(); countdown.value = '' }
 }, { immediate: true })
 
-onUnmounted(stopCountdown)
+onUnmounted(() => { stopCountdown(); if (searchTimeout) clearTimeout(searchTimeout) })
 
 function onSearchInput() {
   if (searchTimeout) clearTimeout(searchTimeout)
@@ -170,7 +171,7 @@ async function selectResult(result, index) {
         Sin resultados para "<em>{{ searchQuery }}</em>"
       </p>
 
-      <p v-if="error" class="error-msg">{{ error }}</p>
+      <FormError :message="error" />
     </template>
   </div>
 </template>
@@ -282,9 +283,6 @@ async function selectResult(result, index) {
   animation: spin 0.65s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
-
-/* ── Errors ── */
-.error-msg { color: var(--danger); font-size: 13px; margin-top: 10px; }
 
 /* ── Blocked state ── */
 .blocked { text-align: center; padding: 20px 8px; }

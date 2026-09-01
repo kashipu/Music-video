@@ -4,9 +4,14 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
 import { useTheme } from '../composables/useTheme.js'
 import { trackUserRegistered, trackSessionStarted, setAnalyticsContext } from '../utils/analytics.js'
+import ThemeToggle from '../components/ui/ThemeToggle.vue'
 import VenueLogo from '../components/VenueLogo.vue'
+import FormField from '../components/ui/FormField.vue'
+import FormError from '../components/ui/FormError.vue'
+import Input from '../components/ui/Input.vue'
+import Button from '../components/ui/Button.vue'
 
-const { currentMode, toggleMode, applyVenueTheme } = useTheme()
+const { applyVenueTheme } = useTheme()
 
 const route = useRoute()
 const router = useRouter()
@@ -22,6 +27,8 @@ const pin = ref('')
 const pinRequired = ref(false)
 const venueName = ref('')
 const venueLogo = ref(null)
+const venueLogoLight = ref(null)
+const venueLogoDark = ref(null)
 const error = ref('')
 const loading = ref(false)
 const pageOpenedAt = Date.now()
@@ -39,6 +46,8 @@ onMounted(async () => {
       pinRequired.value = data.pin_required
       venueName.value = data.venue_name || ''
       venueLogo.value = data.logo_url || null
+      venueLogoLight.value = data.logo_url_light || null
+      venueLogoDark.value = data.logo_url_dark || null
       if (venueName.value) document.title = `${venueName.value} - Repitela`
       if (data.theme) applyVenueTheme({ theme: data.theme })
     }
@@ -72,67 +81,70 @@ async function handleRegister() {
 
 <template>
   <div class="landing">
-    <button class="theme-toggle" style="position:fixed;top:16px;right:16px;" @click="toggleMode">{{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}</button>
+    <ThemeToggle style="position:fixed;top:16px;right:16px;" />
     <div class="container">
       <div class="landing-header">
-        <VenueLogo v-if="venueLogo" :src="venueLogo" class="venue-logo" />
+        <VenueLogo v-if="venueLogo || venueLogoLight || venueLogoDark" :src="venueLogo" :src-light="venueLogoLight" :src-dark="venueLogoDark" class="venue-logo" />
         <div v-else class="music-icon">&#9835;</div>
-        <h1 v-if="!venueLogo">{{ venueName || venueSlug.replace(/-/g, ' ') }}</h1>
+        <h1 v-if="!venueLogo && !venueLogoLight && !venueLogoDark">{{ venueName || venueSlug.replace(/-/g, ' ') }}</h1>
         <p class="subtitle">Elige la musica que suena!</p>
         <p class="powered-by">por Repitela</p>
       </div>
 
       <form class="register-form" @submit.prevent="handleRegister">
-        <div class="form-group">
-          <label>Tu numero de celular</label>
-          <input
+        <FormField label="Tu número de celular" required v-slot="{ id }">
+          <Input
+            :id="id"
             v-model="phone"
             type="tel"
-            class="input-field"
             placeholder="+57 300 123 4567"
             inputmode="tel"
+            required
           />
-        </div>
+        </FormField>
 
-        <div class="form-group">
-          <label>Tu nombre (opcional)</label>
-          <input
+        <FormField label="Tu nombre (opcional)" v-slot="{ id }">
+          <Input
+            :id="id"
             v-model="displayName"
             type="text"
-            class="input-field"
-            placeholder="Como te llamas?"
+            placeholder="¿Cómo te llamas?"
           />
-        </div>
+        </FormField>
 
-        <div v-if="pinRequired" class="form-group">
-          <label>Codigo PIN (visible en la pantalla del bar)</label>
-          <input
+        <FormField v-if="pinRequired" label="Código PIN (visible en la pantalla del bar)" required v-slot="{ id }">
+          <Input
+            :id="id"
             v-model="pin"
             type="text"
-            class="input-field pin-input"
+            class="pin-input"
             placeholder="1234"
             inputmode="numeric"
             maxlength="4"
             autocomplete="off"
+            required
           />
-        </div>
+        </FormField>
 
         <label class="consent-label">
           <input v-model="dataConsent" type="checkbox" />
           <span>Acepto el uso de mis datos para mejorar la experiencia musical del bar.</span>
         </label>
 
-        <p v-if="error" class="error-msg">{{ error }}</p>
+        <FormError :message="error" />
 
-        <button type="submit" class="btn btn-primary" :disabled="loading">
+        <Button type="submit" :disabled="loading">
           {{ loading ? 'Entrando...' : 'ENTRAR' }}
-        </button>
+        </Button>
       </form>
     </div>
   </div>
 </template>
 
 <style scoped>
+/* =========================================
+   CSS GENERAL
+   ========================================= */
 .landing {
   min-height: 100vh;
   min-height: 100dvh;
@@ -181,16 +193,6 @@ async function handleRegister() {
   flex-direction: column;
   gap: 16px;
 }
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.form-group label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-muted);
-}
 .consent-label {
   display: flex;
   align-items: flex-start;
@@ -209,10 +211,5 @@ async function handleRegister() {
   font-weight: 700;
   letter-spacing: 8px;
   max-width: 160px;
-}
-.error-msg {
-  color: var(--danger);
-  font-size: 14px;
-  text-align: center;
 }
 </style>

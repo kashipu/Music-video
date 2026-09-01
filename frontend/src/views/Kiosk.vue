@@ -2,41 +2,27 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useWebSocket } from '../composables/useWebSocket.js'
+import { useKioskPlayback } from '../composables/useKioskPlayback.js'
 import { useTheme } from '../composables/useTheme.js'
 import { trackSongPlayed, trackSongEnded, trackSongError, trackFallbackActivated } from '../utils/analytics.js'
 import VenueLogo from '../components/VenueLogo.vue'
+import KioskAudioBlocked from '../components/KioskAudioBlocked.vue'
+import KioskFallback from '../components/KioskFallback.vue'
+import KioskSongOverlay from '../components/KioskSongOverlay.vue'
+import KioskBottomBar from '../components/KioskBottomBar.vue'
+import KioskPlayerControls from '../components/KioskPlayerControls.vue'
 
 const route = useRoute()
 const venueSlug = route.params.venueSlug
 const { applyVenueTheme } = useTheme()
-const API = import.meta.env.VITE_API_URL || ''
 const registroUrl = `${window.location.origin}/${venueSlug}/registro`
 const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(registroUrl)}`
 
-const song = ref(null)
-const fallbackActive = ref(false)
-const fallbackSongs = ref([])
-const fallbackIndex = ref(0)
-const fallbackPlayed = ref(new Set())
-const playingFallback = ref(false)
-const fallbackPaused = ref(false)
-const playbackStatus = ref('playing')
-const queue = ref([])
-const started = ref(false)
-const dailyPin = ref('')
 const showOverlay = ref(false)
-const bannerText = ref('')
 let bannerTimer = null
-let bannerAutoHidden = false
-const venueName = ref('')
-const venueLogo = ref(null)
-const showBrand = ref(true)
-const pendingUserSong = ref(null)
 const audioBlocked = ref(false)
 const kioskControlsVisible = ref(false)
 const isPlaying = ref(false)
-const showQr = ref(false)
-const qrSize = ref('M')
 const QR_PX = { S: 110, M: 160, L: 210 }
 const progress = ref(0)
 const currentTime = ref(0)
@@ -48,6 +34,24 @@ let ytPlayer = null
 let preloadPlayer = null
 let preloadedVideoId = null
 let overlayTimer = null
+
+const {
+  song, fallbackActive, fallbackSongs, fallbackPlayed, playingFallback, fallbackPaused,
+  playbackStatus, queue, started, dailyPin, bannerText, venueName, venueLogo,
+  venueLogoLight, venueLogoDark, showBrand, pendingUserSong, showQr, qrSize,
+  syncNowPlaying, fetchDailyPin, fetchNowPlaying, playFallback, nextFallback,
+  handleFallbackSkip, handleFallbackSongEnded, fetchQueuePreview,
+  hideBannerAutomatically, showBanner, reportError, reportFinished, updatePlaybackStatus,
+} = useKioskPlayback({
+  venueSlug,
+  getPlayer: () => ytPlayer,
+  loadVideo,
+  triggerOverlay,
+  enforcePlaybackStatus,
+  applyVolume,
+  preloadNextSong,
+  trackFallbackActivated,
+})
 
 const { onEvent, onReconnect } = useWebSocket(venueSlug)
 
@@ -109,11 +113,11 @@ onEvent((event) => {
     applyVolume(event.data.volume)
   } else if (event.event === 'banner_changed') {
     // Banner text
-    bannerAutoHidden = false
+    showBanner()
     bannerText.value = event.data.banner_text || ''
     if (bannerTimer) clearTimeout(bannerTimer)
     if (bannerText.value) {
-      bannerTimer = setTimeout(() => { bannerText.value = ''; bannerAutoHidden = true }, 3 * 60 * 1000)
+      bannerTimer = setTimeout(() => { bannerText.value = ''; hideBannerAutomatically() }, 3 * 60 * 1000)
     }
     // Brand visibility
     if (event.data.show_brand !== undefined) showBrand.value = event.data.show_brand
@@ -138,62 +142,6 @@ onEvent((event) => {
     }
   }
 })
-
-// Fetch now_playing from the API and sync the player to match backend state.
-// This is the single source of truth — handles song changes, pause/resume,
-// and fallback transitions.
-async function syncNowPlaying() {
-  const res = await fetch(`${API}/api/playback/now-playing?venue=${venueSlug}`)
-  if (!res.ok) return
-  const data = await res.json()
-  if (data.fallback_songs) fallbackSongs.value = data.fallback_songs
-
-  // 1. Sync song state
-  if (data.song && !data.song.is_fallback) {
-    if (playingFallback.value) {
-      // Fallback active — song is already 'playing' in DB (admin promoted it).
-      // Queue it for when fallback track ends; already_playing=true so start-playing won't be called.
-      pendingUserSong.value = { ...data.song, already_playing: true }
-    } else {
-      const currentYtId = song.value?.youtube_id
-      const playerIdle = ytPlayer && typeof ytPlayer.getPlayerState === 'function'
-        && (ytPlayer.getPlayerState() === -1 || ytPlayer.getPlayerState() === 5)
-      if (currentYtId !== data.song.youtube_id || playerIdle) {
-        song.value = data.song
-        fallbackActive.value = false
-        pendingUserSong.value = null
-        if (started.value) loadVideo(data.song.youtube_id)
-        triggerOverlay()
-      }
-    }
-  } else if (!data.song) {
-    // No song 'playing' in backend — could be fallback active or truly empty
-    if (song.value && !playingFallback.value) {
-      // We thought a user song was playing — clear it
-      song.value = null
-    }
-    fallbackActive.value = true
-    // Only start fallback if not already playing and no pending user song waiting
-    if (!playingFallback.value && !pendingUserSong.value && fallbackSongs.value.length && started.value && !fallbackPaused.value) {
-      playFallback()
-    }
-  }
-
-  // 2. Sync playback status — always compare backend state vs actual player state
-  playbackStatus.value = data.playback_status
-  enforcePlaybackStatus()
-
-  // 3. Sync volume
-  if (data.volume !== undefined) applyVolume(data.volume)
-
-  // 4. Sync banner + venue branding (don't re-show if auto-hidden)
-  if (data.banner_text !== undefined && !bannerAutoHidden) bannerText.value = data.banner_text
-  if (data.show_brand !== undefined) showBrand.value = data.show_brand
-  if (data.qr_size) qrSize.value = data.qr_size
-  if (data.show_qr !== undefined) showQr.value = data.show_qr
-  if (data.venue_name) venueName.value = data.venue_name
-  if (data.venue_logo !== undefined) venueLogo.value = data.venue_logo
-}
 
 // Compare desired playback status with actual YouTube player state and fix mismatches.
 // YT PlayerState: PLAYING=1, PAUSED=2, BUFFERING=3
@@ -235,20 +183,6 @@ function applyVolume(vol) {
 // matches the backend. Catches any missed WS events.
 let pollInterval = null
 
-async function fetchDailyPin() {
-  try {
-    const adminToken = localStorage.getItem('bq_admin_token')
-    if (!adminToken) return
-    const res = await fetch(`${API}/api/admin/daily-pin`, {
-      headers: { Authorization: `Bearer ${adminToken}` },
-    })
-    if (res.ok) {
-      const data = await res.json()
-      dailyPin.value = data.require_pin ? data.pin : ''
-    }
-  } catch { /* */ }
-}
-
 onMounted(async () => {
   // Apply venue theme
   try {
@@ -285,114 +219,6 @@ function triggerOverlay() {
   showOverlay.value = true
   if (overlayTimer) clearTimeout(overlayTimer)
   overlayTimer = setTimeout(() => { showOverlay.value = false }, 15000)
-}
-
-async function fetchNowPlaying() {
-  const res = await fetch(`${API}/api/playback/now-playing?venue=${venueSlug}`)
-  if (!res.ok) return
-  const data = await res.json()
-  song.value = data.song
-  playbackStatus.value = data.playback_status
-  fallbackActive.value = data.fallback_active
-  if (data.fallback_songs) fallbackSongs.value = data.fallback_songs
-  if (data.banner_text !== undefined) bannerText.value = data.banner_text
-  if (data.show_brand !== undefined) showBrand.value = data.show_brand
-  if (data.qr_size) qrSize.value = data.qr_size
-  if (data.show_qr !== undefined) showQr.value = data.show_qr
-  if (data.venue_name) venueName.value = data.venue_name
-  if (data.venue_logo !== undefined) venueLogo.value = data.venue_logo
-  if (song.value) {
-    playingFallback.value = false
-    triggerOverlay()
-  } else if (fallbackSongs.value.length && started.value) {
-    playFallback()
-  }
-}
-
-function playFallback() {
-  if (!fallbackSongs.value.length || fallbackPaused.value) return
-  if (!playingFallback.value) trackFallbackActivated(venueSlug)
-
-  // Reset cycle when all songs have been played
-  if (fallbackPlayed.value.size >= fallbackSongs.value.length) {
-    fallbackPlayed.value = new Set()
-  }
-
-  // Pick a random unplayed song to avoid always starting from the same position
-  const unplayed = fallbackSongs.value.filter(fb => !fallbackPlayed.value.has(fb.youtube_id))
-  if (!unplayed.length) return
-
-  const fb = unplayed[Math.floor(Math.random() * unplayed.length)]
-  playingFallback.value = true
-  fallbackPlayed.value.add(fb.youtube_id)
-  song.value = { id: null, youtube_id: fb.youtube_id, title: fb.title, is_fallback: true }
-  loadVideo(fb.youtube_id)
-  // Notify all clients (customer + admin dashboards) which fallback song is playing
-  fetch(`${API}/api/playback/fallback-playing?venue=${encodeURIComponent(venueSlug)}&youtube_id=${encodeURIComponent(fb.youtube_id)}&title=${encodeURIComponent(fb.title)}`, { method: 'POST' }).catch(() => {})
-}
-
-function nextFallback() {
-  playFallback()
-}
-
-// Start playing a user song that was waiting while fallback played.
-// If already_playing is false the song is still 'pending' in the DB — notify backend to promote it.
-async function startPendingUserSong(userSong) {
-  song.value = userSong
-  fallbackActive.value = false
-  playingFallback.value = false
-  pendingUserSong.value = null
-  loadVideo(userSong.youtube_id)
-  triggerOverlay()
-  fetchQueuePreview()
-
-  if (userSong.id && !userSong.already_playing) {
-    const adminToken = localStorage.getItem('bq_admin_token')
-    const hdrs = adminToken ? { Authorization: `Bearer ${adminToken}` } : {}
-    fetch(`${API}/api/queue/start-playing/${userSong.id}?venue=${encodeURIComponent(venueSlug)}`, {
-      method: 'POST',
-      headers: hdrs,
-    }).catch(() => {})
-  }
-}
-
-// Called when admin explicitly skips the current fallback song.
-// The backend sends now_playing_changed (sets pendingUserSong) then fallback_skip (triggers this).
-async function handleFallbackSkip() {
-  // 1. Use pending user song if available (already_playing=true means backend promoted it via admin skip)
-  if (pendingUserSong.value) {
-    await startPendingUserSong(pendingUserSong.value)
-    return
-  }
-
-  // 2. Safety-net: check backend directly (handles WS event ordering edge cases)
-  try {
-    const res = await fetch(`${API}/api/playback/now-playing?venue=${venueSlug}`)
-    if (res.ok) {
-      const data = await res.json()
-      if (data.song && !data.song.is_fallback) {
-        song.value = data.song
-        fallbackActive.value = false
-        playingFallback.value = false
-        pendingUserSong.value = null
-        loadVideo(data.song.youtube_id)
-        triggerOverlay()
-        fetchQueuePreview()
-        return
-      }
-    }
-  } catch { /* network error — fall through */ }
-
-  // 3. No queue song — play next random fallback
-  playFallback()
-}
-
-async function fetchQueuePreview() {
-  const res = await fetch(`${API}/api/queue?venue=${venueSlug}`)
-  if (!res.ok) return
-  const data = await res.json()
-  queue.value = data.queue.slice(0, 5)
-  preloadNextSong()
 }
 
 function preloadNextSong() {
@@ -493,21 +319,13 @@ async function onPlayerError(event) {
     const songId = song.value.id
     let adminToken = null
     try { adminToken = localStorage.getItem('bq_admin_token') } catch { /* */ }
-    const hdrs = { 'Content-Type': 'application/json' }
-    if (adminToken) hdrs['Authorization'] = `Bearer ${adminToken}`
-
     let handled = false
     for (let attempt = 0; attempt < 2 && !handled; attempt++) {
       if (attempt > 0) await new Promise(r => setTimeout(r, 500))
       try {
-        const res = await fetch(`${API}/api/playback/error`, {
-          method: 'POST',
-          headers: hdrs,
-          body: JSON.stringify({ song_id: songId, venue_slug: venueSlug, error_code: errorCode }),
-        })
-        if (res.ok) {
+        const data = await reportError(songId, errorCode, adminToken)
+        if (data) {
           handled = true
-          const data = await res.json()
           if (data.next_song) {
             song.value = data.next_song
             fallbackActive.value = false
@@ -562,48 +380,15 @@ async function onPlayerStateChange(event) {
   if (event.data === 0 && song.value) {
     trackSongEnded(song.value.youtube_id, song.value.title)
     if (playingFallback.value) {
-      // Fallback song ended — check pendingUserSong first, then backend
-      if (pendingUserSong.value) {
-        await startPendingUserSong(pendingUserSong.value)
-      } else {
-        try {
-          const res = await fetch(`${API}/api/playback/now-playing?venue=${venueSlug}`)
-          if (res.ok) {
-            const data = await res.json()
-            if (data.song && !data.song.is_fallback) {
-              song.value = data.song
-              fallbackActive.value = false
-              playingFallback.value = false
-              pendingUserSong.value = null
-              loadVideo(data.song.youtube_id)
-              triggerOverlay()
-              fetchQueuePreview()
-            } else {
-              nextFallback()
-            }
-          } else {
-            nextFallback()
-          }
-        } catch {
-          nextFallback()
-        }
-      }
+      await handleFallbackSongEnded()
     } else {
       // User song ended — notify backend to advance queue
       const songId = song.value.id
       let adminToken = null
       try { adminToken = localStorage.getItem('bq_admin_token') } catch { /* */ }
-      const hdrs = { 'Content-Type': 'application/json' }
-      if (adminToken) hdrs['Authorization'] = `Bearer ${adminToken}`
-
       try {
-        const res = await fetch(`${API}/api/playback/finished`, {
-          method: 'POST',
-          headers: hdrs,
-          body: JSON.stringify({ song_id: songId, venue_slug: venueSlug }),
-        })
-        if (res.ok) {
-          const data = await res.json()
+        const data = await reportFinished(songId, adminToken)
+        if (data) {
           if (data.next_song) {
             // Backend returned next song — load it directly without waiting for WS
             song.value = data.next_song
@@ -639,12 +424,6 @@ async function onPlayerStateChange(event) {
   }
 }
 
-function formatTime(sec) {
-  const m = Math.floor(sec / 60)
-  const s = Math.floor(sec % 60)
-  return `${m}:${s.toString().padStart(2, '0')}`
-}
-
 function updateProgress() {
   if (!ytPlayer || typeof ytPlayer.getCurrentTime !== 'function') return
   currentTime.value = ytPlayer.getCurrentTime() || 0
@@ -661,11 +440,8 @@ function stopProgressTracking() {
   if (progressInterval) { clearInterval(progressInterval); progressInterval = null }
 }
 
-function seekToPercent(event) {
+function seekToPercent(pct) {
   if (!ytPlayer || typeof ytPlayer.seekTo !== 'function' || !duration.value) return
-  const bar = event.currentTarget
-  const rect = bar.getBoundingClientRect()
-  const pct = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width))
   ytPlayer.seekTo(pct * duration.value, true)
   showKioskControls()
 }
@@ -697,18 +473,19 @@ async function togglePlayPause() {
   playbackStatus.value = willPause ? 'paused' : 'playing'
   const adminToken = localStorage.getItem('bq_admin_token')
   if (adminToken) {
-    const endpoint = willPause ? 'pause' : 'resume'
-    fetch(`${API}/api/admin/playback/${endpoint}`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${adminToken}` },
-    }).catch(() => {})
+    updatePlaybackStatus(playbackStatus.value, adminToken).catch(() => {})
   }
 }
 
 onUnmounted(() => {
   if (pollInterval) clearInterval(pollInterval)
   if (kioskControlsTimer) clearTimeout(kioskControlsTimer)
+  if (bannerTimer) clearTimeout(bannerTimer)
+  if (overlayTimer) clearTimeout(overlayTimer)
   stopProgressTracking()
+  if (window.onYouTubeIframeAPIReady === initPlayer) window.onYouTubeIframeAPIReady = null
+  if (ytPlayer && typeof ytPlayer.destroy === 'function') { try { ytPlayer.destroy() } catch { /* */ } }
+  if (preloadPlayer && typeof preloadPlayer.destroy === 'function') { try { preloadPlayer.destroy() } catch { /* */ } }
 })
 </script>
 
@@ -733,76 +510,29 @@ onUnmounted(() => {
 
         <!-- Venue branding top-left -->
         <div v-if="showBrand && (venueName || venueLogo)" class="venue-brand">
-          <VenueLogo v-if="venueLogo" :src="venueLogo" always-dark class="venue-brand-logo" />
+          <VenueLogo v-if="venueLogo || venueLogoLight || venueLogoDark" :src="venueLogo" :src-light="venueLogoLight" :src-dark="venueLogoDark" always-dark class="venue-brand-logo" />
           <span v-else class="venue-brand-name">{{ venueName }}</span>
         </div>
 
         <!-- Audio blocked by browser -->
-        <div v-if="audioBlocked" class="audio-blocked-overlay" @click="unlockAudio">
-          <div class="audio-blocked-content">
-            <div class="audio-blocked-icon">&#128264;</div>
-            <p class="audio-blocked-text">El navegador bloqueo el audio</p>
-            <button class="audio-blocked-btn" @click.stop="unlockAudio">ACTIVAR SONIDO</button>
-          </div>
-        </div>
+        <KioskAudioBlocked v-if="audioBlocked" @unlock="unlockAudio" />
 
         <!-- Fallback: no songs playing -->
-        <div v-if="!song && !playingFallback" class="fallback-overlay">
-          <div class="fallback-content">
-            <div class="fallback-icon">&#9835;</div>
-            <p class="fallback-text" v-if="fallbackPaused">Playlist pausada</p>
-            <p class="fallback-text" v-else>Esperando canciones...</p>
-            <p class="fallback-sub">Escanea el QR para pedir musica</p>
-            <div class="fallback-qr">
-              <img :src="qrCodeUrl" alt="QR" class="fallback-qr-img" crossorigin="anonymous" />
-            </div>
-            <div v-if="dailyPin" class="pin-display">
-              <p class="pin-label">CODIGO DE HOY</p>
-              <p class="pin-value">{{ dailyPin }}</p>
-            </div>
-          </div>
-        </div>
+        <KioskFallback v-if="!song && !playingFallback" :fallback-paused="fallbackPaused" :qr-code-url="qrCodeUrl" :daily-pin="dailyPin" />
 
-        <!-- Centered play/pause button: always visible when paused, briefly on tap -->
-        <Transition name="fade-quick">
-          <div v-if="song && !audioBlocked && (!isPlaying || kioskControlsVisible)"
-               class="center-playpause"
-               @click.stop="togglePlayPause">
-            <div class="center-btn-circle" :class="{ 'center-paused': !isPlaying }">
-              <span class="center-icon">{{ isPlaying ? '&#10074;&#10074;' : '&#9654;' }}</span>
-            </div>
-          </div>
-        </Transition>
-
-        <!-- Progress bar + controls (bottom, expands on hover) -->
-        <div v-if="song && !audioBlocked" class="player-bar" @mouseenter="showKioskControls" @mouseleave="kioskControlsVisible = false" @click="showKioskControls">
-          <!-- Thin progress line (always visible) -->
-          <div class="progress-thin">
-            <div class="progress-thin-fill" :style="{ width: progress + '%' }"></div>
-          </div>
-          <!-- Expanded controls -->
-          <Transition name="slide-up">
-            <div v-if="kioskControlsVisible" class="player-bar-expanded">
-              <div class="pb-progress" @click.stop="seekToPercent($event)">
-                <div class="pb-track">
-                  <div class="pb-fill" :style="{ width: progress + '%' }"></div>
-                  <div class="pb-handle" :style="{ left: progress + '%' }"></div>
-                </div>
-              </div>
-              <div class="pb-row">
-                <span class="pb-time">{{ formatTime(currentTime) }}</span>
-                <div class="pb-controls">
-                  <button class="kc-btn" @click.stop="seekRelative(-10)">-10s</button>
-                  <button class="kc-btn kc-playpause" @click.stop="togglePlayPause">
-                    {{ isPlaying ? '&#10074;&#10074;' : '&#9654;' }}
-                  </button>
-                  <button class="kc-btn" @click.stop="seekRelative(10)">+10s</button>
-                </div>
-                <span class="pb-time">{{ formatTime(duration) }}</span>
-              </div>
-            </div>
-          </Transition>
-        </div>
+        <KioskPlayerControls
+          v-if="song && !audioBlocked"
+          :is-playing="isPlaying"
+          :progress="progress"
+          :current-time="currentTime"
+          :duration="duration"
+          :controls-visible="kioskControlsVisible"
+          @toggle-play-pause="togglePlayPause"
+          @seek-relative="seekRelative"
+          @seek-to-percent="seekToPercent"
+          @show-controls="showKioskControls"
+          @hide-controls="kioskControlsVisible = false"
+        />
 
         <!-- Mini QR (bottom-right, visible while active) -->
         <Transition name="fade">
@@ -814,28 +544,11 @@ onUnmounted(() => {
 
         <!-- Song Info Overlay (appears 15s then fades) -->
         <Transition name="overlay">
-          <div v-if="song && showOverlay && !playingFallback" class="song-overlay">
-            <div class="overlay-content">
-              <p class="overlay-title">{{ song.title }}</p>
-              <p class="overlay-meta" v-if="queue.length || pendingUserSong">
-                Siguiente: {{ queue[0]?.title || pendingUserSong?.title }}
-              </p>
-            </div>
-          </div>
+          <KioskSongOverlay v-if="song && showOverlay && !playingFallback" :song="song" :queue="queue" :pending-user-song="pendingUserSong" />
         </Transition>
 
         <!-- Persistent bottom bar -->
-        <div v-if="song" class="bottom-bar" :class="{ 'bottom-fallback': playingFallback }">
-          <div class="bottom-left">
-            <span class="bottom-dot" :class="{ 'dot-fallback': playingFallback }"></span>
-            <span v-if="playingFallback" class="bottom-badge">PLAYLIST</span>
-            <span class="bottom-title">{{ song.title }}</span>
-          </div>
-          <div class="bottom-right">
-            <span v-if="queue.length || pendingUserSong" class="bottom-next">Siguiente: {{ queue[0]?.title || pendingUserSong?.title }}</span>
-            <span v-else-if="playingFallback" class="bottom-next">{{ fallbackPlayed.size }}/{{ fallbackSongs.length }} reproducidas</span>
-          </div>
-        </div>
+        <KioskBottomBar v-if="song" :song="song" :playing-fallback="playingFallback" :queue="queue" :pending-user-song="pendingUserSong" :fallback-played="fallbackPlayed" :fallback-songs="fallbackSongs" />
 
         <!-- Scrolling banner -->
         <div v-if="bannerText" class="banner-marquee">
@@ -885,361 +598,6 @@ onUnmounted(() => {
   top: -9999px;
   left: -9999px;
 }
-
-/* ===== AUDIO BLOCKED ===== */
-.audio-blocked-overlay {
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  z-index: 50;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.85);
-  cursor: pointer;
-}
-.audio-blocked-content {
-  text-align: center;
-  color: #fff;
-}
-.audio-blocked-icon {
-  font-size: 64px;
-  margin-bottom: 16px;
-}
-.audio-blocked-text {
-  font-size: 20px;
-  margin-bottom: 24px;
-  opacity: 0.8;
-}
-.audio-blocked-btn {
-  padding: 16px 48px;
-  font-size: 20px;
-  font-weight: 700;
-  background: #7c3aed;
-  color: #fff;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  animation: pulse-btn 2s ease-in-out infinite;
-}
-@keyframes pulse-btn {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-}
-
-/* ===== FALLBACK ===== */
-.fallback-overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--kiosk-bg);
-  z-index: 5;
-}
-.fallback-content {
-  text-align: center;
-}
-.fallback-icon {
-  font-size: 80px;
-  margin-bottom: 16px;
-  opacity: 0.3;
-}
-.fallback-text {
-  font-size: 32px;
-  font-weight: 700;
-  opacity: 0.8;
-}
-.fallback-sub {
-  font-size: 18px;
-  color: var(--kiosk-text-dim);
-  margin-top: 8px;
-}
-.fallback-qr {
-  margin-top: 24px;
-}
-.fallback-qr-img {
-  width: 180px;
-  height: 180px;
-  border-radius: 12px;
-  background: #fff;
-  padding: 8px;
-}
-.pin-display {
-  margin-top: 20px;
-  text-align: center;
-}
-.pin-label {
-  font-size: 14px;
-  color: var(--kiosk-text-dim);
-  letter-spacing: 2px;
-  margin-bottom: 8px;
-}
-.pin-value {
-  font-size: 56px;
-  font-weight: 800;
-  letter-spacing: 12px;
-  color: #fff;
-}
-
-/* ===== SONG OVERLAY (fades after 15s) ===== */
-.song-overlay {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 10;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
-  padding: 60px 40px 40px;
-}
-.overlay-content {
-  max-width: 900px;
-}
-.overlay-title {
-  font-size: 28px;
-  font-weight: 700;
-  line-height: 1.2;
-  text-shadow: 0 2px 8px rgba(0,0,0,0.6);
-}
-.overlay-meta {
-  font-size: 16px;
-  color: rgba(255,255,255,0.6);
-  margin-top: 8px;
-  text-shadow: 0 1px 4px rgba(0,0,0,0.6);
-}
-
-/* Overlay transition */
-.overlay-enter-active, .fade-enter-active {
-  transition: opacity 0.3s ease;
-}
-.overlay-leave-active, .fade-leave-active {
-  transition: opacity 0.5s ease;
-}
-.overlay-enter-from, .overlay-leave-to,
-.fade-enter-from, .fade-leave-to {
-  opacity: 0;
-}
-
-/* ===== PERSISTENT BOTTOM BAR (always visible, very subtle) ===== */
-.bottom-bar {
-  position: absolute;
-  bottom: 4px;
-  left: 0;
-  right: 0;
-  z-index: 8;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 24px;
-  opacity: 0.7;
-  transition: opacity 0.3s;
-}
-.bottom-bar:hover {
-  opacity: 1;
-}
-.bottom-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.bottom-fallback {
-  opacity: 0.5;
-}
-.bottom-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--kiosk-dot);
-  animation: pulse 2s infinite;
-}
-.dot-fallback {
-  background: var(--primary);
-}
-.bottom-badge {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: var(--primary-soft);
-  color: var(--primary);
-}
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
-.bottom-title {
-  font-size: 13px;
-  font-weight: 500;
-  opacity: 0.8;
-}
-.bottom-next {
-  font-size: 12px;
-  opacity: 0.5;
-}
-.bottom-pending {
-  opacity: 0.8;
-  color: #4ade80;
-}
-
-/* ===== PLAYER BAR (progress + controls) ===== */
-.player-bar {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 25;
-  min-height: 100px;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-}
-.progress-thin {
-  height: 3px;
-  background: rgba(255, 255, 255, 0.15);
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  transition: opacity 0.3s;
-}
-.progress-thin-fill {
-  height: 100%;
-  background: var(--primary, #7C6CF0);
-  transition: width 0.4s linear;
-}
-/* Hide thin bar when expanded */
-.player-bar:hover .progress-thin { opacity: 0; }
-
-.player-bar-expanded {
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
-  padding: 24px 24px 14px;
-}
-.pb-progress {
-  cursor: pointer;
-  padding: 8px 0;
-}
-.pb-track {
-  position: relative;
-  height: 6px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
-  overflow: visible;
-}
-.pb-fill {
-  height: 100%;
-  background: var(--primary, #7C6CF0);
-  border-radius: 3px;
-  transition: width 0.3s linear;
-}
-.pb-handle {
-  position: absolute;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 0 4px rgba(0,0,0,0.5);
-  transition: left 0.3s linear;
-}
-.pb-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 8px;
-}
-.pb-time {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.7);
-  font-variant-numeric: tabular-nums;
-  min-width: 40px;
-}
-.pb-time:last-child { text-align: right; }
-.pb-controls {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-.kc-btn {
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
-  border: none;
-  padding: 8px 14px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.kc-btn:hover { background: rgba(255, 255, 255, 0.3); }
-.kc-btn:active { background: rgba(255, 255, 255, 0.4); }
-.kc-playpause {
-  font-size: 20px;
-  padding: 8px 20px;
-}
-
-/* Slide-up transition */
-.slide-up-enter-active { transition: all 0.3s ease; }
-.slide-up-leave-active { transition: all 0.2s ease; }
-.slide-up-enter-from, .slide-up-leave-to {
-  opacity: 0;
-  transform: translateY(20px);
-}
-
-/* ===== CENTER PLAY/PAUSE BUTTON ===== */
-.center-playpause {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 15;
-  cursor: pointer;
-}
-.center-btn-circle {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background: rgba(0, 0, 0, 0.5);
-  border: 2px solid rgba(255, 255, 255, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.2s, transform 0.15s, border-color 0.2s;
-  backdrop-filter: blur(6px);
-}
-.center-btn-circle:hover {
-  background: rgba(0, 0, 0, 0.75);
-  border-color: rgba(255, 255, 255, 0.8);
-  transform: scale(1.1);
-}
-.center-btn-circle:active { transform: scale(0.95); }
-.center-btn-circle.center-paused {
-  background: rgba(124, 108, 240, 0.6);
-  border-color: rgba(124, 108, 240, 0.9);
-  animation: pulse-center 2.5s ease-in-out infinite;
-}
-@keyframes pulse-center {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(124, 108, 240, 0.5); }
-  50% { box-shadow: 0 0 0 18px rgba(124, 108, 240, 0); }
-}
-.center-icon {
-  font-size: 28px;
-  color: #fff;
-  line-height: 1;
-  padding-left: 4px; /* optical center for play triangle */
-}
-.center-btn-circle.center-paused .center-icon {
-  padding-left: 6px;
-}
-/* No offset for pause bars */
-.center-btn-circle:not(.center-paused) .center-icon {
-  padding-left: 0;
-}
-
-/* Fast fade for center button */
-.fade-quick-enter-active { transition: opacity 0.2s ease; }
-.fade-quick-leave-active { transition: opacity 0.4s ease; }
-.fade-quick-enter-from, .fade-quick-leave-to { opacity: 0; }
 
 /* ===== MINI QR (during playback) ===== */
 .mini-qr {

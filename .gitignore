@@ -9,6 +9,7 @@ backend/data/
 # Node
 node_modules/
 frontend/dist/
+storybook-static/
 
 # Environment
 .env
@@ -41,3 +42,5 @@ skills-lock.json
 
 # Compose local (puertos publicados para dev)
 docker-compose.override.yml
+
+*storybook.log

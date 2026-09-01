@@ -2,11 +2,15 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useConfirmModal } from '../composables/useConfirmModal.js'
-import { useTheme } from '../composables/useTheme.js'
-import UiButton from '../components/ui/Button.vue'
-import UiInput from '../components/ui/Input.vue'
+import Button from '../components/ui/Button.vue'
+import Input from '../components/ui/Input.vue'
+import PasswordInput from '../components/ui/PasswordInput.vue'
+import Select from '../components/ui/Select.vue'
+import FormField from '../components/ui/FormField.vue'
+import FormError from '../components/ui/FormError.vue'
+import ThemeToggle from '../components/ui/ThemeToggle.vue'
+import BackButton from '../components/ui/BackButton.vue'
 
-const { currentMode, toggleMode } = useTheme()
 const { confirm } = useConfirmModal()
 const router = useRouter()
 const API = import.meta.env.VITE_API_URL || ''
@@ -27,7 +31,6 @@ const newAdmin = ref({
   role: 'vendedor',
 })
 
-const showPassword = ref(false)
 const createError = ref('')
 const createSuccess = ref('')
 const actionError = ref('')
@@ -151,7 +154,6 @@ async function createAdmin() {
     newAdmin.value.phone = ''
     newAdmin.value.email = ''
     newAdmin.value.role = 'vendedor'
-    showPassword.value = false
 
     await fetchAdmins()
     setTimeout(() => {
@@ -256,17 +258,10 @@ onMounted(() => {
     <!-- Header -->
     <header class="sau-header">
       <div class="sau-header-left">
-        <UiButton variant="secondary" class="back-btn" aria-label="Volver" @click="goBack">&#8592; Volver</UiButton>
+        <BackButton aria-label="Volver" @click="goBack">&#8592; Volver</BackButton>
         <h1>Usuarios</h1>
       </div>
-      <button
-        class="theme-toggle"
-        @click="toggleMode"
-        :title="currentMode === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
-        :aria-label="currentMode === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
-      >
-        {{ currentMode === 'dark' ? '&#9728;' : '&#9790;' }}
-      </button>
+      <ThemeToggle />
     </header>
 
     <main class="sau-content">
@@ -274,66 +269,60 @@ onMounted(() => {
       <section class="card form-card">
         <h2 class="card-title">Nuevo Usuario</h2>
         <form @submit.prevent="createAdmin" class="admin-form">
-          <div class="form-group">
-            <label class="form-label" for="username">Usuario</label>
-            <UiInput
-              id="username"
+          <FormField label="Usuario" required v-slot="{ id }">
+            <Input
+              :id="id"
               v-model="newAdmin.username"
               type="text"
-              class="input-field"
               placeholder="Ej: vendedor1"
               autocomplete="off"
               required
             />
-          </div>
+          </FormField>
 
-          <div class="form-group">
-            <label class="form-label" for="phone">Teléfono</label>
-            <UiInput id="phone" v-model="newAdmin.phone" type="tel" placeholder="Ej: +57 300 123 4567" required />
-          </div>
+          <FormField label="Teléfono" required v-slot="{ id }">
+            <Input
+              :id="id"
+              v-model="newAdmin.phone"
+              type="tel"
+              placeholder="Ej: +57 300 123 4567"
+              required
+            />
+          </FormField>
 
-          <div class="form-group">
-            <label class="form-label" for="email">Correo electrónico</label>
-            <UiInput id="email" v-model="newAdmin.email" type="email" placeholder="usuario@ejemplo.com" required />
-          </div>
+          <FormField label="Correo electrónico" required v-slot="{ id }">
+            <Input
+              :id="id"
+              v-model="newAdmin.email"
+              type="email"
+              placeholder="usuario@ejemplo.com"
+              required
+            />
+          </FormField>
 
-          <div class="form-group">
-            <label class="form-label" for="password">Contraseña</label>
-            <div class="password-wrap">
-              <UiInput
-                id="password"
-                v-model="newAdmin.password"
-                :type="showPassword ? 'text' : 'password'"
-                class="input-field"
-                placeholder="Contraseña"
-                required
-              />
-              <button
-                type="button"
-                class="eye-btn"
-                @click="showPassword = !showPassword"
-                :aria-label="showPassword ? 'Ocultar contraseña' : 'Ver contraseña'"
-              >
-                {{ showPassword ? '🙈' : '👁️' }}
-              </button>
-            </div>
-          </div>
+          <FormField label="Contraseña" required v-slot="{ id }">
+            <PasswordInput
+              :id="id"
+              v-model="newAdmin.password"
+              placeholder="Contraseña"
+              required
+            />
+          </FormField>
 
-          <div class="form-group">
-            <label class="form-label" for="role">Rol</label>
-            <select id="role" v-model="newAdmin.role" class="select-field">
+          <FormField label="Rol" required v-slot="{ id }">
+            <Select :id="id" v-model="newAdmin.role" required>
               <option value="vendedor">Vendedor</option>
               <option value="editor">Administrador</option>
               <option value="super_admin">Super Admin</option>
-            </select>
-          </div>
+            </Select>
+          </FormField>
 
-          <div v-if="createError" class="msg-error">{{ createError }}</div>
+          <FormError :message="createError" />
           <div v-if="createSuccess" class="msg-success">{{ createSuccess }}</div>
 
-          <UiButton type="submit" :disabled="creating">
+          <Button type="submit" :disabled="creating">
             {{ creating ? 'Creando...' : 'Crear Usuario' }}
-          </UiButton>
+          </Button>
         </form>
       </section>
 
@@ -378,7 +367,7 @@ onMounted(() => {
                 <option value="editor">Administrador</option>
                 <option value="super_admin">Super Admin</option>
               </select>
-              <UiButton
+              <Button
                 variant="danger"
                 class="btn-delete"
                 :disabled="deletingId === adm.id || isCurrentAdmin(adm) || isOnlySuperAdmin(adm)"
@@ -387,7 +376,7 @@ onMounted(() => {
                 @click="confirmDelete(adm)"
               >
                 {{ deletingId === adm.id ? '...' : 'Eliminar' }}
-              </UiButton>
+              </Button>
             </div>
           </article>
         </div>
@@ -435,23 +424,6 @@ onMounted(() => {
   margin: 0;
 }
 
-.back-btn {
-  width: auto;
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 6px 12px;
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.back-btn:hover {
-  background: var(--border);
-}
-
 .theme-toggle {
   background: var(--bg-elevated);
   border: 1px solid var(--border);
@@ -475,6 +447,7 @@ onMounted(() => {
   margin: 0 auto;
 }
 
+/* Tarjeta administrativa con borde sólido para agrupar el formulario. */
 .card {
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -493,88 +466,6 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.form-label {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-muted);
-}
-
-.input-field,
-.select-field {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  color: var(--text);
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  font-size: 14px;
-  width: 100%;
-  outline: none;
-  transition: border-color 0.15s;
-}
-
-.input-field:focus,
-.select-field:focus {
-  border-color: var(--primary);
-}
-
-.password-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.password-wrap .input-field {
-  padding-right: 40px;
-}
-
-.eye-btn {
-  position: absolute;
-  right: 10px;
-  background: none;
-  border: none;
-  font-size: 16px;
-  cursor: pointer;
-  opacity: 0.7;
-}
-
-.eye-btn:hover {
-  opacity: 1;
-}
-
-.btn {
-  padding: 10px 16px;
-  border-radius: var(--radius-sm);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: opacity 0.15s, background 0.15s;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.btn-primary {
-  background: var(--primary);
-  color: var(--text-on-primary);
-  border: none;
-  margin-top: 4px;
-}
-
-.btn-primary:hover:not(:disabled) {
-  opacity: 0.9;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .list-header {
