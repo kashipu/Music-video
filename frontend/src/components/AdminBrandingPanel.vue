@@ -25,3 +25,35 @@ defineEmits(['toggle-brand', 'toggle-qr', 'set-qr-size', 'update:bannerText', 'a
     </div>
   </div>
 </template>
+
+<style scoped>
+.t-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid;
+}
+
+.t-btn-reset {
+  border-color: var(--secondary);
+  color: var(--secondary);
+  background: transparent;
+}
+
+.t-btn-reset:hover {
+  background: var(--secondary);
+  color: #000;
+}
+
+.t-btn-kick {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: transparent;
+}
+
+.t-btn-kick:hover {
+  background: var(--danger);
+  color: white;
+}
+</style>
