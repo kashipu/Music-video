@@ -197,7 +197,7 @@ export function useAdminDashboard() {
   async function refreshAdminInfo() {
     try {
       const data = await getNowPlaying(venueSlug)
-      if (data && data.venue_logo !== undefined && auth.adminInfo) {
+      if (data && !data.error && data.venue_logo !== undefined && auth.adminInfo) {
         auth.adminInfo.logo_url = data.venue_logo
         auth.adminInfo.logo_url_light = data.venue_logo_light
         auth.adminInfo.logo_url_dark = data.venue_logo_dark
@@ -208,7 +208,7 @@ export function useAdminDashboard() {
 
   async function fetchQueue() {
     const data = await getQueue(auth.adminHeaders())
-    if (!data) return
+    if (!data || data.error) return
     nowPlaying.value = data.now_playing || data.fallback_now_playing || null
     queue.value = data.queue
     playbackStatus.value = data.playback_status
@@ -217,12 +217,12 @@ export function useAdminDashboard() {
 
   async function fetchPlayed() {
     const data = await getPlayed(auth.adminHeaders())
-    if (data) played.value = data.songs
+    if (data && !data.error) played.value = data.songs
   }
 
   async function fetchTables() {
     const data = await getTables(auth.adminHeaders())
-    if (!data) return
+    if (!data || data.error) return
     tables.value = data.tables
     if (selectedTable.value) {
       const updated = data.tables.find(t => t.table_number === selectedTable.value.table_number)
@@ -232,26 +232,30 @@ export function useAdminDashboard() {
 
   async function fetchAnalytics() {
     const data = await getAnalytics(analyticsPeriod.value, auth.adminHeaders())
-    if (data) analytics.value = data
+    if (data && !data.error) analytics.value = data
   }
 
   async function fetchFallbackPlaylist() {
     const data = await getPlaylist(auth.adminHeaders())
-    if (data) fallbackSongs.value = data.songs
+    if (data && !data.error) fallbackSongs.value = data.songs
   }
 
   async function fetchLibrary(search = '') {
     const data = await getLibrary(search, auth.adminHeaders())
-    if (data) library.value = data.songs
+    if (data && !data.error) library.value = data.songs
   }
 
   async function startPlayback() {
     if (loadingStart.value) return
     loadingStart.value = true
     try {
-      await apiStartPlayback(auth.adminHeaders())
-      trackAdminAction('start_playback')
-      await fetchQueue()
+      const res = await apiStartPlayback(auth.adminHeaders())
+      if (res?.error) {
+        toast.error(res.message || 'Error al iniciar reproducción')
+      } else {
+        trackAdminAction('start_playback')
+        await fetchQueue()
+      }
     } finally { loadingStart.value = false }
   }
 
@@ -260,11 +264,11 @@ export function useAdminDashboard() {
     loadingSkip.value = true
     try {
       const res = await skipQueueSong(auth.adminHeaders())
-      if (res) {
+      if (res && !res.error) {
         toast.success('Canción saltada')
         trackAdminAction('skip_song')
       } else {
-        toast.error('Saltar canción: error')
+        toast.error(res?.message || 'Saltar canción: error')
       }
       await fetchQueue()
     } finally { loadingSkip.value = false }
@@ -277,12 +281,12 @@ export function useAdminDashboard() {
     playbackStatus.value = 'paused'
     try {
       const res = await apiPausePlayback(auth.adminHeaders())
-      if (res) {
+      if (res && !res.error) {
         toast.success('Pausado')
         trackAdminAction('pause_playback')
       } else {
         playbackStatus.value = prev
-        toast.error('Pausar: error')
+        toast.error(res?.message || 'Pausar: error')
       }
     } finally { loadingPause.value = false }
   }
@@ -294,12 +298,12 @@ export function useAdminDashboard() {
     playbackStatus.value = 'playing'
     try {
       const res = await apiResumePlayback(auth.adminHeaders())
-      if (res) {
+      if (res && !res.error) {
         toast.success('Reanudado')
         trackAdminAction('resume_playback')
       } else {
         playbackStatus.value = prev
-        toast.error('Reanudar: error')
+        toast.error(res?.message || 'Reanudar: error')
       }
     } finally { loadingResume.value = false }
   }
@@ -311,7 +315,8 @@ export function useAdminDashboard() {
       fallbackPaused.value = false
       await setFallbackStatus(false, auth.adminHeaders())
       const res = await apiPlayFallback(auth.adminHeaders())
-      if (res) toast.success('Playlist iniciada')
+      if (res && !res.error) toast.success('Playlist iniciada')
+      else toast.error(res?.message || 'Error al iniciar playlist')
     } finally { loadingFallbackPlay.value = false }
   }
 
@@ -320,11 +325,11 @@ export function useAdminDashboard() {
     loadingFallbackSkip.value = true
     try {
       const res = await apiSkipFallback(auth.adminHeaders())
-      if (res) {
+      if (res && !res.error) {
         toast.success('Siguiente canción')
         trackAdminAction('skip_fallback')
       } else {
-        toast.error('Siguiente: error')
+        toast.error(res?.message || 'Siguiente: error')
       }
     } finally { loadingFallbackSkip.value = false }
   }
@@ -344,11 +349,11 @@ export function useAdminDashboard() {
     fallbackPaused.value = !fallbackPaused.value
     try {
       const res = await setFallbackStatus(fallbackPaused.value, auth.adminHeaders())
-      if (res) {
+      if (res && !res.error) {
         toast.success(fallbackPaused.value ? 'Playlist pausada' : 'Playlist reanudada')
       } else {
         fallbackPaused.value = !fallbackPaused.value
-        toast.error('Error al actualizar playlist')
+        toast.error(res?.message || 'Error al actualizar playlist')
       }
     } finally { loadingFallbackToggle.value = false }
   }
@@ -428,11 +433,11 @@ export function useAdminDashboard() {
     loadingPlayNow.value = { ...loadingPlayNow.value, [songId]: true }
     try {
       const res = await playSongNow(songId, auth.adminHeaders())
-      if (res) {
+      if (res && !res.error) {
         toast.success('Canción promovida')
         trackAdminAction('play_now', { song_id: songId })
       } else {
-        toast.error('Reproducir ahora: error')
+        toast.error(res?.message || 'Reproducir ahora: error')
       }
       await fetchQueue()
     } finally { loadingPlayNow.value = { ...loadingPlayNow.value, [songId]: false } }
@@ -447,7 +452,7 @@ export function useAdminDashboard() {
       const results = await Promise.all(queue.value.map(song =>
         removeQueueSong(song.id, auth.adminHeaders())
       ))
-      const okCount = results.filter(Boolean).length
+      const okCount = results.filter(r => r && !r.error).length
       if (okCount === count) toast.success(`Cola vaciada (${count} canciones)`)
       else toast.warn(`Vaciado parcial: ${okCount}/${count}`)
       trackAdminAction('clear_queue', { songs_cleared: okCount })
@@ -460,11 +465,11 @@ export function useAdminDashboard() {
     loadingRemove.value = { ...loadingRemove.value, [songId]: true }
     try {
       const res = await removeQueueSong(songId, auth.adminHeaders())
-      if (res) {
+      if (res && !res.error) {
         toast.success('Canción quitada')
         trackAdminAction('remove_song', { song_id: songId })
       } else {
-        toast.error('Quitar canción: error')
+        toast.error(res?.message || 'Quitar canción: error')
       }
       await fetchQueue()
     } finally { loadingRemove.value = { ...loadingRemove.value, [songId]: false } }
@@ -490,8 +495,8 @@ export function useAdminDashboard() {
     addError.value = ''
     try {
       const data = await addQueueSong(youtubeId, auth.adminHeaders())
-      if (!data) {
-        addError.value = 'Error al agregar'
+      if (!data || data.error) {
+        addError.value = data?.message || 'Error al agregar'
         setTimeout(() => { addError.value = '' }, 3000)
       } else {
         await fetchQueue()
@@ -512,11 +517,11 @@ export function useAdminDashboard() {
     loadingKick.value = { ...loadingKick.value, [tableNumber]: true }
     try {
       const res = await apiKickTable(tableNumber, auth.adminHeaders())
-      if (res) {
+      if (res && !res.error) {
         toast.success(`Usuario de mesa #${tableNumber} expulsado`)
         trackAdminAction('kick_table', { table_number: tableNumber })
       } else {
-        toast.error(`Expulsar mesa #${tableNumber}: error`)
+        toast.error(res?.message || `Expulsar mesa #${tableNumber}: error`)
       }
       await fetchTables()
     } finally { loadingKick.value = { ...loadingKick.value, [tableNumber]: false } }
@@ -527,11 +532,11 @@ export function useAdminDashboard() {
     loadingResetLimit.value = { ...loadingResetLimit.value, [tableNumber]: true }
     try {
       const res = await apiResetTableLimit(tableNumber, auth.adminHeaders())
-      if (res) {
+      if (res && !res.error) {
         toast.success(`Límite de mesa #${tableNumber} reseteado`)
         trackAdminAction('reset_limit', { table_number: tableNumber })
       } else {
-        toast.error(`Resetear límite #${tableNumber}: error`)
+        toast.error(res?.message || `Resetear límite #${tableNumber}: error`)
       }
       await fetchTables()
     } finally { loadingResetLimit.value = { ...loadingResetLimit.value, [tableNumber]: false } }
@@ -592,7 +597,7 @@ export function useAdminDashboard() {
     loadingAddToFallback.value = { ...loadingAddToFallback.value, [youtubeId]: true }
     try {
       const res = await addFallbackSong(youtubeId, auth.adminHeaders())
-      if (!res) { showAdminToast('Error al agregar'); return }
+      if (!res || res.error) { showAdminToast(res?.message || 'Error al agregar'); return }
       showAdminToast('Canción agregada a la playlist de respaldo')
       await fetchFallbackPlaylist()
     } catch { showAdminToast('Error de conexión') }
@@ -604,7 +609,7 @@ export function useAdminDashboard() {
     loadingDeleteFallback.value = { ...loadingDeleteFallback.value, [songId]: true }
     try {
       const res = await removeFallbackSong(songId, auth.adminHeaders())
-      if (!res) { showAdminToast('Error al eliminar'); return }
+      if (!res || res.error) { showAdminToast(res?.message || 'Error al eliminar'); return }
       showAdminToast('Canción eliminada de la playlist')
       await fetchFallbackPlaylist()
     } catch { showAdminToast('Error de conexión') }

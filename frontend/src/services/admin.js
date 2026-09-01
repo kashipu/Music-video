@@ -7,10 +7,17 @@ async function request(path, { headers, json, ...options } = {}) {
       headers: { ...(json ? { 'Content-Type': 'application/json' } : {}), ...headers },
       ...(json ? { body: JSON.stringify(json) } : {}),
     })
-    if (!response.ok) return null
+    if (!response.ok) {
+      let detail = `Error HTTP ${response.status}`
+      try {
+        const errJson = await response.json()
+        detail = errJson.detail || errJson.message || detail
+      } catch { /* non-json body */ }
+      return { error: true, status: response.status, message: detail }
+    }
     return await response.json().catch(() => ({ ok: true }))
-  } catch {
-    return null
+  } catch (err) {
+    return { error: true, status: 0, message: err?.message || 'Error de conexión' }
   }
 }
 

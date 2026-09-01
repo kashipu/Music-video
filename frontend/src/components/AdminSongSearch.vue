@@ -31,7 +31,7 @@ async function doYtSearch() {
   ytSearching.value = true
   try {
     const data = await searchSongs(ytSearch.value)
-    if (data?.results) ytResults.value = data.results
+    if (data?.results && !data.error) ytResults.value = data.results
   } catch { /* */ }
   finally { ytSearching.value = false }
 }
@@ -120,7 +120,6 @@ function onLibrarySearchInput() {
 .lib-info { flex: 1; min-width: 0; }
 .lib-title { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lib-artist { font-size: 11px; color: var(--text-muted); }
-.text-muted { color: var(--text-muted); font-size: 14px; }
 
 /* =========================================
    BREAKPOINT 900px
