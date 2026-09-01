@@ -150,7 +150,7 @@ onMounted(async () => {
         <div v-if="processingReturn" class="processing-banner">Procesando tu pago... Actualizaremos el estado en unos segundos.</div>
 
         <div v-if="showRenewalBanner" class="renewal-banner">
-          <p class="renewal-text">Para renovar, transfiere <strong>$50.000</strong> a la llave <strong>@repitela</strong> y envía el comprobante por WhatsApp.</p>
+          <p class="renewal-text">Para renovar, transfiere <strong>$50.000</strong> a la llave <strong>@repitela</strong> (titular Wil*** Mor***, Banco de Bogotá) y envía el comprobante por WhatsApp.</p>
           <a class="btn btn-primary renewal-cta" :href="WHATSAPP_RENEW_URL" target="_blank" rel="noopener">Quiero renovar</a>
         </div>
 
