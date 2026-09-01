@@ -54,18 +54,22 @@ CREATE TABLE venues_new (
     address_lat       REAL,
     address_lng       REAL,
     venue_type        TEXT CHECK (venue_type IN ('discoteca', 'rock', 'musica_popular', 'otro')),
-    venue_type_other  TEXT
+    venue_type_other  TEXT,
+    logo_url_light    TEXT DEFAULT NULL,
+    logo_url_dark     TEXT DEFAULT NULL
 );
 
 INSERT INTO venues_new (
     id, name, slug, fallback_playlist, fallback_mode, config, created_at,
     active, logo_url, qr_url, paid_until, payment_notes, address,
-    address_lat, address_lng, venue_type, venue_type_other
+    address_lat, address_lng, venue_type, venue_type_other,
+    logo_url_light, logo_url_dark
 )
 SELECT
     id, name, slug, fallback_playlist, fallback_mode, config, created_at,
     active, logo_url, qr_url, paid_until, payment_notes, address,
-    address_lat, address_lng, venue_type, venue_type_other
+    address_lat, address_lng, venue_type, venue_type_other,
+    logo_url_light, logo_url_dark
 FROM venues;
 
 DROP TABLE venues;
