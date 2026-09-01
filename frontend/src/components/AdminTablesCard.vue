@@ -1,4 +1,6 @@
 <script setup>
+import Card from './ui/Card.vue'
+
 defineProps({
   tables: {
     type: Array,
@@ -18,8 +20,7 @@ defineEmits(['reset-limit', 'kick-table'])
 </script>
 
 <template>
-  <div class="card">
-    <p class="section-title">MESAS ({{ tables.length }})</p>
+  <Card :title="`MESAS (${tables.length})`">
     <div v-if="tables.length" class="tables-list">
       <div v-for="table in tables" :key="table.table_number" class="table-item">
         <div class="table-top">
@@ -51,28 +52,13 @@ defineEmits(['reset-limit', 'kick-table'])
       </div>
     </div>
     <p v-else class="text-muted">Sin mesas activas</p>
-  </div>
+  </Card>
 </template>
 
 <style scoped>
 /* =========================================
    CSS GENERAL
    ========================================= */
-.card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px;
-}
-
-.section-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-muted);
-  letter-spacing: 0.5px;
-  margin-bottom: 8px;
-}
-
 .tables-list {
   display: flex;
   flex-direction: column;
@@ -187,11 +173,6 @@ defineEmits(['reset-limit', 'kick-table'])
 .t-btn-kick:hover {
   background: var(--danger);
   color: white;
-}
-
-.text-muted {
-  color: var(--text-muted);
-  font-size: 14px;
 }
 
 /* =========================================

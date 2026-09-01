@@ -106,21 +106,6 @@ defineEmits(['select-table', 'back', 'reset-limit', 'kick-table'])
   gap: 10px;
 }
 
-.card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px;
-}
-
-.section-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-muted);
-  letter-spacing: 0.5px;
-  margin-bottom: 8px;
-}
-
 .table-detail-card {
   transition: border-color 0.15s;
   margin-bottom: 8px;
@@ -319,11 +304,6 @@ defineEmits(['select-table', 'back', 'reset-limit', 'kick-table'])
   font-size: 11px;
   color: var(--text-muted);
   margin-top: 2px;
-}
-
-.text-muted {
-  color: var(--text-muted);
-  font-size: 14px;
 }
 
 /* =========================================

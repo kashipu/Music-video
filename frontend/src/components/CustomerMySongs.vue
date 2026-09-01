@@ -1,4 +1,6 @@
 <script setup>
+import Card from './ui/Card.vue'
+
 defineProps({
   songs: {
     type: Array,
@@ -14,8 +16,7 @@ defineEmits(['cancel-song'])
 </script>
 
 <template>
-  <div v-if="songs.length" class="card section">
-    <p class="section-title">&#127911; Tus canciones</p>
+  <Card v-if="songs.length" title="&#127911; Tus canciones" class="section">
     <div v-for="song in songs" :key="song.id" class="my-item">
       <img :src="`https://i.ytimg.com/vi/${song.youtube_id}/mqdefault.jpg`" class="my-thumb" alt="" />
       <div class="my-info">
@@ -40,7 +41,7 @@ defineEmits(['cancel-song'])
         {{ cancelLoading[song.id] ? '...' : '&#10005;' }}
       </button>
     </div>
-  </div>
+  </Card>
 </template>
 
 <style scoped>
@@ -49,15 +50,6 @@ defineEmits(['cancel-song'])
    ========================================= */
 .section {
   margin-top: 14px;
-}
-
-.section-title {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: var(--text-muted);
-  margin-bottom: 12px;
 }
 
 .my-item {

@@ -1,6 +1,5 @@
 <template>
-  <div class="card">
-    <p class="section-title">ADMINISTRADORES DEL BAR</p>
+  <Card title="ADMINISTRADORES DEL BAR">
     <div class="admin-list">
       <div v-for="a in admins" :key="a.id" class="admin-item">
         <span class="admin-name">{{ a.username }}</span>
@@ -16,11 +15,12 @@
       </Button>
     </div>
     <p v-if="adminError" class="admin-error">{{ adminError }}</p>
-  </div>
+  </Card>
 </template>
 
 <script setup>
 import { ref } from 'vue'
+import Card from './ui/Card.vue'
 import Input from './ui/Input.vue'
 import PasswordInput from './ui/PasswordInput.vue'
 import Button from './ui/Button.vue'
@@ -67,22 +67,6 @@ async function handleRemoveAdmin(adminId) {
 /* =========================================
    CSS GENERAL
    ========================================= */
-.card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg, 12px);
-  padding: 16px;
-}
-
-.section-title {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin: 0 0 12px 0;
-}
-
 .admin-list {
   display: flex;
   flex-direction: column;
@@ -135,11 +119,6 @@ async function handleRemoveAdmin(adminId) {
 .v-btn-danger:hover {
   background: var(--danger);
   color: var(--text-on-primary, #FFFFFF);
-}
-
-.text-muted {
-  color: var(--text-muted);
-  font-size: 13px;
 }
 
 /* =========================================

@@ -1,5 +1,5 @@
 <template>
-  <div class="card">
+  <Card>
     <div class="pl-header">
       <p class="section-title">PLAYLIST DE RESPALDO ({{ playlist.length }})</p>
       <button v-if="playlist.length" class="v-btn v-btn-danger pl-clear-btn" @click="handleClearPlaylist">Limpiar todo</button>
@@ -32,11 +32,12 @@
       </div>
       <p v-if="!playlist.length" class="text-muted">Sin canciones. Importa una playlist o agrega canciones individuales.</p>
     </div>
-  </div>
+  </Card>
 </template>
 
 <script setup>
 import { onMounted, ref } from 'vue'
+import Card from './ui/Card.vue'
 import Input from './ui/Input.vue'
 import Button from './ui/Button.vue'
 import { formatDuration, thumbFallback } from '../utils/youtube.js'
@@ -132,20 +133,6 @@ async function handleClearPlaylist() {
 /* =========================================
    CSS GENERAL
    ========================================= */
-.card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg, 12px);
-  padding: 16px;
-}
-.section-title {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin: 0 0 12px 0;
-}
 .pl-header {
   display: flex;
   justify-content: space-between;
@@ -224,7 +211,6 @@ async function handleClearPlaylist() {
 .v-btn-danger:hover { background: var(--danger); color: var(--text-on-primary, #FFFFFF); }
 .v-btn-success { border-color: var(--success); color: var(--success); }
 .v-btn-success:hover { background: var(--success); color: var(--bg); }
-.text-muted { color: var(--text-muted); font-size: 13px; }
 
 /* =========================================
    BREAKPOINT 850px

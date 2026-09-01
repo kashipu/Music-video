@@ -1,4 +1,6 @@
 <script setup>
+import Card from './ui/Card.vue'
+
 defineProps({
   volume: {
     type: Number,
@@ -14,7 +16,7 @@ defineEmits(['update:volume', 'change', 'toggle-mute'])
 </script>
 
 <template>
-  <div class="card volume-card">
+  <Card class="volume-card">
     <div class="volume-row">
       <button class="mute-btn" :class="{ muted }" @click="$emit('toggle-mute')">
         <span class="mute-icon" v-if="muted">&#128263;</span>
@@ -33,20 +35,13 @@ defineEmits(['update:volume', 'change', 'toggle-mute'])
       />
       <span class="volume-value" :class="{ muted }">{{ muted ? 'MUTE' : volume + '%' }}</span>
     </div>
-  </div>
+  </Card>
 </template>
 
 <style scoped>
 /* =========================================
    CSS GENERAL
    ========================================= */
-.card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px;
-}
-
 .volume-card {
   padding: 14px 16px;
 }

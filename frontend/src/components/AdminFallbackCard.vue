@@ -1,5 +1,6 @@
 <script setup>
 import { formatDuration, thumbFallback } from '../utils/youtube.js'
+import Card from './ui/Card.vue'
 
 defineProps({
   fallbackSongs: {
@@ -36,7 +37,7 @@ defineEmits(['play-now', 'toggle-fallback', 'delete-song'])
 </script>
 
 <template>
-  <div class="card">
+  <Card>
     <div class="fb-header">
       <p class="section-title">PLAYLIST DE RESPALDO ({{ fallbackSongs.length }})</p>
       <div class="fb-btns" v-if="fallbackSongs.length">
@@ -79,28 +80,13 @@ defineEmits(['play-now', 'toggle-fallback', 'delete-song'])
       </div>
     </div>
     <p v-else class="text-muted">Sin playlist. Configúrala desde el Super Admin.</p>
-  </div>
+  </Card>
 </template>
 
 <style scoped>
 /* =========================================
    CSS GENERAL
    ========================================= */
-.card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px;
-}
-
-.section-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-muted);
-  letter-spacing: 0.5px;
-  margin-bottom: 8px;
-}
-
 .fb-header {
   display: flex;
   justify-content: space-between;
@@ -241,11 +227,6 @@ defineEmits(['play-now', 'toggle-fallback', 'delete-song'])
   background: var(--danger);
   color: white;
   border-color: var(--danger);
-}
-
-.text-muted {
-  color: var(--text-muted);
-  font-size: 14px;
 }
 
 /* =========================================

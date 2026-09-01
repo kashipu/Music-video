@@ -1,4 +1,6 @@
 <script setup>
+import Card from './ui/Card.vue'
+
 defineProps({
   analytics: {
     type: Object,
@@ -8,8 +10,7 @@ defineProps({
 </script>
 
 <template>
-  <div class="card" v-if="analytics">
-    <p class="section-title">RESUMEN SEMANAL</p>
+  <Card title="RESUMEN SEMANAL" v-if="analytics">
     <div class="analytics-mini" v-if="analytics.summary">
       <div class="am"><strong>{{ analytics.summary.total_songs_played }}</strong> canciones</div>
       <div class="am"><strong>{{ analytics.summary.unique_users }}</strong> usuarios</div>
@@ -21,28 +22,13 @@ defineProps({
         <span class="top-mini-count">{{ s.times_played }}x</span>
       </div>
     </div>
-  </div>
+  </Card>
 </template>
 
 <style scoped>
 /* =========================================
    CSS GENERAL
    ========================================= */
-.card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px;
-}
-
-.section-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-muted);
-  letter-spacing: 0.5px;
-  margin-bottom: 8px;
-}
-
 .analytics-mini {
   display: flex;
   gap: 12px;

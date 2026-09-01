@@ -1,4 +1,6 @@
 <script setup>
+import Card from './ui/Card.vue'
+
 defineProps({
   queue: {
     type: Array,
@@ -12,8 +14,7 @@ defineProps({
 </script>
 
 <template>
-  <div v-if="queue.length" class="card section">
-    <p class="section-title">&#9654; Siguiente · {{ totalInQueue }} en cola</p>
+  <Card v-if="queue.length" :title="`&#9654; Siguiente · ${totalInQueue} en cola`" class="section">
     <div v-for="(song, i) in queue" :key="song.id" class="q-item">
       <span class="q-pos">{{ i + 1 }}</span>
       <img :src="song.thumbnail_url || `https://i.ytimg.com/vi/${song.youtube_id}/mqdefault.jpg`" class="q-thumb" alt="" />
@@ -25,7 +26,7 @@ defineProps({
     <p v-if="totalInQueue > queue.length" class="more-text">
       + {{ totalInQueue - queue.length }} mas en la cola
     </p>
-  </div>
+  </Card>
 </template>
 
 <style scoped>
@@ -34,15 +35,6 @@ defineProps({
    ========================================= */
 .section {
   margin-top: 14px;
-}
-
-.section-title {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  color: var(--text-muted);
-  margin-bottom: 12px;
 }
 
 .q-item {

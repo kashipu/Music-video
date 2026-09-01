@@ -1,6 +1,5 @@
 <template>
-  <div class="card">
-    <p class="section-title">LÍMITES DE PEDIDOS</p>
+  <Card title="LÍMITES DE PEDIDOS">
     <VenueLimitsForm
       v-model:max-duration-sec="editConfig.max_duration_sec"
       v-model:max-songs="editConfig.max_songs_per_window"
@@ -13,11 +12,12 @@
       </Button>
       <span v-if="configSaveMsg" class="save-msg">{{ configSaveMsg }}</span>
     </div>
-  </div>
+  </Card>
 </template>
 
 <script setup>
 import { ref, watch } from 'vue'
+import Card from './ui/Card.vue'
 import VenueLimitsForm from './VenueLimitsForm.vue'
 import Button from './ui/Button.vue'
 import FormError from './ui/FormError.vue'
@@ -94,22 +94,6 @@ async function saveConfig() {
 /* =========================================
    CSS GENERAL
    ========================================= */
-.card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg, 12px);
-  padding: 16px;
-}
-
-.section-title {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin: 0 0 12px 0;
-}
-
 .form-row {
   display: flex;
   align-items: center;

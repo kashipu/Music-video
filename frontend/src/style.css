@@ -120,6 +120,11 @@ a { color: var(--color-link, var(--primary)); text-decoration: none; }
   letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 12px;
 }
 
+.text-muted {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
 /* ===== LANDING-STYLE ACCENTS (paywall) ===== */
 .font-display { font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif; }
 

@@ -1,4 +1,6 @@
 <script setup>
+import Card from './ui/Card.vue'
+
 defineProps({
   played: {
     type: Array,
@@ -26,8 +28,7 @@ defineEmits(['requeue-song', 'add-to-fallback', 'load-more'])
 </script>
 
 <template>
-  <div class="card">
-    <p class="section-title">YA SONARON ({{ played.length }})</p>
+  <Card :title="`YA SONARON (${played.length})`">
     <div class="q-list" v-if="played.length">
       <div v-for="song in played.slice(0, playedLimit)" :key="song.id" class="q-item q-item-played">
         <img :src="`https://i.ytimg.com/vi/${song.youtube_id}/mqdefault.jpg`" class="q-thumb" />
@@ -60,28 +61,13 @@ defineEmits(['requeue-song', 'add-to-fallback', 'load-more'])
       Ver {{ Math.min(15, played.length - playedLimit) }} más ({{ played.length - playedLimit }} restantes)
     </button>
     <p v-if="!played.length" class="text-muted">Sin historial de hoy</p>
-  </div>
+  </Card>
 </template>
 
 <style scoped>
 /* =========================================
    CSS GENERAL
    ========================================= */
-.card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px;
-}
-
-.section-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-muted);
-  letter-spacing: 0.5px;
-  margin-bottom: 8px;
-}
-
 .q-list {
   display: flex;
   flex-direction: column;
@@ -188,11 +174,6 @@ defineEmits(['requeue-song', 'add-to-fallback', 'load-more'])
 
 .load-more-btn:hover {
   background: var(--primary-soft);
-}
-
-.text-muted {
-  color: var(--text-muted);
-  font-size: 14px;
 }
 
 /* =========================================

@@ -1,4 +1,6 @@
 <script setup>
+import Card from './ui/Card.vue'
+
 defineProps({
   venueSlug: {
     type: String,
@@ -22,8 +24,7 @@ defineEmits(['download', 'print'])
 </script>
 
 <template>
-  <div class="card qr-card">
-    <p class="section-title">QR DEL BAR</p>
+  <Card title="QR DEL BAR" class="qr-card">
     <div class="qr-wrapper" id="qr-print-area">
       <img :src="qrCodeUrl" :alt="`QR ${venueSlug}`" class="qr-img" crossorigin="anonymous" />
       <p class="qr-bar-name">{{ venueName || venueSlug }}</p>
@@ -33,28 +34,13 @@ defineEmits(['download', 'print'])
       <button class="qr-btn" @click="$emit('download')">Descargar</button>
       <button class="qr-btn" @click="$emit('print')">Imprimir</button>
     </div>
-  </div>
+  </Card>
 </template>
 
 <style scoped>
 /* =========================================
    CSS GENERAL
    ========================================= */
-.card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px;
-}
-
-.section-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-muted);
-  letter-spacing: 0.5px;
-  margin-bottom: 8px;
-}
-
 .qr-card {
   text-align: center;
 }

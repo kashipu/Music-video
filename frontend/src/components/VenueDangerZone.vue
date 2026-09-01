@@ -1,6 +1,5 @@
 <template>
-  <div class="card danger-card">
-    <p class="section-title">ZONA DE PELIGRO</p>
+  <Card title="ZONA DE PELIGRO" class="danger-card">
     <div class="danger-actions">
       <button class="btn-venue-toggle" @click="toggleVenue">
         {{ active ? 'Desactivar bar' : 'Activar bar' }}
@@ -9,11 +8,12 @@
         Eliminar bar permanentemente
       </button>
     </div>
-  </div>
+  </Card>
 </template>
 
 <script setup>
 import { useRouter } from 'vue-router'
+import Card from './ui/Card.vue'
 import { useConfirmModal } from '../composables/useConfirmModal.js'
 import { deleteVenue, updateVenue } from '../services/superadmin.js'
 
@@ -48,22 +48,6 @@ async function handleDeleteVenue() {
 /* =========================================
    CSS GENERAL
    ========================================= */
-.card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg, 12px);
-  padding: 16px;
-}
-
-.section-title {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin: 0 0 12px 0;
-}
-
 .danger-card {
   border-color: var(--danger-soft);
 }

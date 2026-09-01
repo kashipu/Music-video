@@ -1,6 +1,5 @@
 <template>
-  <div class="card">
-    <p class="section-title">CONFIGURACIÓN DEL BAR</p>
+  <Card title="CONFIGURACIÓN DEL BAR">
     <div class="form-stack">
       <FormField label="Nombre" v-slot="{ id }">
         <Input :id="id" v-model="editName" />
@@ -61,11 +60,12 @@
         <span v-if="saveMsg" class="save-msg">{{ saveMsg }}</span>
       </div>
     </div>
-  </div>
+  </Card>
 </template>
 
 <script setup>
 import { computed, ref, watch } from 'vue'
+import Card from './ui/Card.vue'
 import { THEME_PRESETS } from '../constants/themePresets.js'
 import Button from './ui/Button.vue'
 import Input from './ui/Input.vue'
@@ -170,8 +170,6 @@ async function saveVenue() {
 /* =========================================
    CSS GENERAL
    ========================================= */
-.card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg, 12px); padding: 16px; }
-.section-title { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 12px 0; }
 .form-stack { display: flex; flex-direction: column; gap: 12px; }
 .logo-upload { display: flex; align-items: center; gap: 16px; margin-top: 4px; }
 .logo-preview { width: 64px; height: 64px; border-radius: var(--radius-sm, 8px); object-fit: cover; flex-shrink: 0; border: 1px solid var(--border); }

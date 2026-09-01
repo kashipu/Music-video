@@ -1,5 +1,6 @@
 <script setup>
 import { formatDuration, thumbFallback } from '../utils/youtube.js'
+import Card from './ui/Card.vue'
 
 defineProps({
   queue: {
@@ -46,7 +47,7 @@ defineEmits([
 </script>
 
 <template>
-  <div class="card">
+  <Card>
     <div class="queue-header">
       <p class="section-title">COLA ({{ queue.length }})</p>
       <button
@@ -106,32 +107,17 @@ defineEmits([
       Ver {{ Math.min(15, queue.length - queueLimit) }} más ({{ queue.length - queueLimit }} restantes)
     </button>
     <p v-if="!queue.length" class="text-muted">Cola vacía</p>
-  </div>
+  </Card>
 </template>
 
 <style scoped>
 /* =========================================
    CSS GENERAL
    ========================================= */
-.card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px;
-}
-
 .queue-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-
-.section-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-muted);
-  letter-spacing: 0.5px;
-  margin-bottom: 8px;
 }
 
 .clear-btn {
@@ -261,11 +247,6 @@ defineEmits([
 
 .load-more-btn:hover {
   background: var(--primary-soft);
-}
-
-.text-muted {
-  color: var(--text-muted);
-  font-size: 14px;
 }
 
 /* =========================================
