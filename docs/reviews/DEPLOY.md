@@ -53,43 +53,67 @@ mayoría de las oportunidades de esta lista son configuración, no código.
 
 ## Hallazgos
 
-### OPS-1 · Dokploy ya resuelve el problema de backups y no se está usando
+### OPS-1 · Backups a R2 — RESUELTO PARCIALMENTE (2026-09-02)
 
-**Severidad:** crítica · **Esfuerzo:** bajo · **Cierra [SYS-1](SYSTEM.md#sys-1--sin-backups-el-ledger-de-facturación-vive-en-un-archivo-sin-copia)**
+**Severidad original:** crítica · **Estado:** configurado y verificado, falta la
+restauración de prueba · **Cierra [SYS-1](SYSTEM.md#sys-1--sin-backups-el-ledger-de-facturación-vive-en-un-archivo-sin-copia)**
 
-Dokploy tiene **Volume Backups**: copia volúmenes Docker **nombrados** a un
-destino S3, con expresión cron y rotación automática. Y Cloudflare R2 es un
-destino documentado de primera clase.
+#### Lo que quedó configurado
 
-Las tres condiciones se cumplen hoy:
+| Pieza | Valor |
+|---|---|
+| Destino S3 | `R2 Bucket` → bucket `datos-repitela`, provider Cloudflare, region `auto` |
+| Volume Backup | `Base de datos a R2`, volumen `repitelacom-monorepo-h51iw0_sqlite_data` |
+| Cron | `15 11 * * *` **UTC** = 6:15am Colombia |
+| Retención | 14 copias |
+| Prefijo | `repitela/` |
 
-1. `sqlite_data` es un volumen **nombrado**, no un bind mount
-   (`docker-compose.yml:66-68`) — que es exactamente el requisito de la función.
-2. R2 tiene página propia en la documentación de Dokploy. **La opción PathStyle
-   debe quedar activada.**
-3. La programación es por cron, así que la ventana se puede poner fuera del
-   horario de los bares.
+Verificado con una corrida manual el 2026-09-02: el objeto
+`repitelacom-monorepo-h51iw0_sqlite_data-2026-09-02T15-26-20.tar` llegó al
+bucket.
 
-> **Advertencia técnica que no hay que saltarse:** copiar el volumen mientras
-> SQLite corre en modo WAL **no garantiza una copia consistente**. El archivo
-> `.db` y sus `-wal` / `-shm` se copian en instantes distintos y el resultado
-> puede ser un snapshot roto. La secuencia correcta es:
->
-> 1. Un **Schedule Job** de Dokploy que ejecute `VACUUM INTO
->    '/data/snapshot.db'` dentro del contenedor del backend, unos minutos antes
->    de la ventana de backup. `VACUUM INTO` produce una copia consistente de una
->    base en uso.
-> 2. El **Volume Backup** recoge el volumen, con el snapshot ya dentro.
->
-> Un backup de volumen a secas es peor que no tener ninguno: da confianza sin
-> dar recuperabilidad.
+**Corrección a la versión anterior de este documento:** decía que los Schedule
+Jobs estaban sin usar. **Ya existían dos** cuando se hizo la auditoría. El que
+funciona (`Backup diario SQLite`, `0 6 * * *` zona `America/Bogota`) usa
+`sqlite3.Connection.backup()` con `PRAGMA integrity_check` y descarta la copia
+si sale corrupta — **mejor que el `VACUUM INTO` que este documento proponía**,
+porque valida el resultado en vez de asumirlo. El Volume Backup se programó 15
+minutos después a propósito, para llevarse un snapshot ya verificado dentro del
+tarball.
 
-Y lo que cierra el ciclo: **una restauración probada**. Mientras no se haya
-restaurado una copia en un entorno limpio, el backup es una hipótesis.
+El segundo schedule (`backup-diario-sqlite`) tiene la expresión cron
+`0 5 * * * (5am, zona America/Bogota)` — el comentario quedó **dentro** de la
+expresión, que así no es cron válido. Sus tres ejecuciones fueron manuales. Es
+un duplicado inservible: **borrar**.
 
-**Nota de plan:** el plan base de Dokploy limita los Schedule Jobs (1 por
-servidor o contenedor). Verificar el plan contratado antes de diseñar sobre
-varios trabajos programados.
+**Nota de plan corregida:** el límite de 1 Schedule Job por servidor es de
+Dokploy **Cloud**. Esta instalación es self-hosted (v0.30.2), así que no aplica.
+
+#### Lo que falta
+
+1. **Restauración probada.** Bajar el `.tar`, extraerlo y arrancar la app contra
+   esa base en un entorno limpio. Mientras no se haga, el backup es una
+   hipótesis.
+2. **Borrar el schedule duplicado** (`scheduleId 3QqMiS0_iPxMmQRR9X7vD`).
+3. **Rotar el token de R2**: sus llaves circularon por un canal de chat durante
+   la configuración.
+
+#### Limitación conocida que esto NO resuelve
+
+**RPO de 24 horas.** La copia es diaria a las 6:15am. Un fallo de disco un
+sábado a las 2am pierde la noche del viernes entera — que es justo la ventana de
+mayor facturación. El escalón siguiente es **Litestream**, que replica el WAL a
+R2 en continuo y baja la pérdida a segundos. No se hizo ahora porque cuesta un
+contenedor extra y el caso catastrófico (servidor perdido, borrado accidental)
+ya está cubierto.
+
+`ponytail:` copia diaria de volumen; migrar a Litestream cuando 24h de pérdida
+de pagos deje de ser aceptable.
+
+#### Efecto lateral
+
+Los logos viven en ese mismo volumen, así que **[OPS-3](#ops-3--los-logos-viven-en-el-mismo-volumen-que-la-base-sin-copia) queda cubierto en su mitad de respaldo**.
+Sigue abierto lo de sacarlos del volumen y del worker único.
 
 ### OPS-2 · Los logos se sirven desde el worker único, que es el techo de escala
 
@@ -266,8 +290,8 @@ Compose.
 
 | Capacidad de Dokploy | Estado | Resuelve |
 |---|---|---|
-| Volume Backups → R2 | Sin usar | OPS-1, SYS-1 |
-| Schedule Jobs (cron en contenedor) | Sin usar | OPS-1 (`VACUUM INTO`) |
+| Volume Backups → R2 | **Activo** (2026-09-02) | OPS-1, SYS-1 |
+| Schedule Jobs (cron en contenedor) | **Activo** (ya existía; 1 de 2 roto) | OPS-1 |
 | Notificaciones (Slack/Discord/Telegram/correo) | Sin usar | OPS-5 |
 | Monitoreo por contenedor + alertas | Sin usar | OPS-6 |
 | Rollbacks | Sin usar | Mitiga SYS-7 |

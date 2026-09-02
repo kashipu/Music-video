@@ -20,7 +20,8 @@ documentos de abajo y aquí solo se ordenan.
 correcto?). `SYSTEM.md` cierra con los tres patrones que se repiten en las tres
 capas. `INTEGRATION.md` cierra con la clasificación del estilo arquitectónico de
 cada capa: ni MVC ni hexagonal, sino por capas técnicas. `DEPLOY.md` cierra con
-la tabla de capacidades de Dokploy y R2 que hoy están sin usar.
+la tabla de capacidades de Dokploy y R2, con lo ya activado y lo que sigue sin
+usar.
 
 ---
 
@@ -47,7 +48,7 @@ urgencia.
 
 | # | Fase | Hallazgos | P | U | Depende de | Esfuerzo |
 |---|---|---|---|---|---|---|
-| F0 | Backups a R2 y restauración probada | SYS-1, OPS-1 | P0 | U0 | — | bajo |
+| F0 | ~~Backups a R2~~ · **hecho salvo la restauración de prueba** | SYS-1, OPS-1 | P0 | U0 | — | ~~bajo~~ |
 | F1 | CI + rescate de la suite QA | BE-1, FE-5, SYS-2, SYS-3 | P0 | U0 | — | bajo |
 | F1b | Visibilidad operativa: notificaciones y monitoreo | OPS-5, OPS-6, OPS-10 | P0 | U0 | — | trivial |
 | F2 | Cierre de fronteras y del espacio de nombres | SYS-5, BE-6, INT-7, OPS-4 | P0 | U0 | F1 | bajo |
@@ -86,41 +87,38 @@ graph TD
     F4 --> F8[F8 · Kiosco y composables]
 ```
 
-F0, F1 y F1b no dependen de nada y se pueden hacer en paralelo. Todo lo demás
-cuelga de F1.
+F0, F1 y F1b no dependen de nada y se pueden hacer en paralelo. **F0 ya está
+hecho**, así que F5b y F6 solo esperan por F1 y F3. Todo lo demás cuelga de F1.
 
 ---
 
 ## Detalle por fase
 
-### F0 · Backups a R2 y restauración probada — P0 / U0
+### F0 · Backups a R2 — HECHO salvo la restauración (2026-09-02)
 
 **Cubre:** [SYS-1](SYSTEM.md#sys-1--sin-backups-el-ledger-de-facturación-vive-en-un-archivo-sin-copia),
-[OPS-1](DEPLOY.md#ops-1--dokploy-ya-resuelve-el-problema-de-backups-y-no-se-está-usando)
+[OPS-1](DEPLOY.md#ops-1--backups-a-r2--resuelto-parcialmente-2026-09-02)
 
-**Dokploy ya trae esto resuelto y no se está usando.** Sus *Volume Backups*
-copian volúmenes Docker nombrados a un destino S3 con cron y rotación, y
-Cloudflare R2 es un destino documentado. `sqlite_data` ya es un volumen nombrado,
-que es justo el requisito.
+Configurado y verificado con una corrida manual: destino Cloudflare R2 (bucket
+`datos-repitela`) y Volume Backup diario del volumen `sqlite_data` a las 6:15am
+Colombia, con retención de 14.
 
-Secuencia, en este orden y sin saltarse el primer paso:
+**La auditoría se equivocó en un punto:** daba los Schedule Jobs por sin usar y
+ya existían dos. El bueno hace `Connection.backup()` con `integrity_check` y
+descarta la copia si sale corrupta, que es **mejor** que el `VACUUM INTO` que
+proponía este plan. El Volume Backup se encadenó 15 minutos después para
+llevarse ese snapshot ya validado dentro del tarball.
 
-1. **Schedule Job** de Dokploy que ejecute `VACUUM INTO '/data/snapshot.db'` en
-   el contenedor del backend, minutos antes de la ventana de copia. Copiar el
-   volumen con SQLite en WAL sin este paso **no garantiza una copia
-   consistente**: un backup de volumen a secas da confianza sin dar
-   recuperabilidad.
-2. **Volume Backup** a un bucket R2 privado, con PathStyle activado, en horario
-   fuera del de los bares.
-3. **Una restauración probada** en un entorno limpio. Hasta entonces el backup es
-   una hipótesis.
-4. Actualizar `docs/DEPLOYMENT.md` §Backups quitando el bloque PENDIENTE.
+Queda pendiente de F0, y es lo único que lo cierra de verdad:
 
-Va primero porque todo lo demás asume que los datos existen, y porque es el
-único riesgo del sistema que no se puede deshacer.
+1. **Restaurar una copia en un entorno limpio.** Sin esto no hay respaldo, hay
+   una hipótesis bien fundada.
+2. Borrar el schedule duplicado con cron inválido (`3QqMiS0_iPxMmQRR9X7vD`).
+3. Rotar el token de R2.
 
-**Verificar antes:** el plan contratado de Dokploy limita los Schedule Jobs (1
-por servidor o contenedor en el plan base).
+**Limitación aceptada:** RPO de 24 horas. Un fallo de madrugada pierde la noche
+de mayor facturación. Litestream es el escalón siguiente cuando eso deje de ser
+tolerable.
 
 ### F1 · CI + rescate de la suite QA — P0 / U0
 
@@ -368,13 +366,18 @@ técnicas, no MVC ni hexagonal, y la recomendación es **no migrar a hexagonal**
 paga: invertir la dependencia de la base de datos (INT-10). El detalle está en
 [INTEGRATION.md](INTEGRATION.md#estilo-arquitectónico-ni-mvc-ni-hexagonal).
 
-Por eso el plan empieza por F0, F1 y F1b: la copia de seguridad que hoy no
-existe, el circuito de verificación que convierte 4.398 líneas de documentación
-en reglas que fallan el build, y los avisos que hoy nadie recibe. Con esas tres
-fases hechas, el resto del plan pasa de ser cirugía a ser mantenimiento.
+El plan empezaba por F0, F1 y F1b: la copia de seguridad, el circuito de
+verificación que convierte 4.398 líneas de documentación en reglas que fallan el
+build, y los avisos que hoy nadie recibe. **F0 ya está hecho** (2026-09-02) salvo
+la restauración de prueba. Con F1 y F1b hechas también, el resto del plan pasa de
+ser cirugía a ser mantenimiento.
 
 Un matiz que cambia el costo de arrancar: **buena parte de lo urgente es
-configuración, no código.** Dokploy ya trae copias de volumen a Cloudflare R2,
-trabajos programados, notificaciones de despliegue y monitoreo por contenedor, y
-ninguna de esas cuatro cosas está activada. F0 y F1b son, sobre todo, entrar al
-panel.
+configuración, no código.** Dokploy trae copias de volumen a Cloudflare R2,
+trabajos programados, notificaciones de despliegue y monitoreo por contenedor.
+Las dos primeras ya están activas; las notificaciones y el monitoreo (F1b)
+siguen apagados y son, sobre todo, entrar al panel.
+
+**Corrección a la auditoría original:** el aviso sobre el límite de Schedule
+Jobs era de Dokploy Cloud. Esta instalación es self-hosted v0.30.2 y no tiene
+ese límite.

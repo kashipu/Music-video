@@ -37,7 +37,9 @@ razonada**. Las debilidades que quedan no son de diseño: son de *enforcement*.
 
 ### SYS-1 · Sin backups: el ledger de facturación vive en un archivo sin copia
 
-**Severidad:** crítica · **Esfuerzo:** bajo
+**Severidad original:** crítica · **Estado: RESUELTO PARCIALMENTE (2026-09-02)** —
+copia diaria del volumen a Cloudflare R2, verificada. Falta la restauración de
+prueba. Detalle y limitaciones en [OPS-1](DEPLOY.md#ops-1--backups-a-r2--resuelto-parcialmente-2026-09-02).
 
 `docs/DEPLOYMENT.md` lo dice con todas las letras: no hay tarea en Compose ni en
 `scripts/`, ni Litestream, ni `sqlite3 .backup`, ni `VACUUM INTO`, y el volumen
@@ -49,8 +51,11 @@ sigue siendo el riesgo existencial del proyecto: si se pierde el volumen se
 pierden los bares, los usuarios y **la prueba de quién pagó**. Todo lo demás en
 estas cuatro revisiones es recuperable; esto no.
 
-**Propuesta:** tarea programada con `VACUUM INTO` (consistente con WAL), envío a
-almacenamiento externo, política de retención, y **una restauración probada**.
+**Lo hecho:** schedule diario con `Connection.backup()` + `integrity_check` (ya
+existía) y Volume Backup a R2 con retención de 14 (2026-09-02).
+
+**Lo que falta para cerrarlo:** la **restauración probada**. Y queda un RPO de
+24 horas: un fallo de madrugada pierde la noche de mayor facturación.
 
 ### SYS-2 · El proyecto usa documentación donde debería usar verificación
 

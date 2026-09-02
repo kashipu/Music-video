@@ -92,7 +92,16 @@ Para desarrollo local, vea [DEV_LOCAL_SETUP.md](DEV_LOCAL_SETUP.md). No copie aq
 
 ## Backups de SQLite
 
-> **PENDIENTE — riesgo abierto:** no hay tarea de backup en Compose ni en `scripts/`, y no está configurado Litestream, `sqlite3 .backup` ni `VACUUM INTO`. El volumen `sqlite_data` es la única persistencia declarada (`docker-compose.yml:66-68`); no constituye una copia recuperable.
+> **Backups (configurado 2026-09-02).** Dos piezas encadenadas en Dokploy:
+>
+> 1. **Schedule Job** `Backup diario SQLite` — `0 6 * * *` zona `America/Bogota`, sobre el servicio `backend`. Hace `sqlite3.Connection.backup()` a `/data/backup-<fecha>.db`, corre `PRAGMA integrity_check`, **descarta la copia si sale corrupta** y conserva las últimas 7.
+> 2. **Volume Backup** `Base de datos a R2` — `15 11 * * *` **UTC** (= 6:15am Colombia, 15 min después del snapshot), volumen `repitelacom-monorepo-h51iw0_sqlite_data`, destino Cloudflare R2 (bucket `datos-repitela`, prefijo `repitela/`), retención 14.
+>
+> El orden importa: el tarball se lleva dentro un snapshot ya verificado, así que no depende de que copiar SQLite en caliente con WAL salga bien.
+>
+> **PENDIENTE — restauración de prueba:** nadie ha restaurado aún una copia en un entorno limpio. Hasta entonces el backup es una hipótesis.
+>
+> **Limitación conocida — RPO de 24h:** un fallo de disco de madrugada pierde la noche entera. Escalón siguiente: Litestream (replicación continua del WAL a R2).
 
 Antes de tratar el dato como respaldado, hay que montar una tarea programada que genere una copia consistente de `/data/barqueue.db` (con WAL contemplado), la transfiera a almacenamiento externo, conserve una política de retención y pruebe restauraciones. Hasta entonces, una pérdida del volumen puede ser pérdida definitiva de datos.
 
