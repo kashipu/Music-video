@@ -205,6 +205,7 @@ Music-video/
 └── docs/
     ├── ANALYTICS.md             # Plan de medicion completo
     ├── gtm-container.json       # Contenedor GTM importable
+    ├── reviews/INDEX.md         # Auditoria de arquitectura y plan por fases
     └── ...                      # Arquitectura, API, flujos
 ```
 
