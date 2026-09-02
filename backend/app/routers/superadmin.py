@@ -528,7 +528,7 @@ async def get_venue_users(venue_id: int, admin: dict = Depends(get_current_super
         FROM users u
         JOIN user_stats ust ON ust.user_id = u.id
         JOIN latest_session ls ON ls.user_id = u.id AND ls.rn = 1
-        WHERE u.phone != 'admin'
+        WHERE u.is_system = 0
         ORDER BY ust.last_connection DESC
     """
     rows = await db.execute_fetchall(query, (venue_id, venue_id, venue_id))

@@ -238,7 +238,7 @@ async def admin_add_song(req: AdminSongAddRequest, admin: dict = Depends(get_cur
     admin_user = await db.execute_fetchall("SELECT id FROM users WHERE phone = 'admin'")
     if not admin_user:
         cursor = await db.execute(
-            "INSERT INTO users (phone, display_name, data_consent) VALUES ('admin', 'Admin', 1)"
+            "INSERT INTO users (phone, display_name, data_consent, is_system) VALUES ('admin', 'Admin', 1, 1)"
         )
         admin_user_id = cursor.lastrowid
         # Create a session for admin
