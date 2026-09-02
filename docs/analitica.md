@@ -467,7 +467,7 @@ falta.
 
 | Pieza | Lo que lleva impreso | A dónde va | Archivos |
 |---|---|---|---|
-| Sticker 9×2,5 cm, QR de 2×2 cm, primera tirada | `https://repitela.com/s` | `/?utm_source=sticker&utm_medium=qr&utm_campaign=primeros-stickers` | `qr-sticker-caja-20mm.svg` (para arte final), `qr-sticker-20mm.svg` (sin caja), `qr-sticker-600.png` |
+| Sticker 9×2,5 cm, QR de 2×2 cm, primera tirada | `https://repitela.com/s` | `/?utm_source=sticker&utm_medium=qr&utm_campaign=primeros-stickers` | `qr-sticker-caja-20mm.png` (arte final) y `.svg` (maestro) |
 
 **La UTM no va impresa: va en el redirect** (`landing/nginx.conf`, `location = /s`).
 Dos razones, y la segunda importa más que la primera:
@@ -497,8 +497,16 @@ No el código solo. Si se toma como el código solo, la caja tendría que medir
 | Zona tranquila | 2,2 mm por lado (= 4 módulos) |
 | Un módulo | 0,54 mm |
 
-`qr-sticker-caja-20mm.svg` ya viene con la caja blanca y las esquinas
-redondeadas: se coloca a 20 × 20 mm y no hay nada que ajustar.
+`qr-sticker-caja-20mm.png` ya viene con la caja blanca y las esquinas
+redondeadas: se coloca a 20 × 20 mm y no hay nada que ajustar. Son 999 px
+(**1269 dpi** a ese tamaño), con **27 px por módulo exactos** —sin decimales, así
+que no hay bordes borrosos— y la resolución física escrita en el archivo
+(`pHYs`), de modo que se abre ya a 20 mm en Illustrator o Photoshop.
+
+Las esquinas son transparentes (RGBA), no blancas: así el redondeo se ve bien
+sobre el sticker negro y sobre el blanco sin recortar nada.
+
+El `.svg` se conserva como maestro por si hay que regenerarlo a otro tamaño.
 
 **En la versión negra del sticker, ese blanco no es decorativo.** Es lo que
 separa el código del fondo oscuro; recortarlo para ganar espacio hace que
@@ -507,9 +515,8 @@ muchos lectores dejen de encontrarlo.
 Nunca invertir el QR (módulos blancos sobre negro): buena parte de los lectores
 no lo procesan.
 
-**Para imprimir usar el SVG**, que ya viene dimensionado a 20 × 20 mm. El PNG de
-600 px equivale a 762 dpi a ese tamaño y sirve de respaldo si la imprenta no
-acepta vectores.
+**Escalar solo de forma proporcional.** Si hay que cambiar el tamaño, mejor
+regenerar desde el `.svg` que estirar el PNG.
 
 No confundir con el QR **de cada bar**, que es otra cosa: lo genera el sistema
 por bar, va en las mesas y hoy depende de un servicio externo (WIL-201).
