@@ -49,12 +49,12 @@ que alguien creyó cierta es la que hay que rastrear.
 
 | Página | Sobre qué manda | Últ. cambio |
 |---|---|---|
-| [[despliegue]] | Dokploy, variables, backups a R2, staging | 2026-09-02 |
+| [[despliegue]] | Dokploy, variables, backups a R2, staging | rev. 2026-09-02 |
 | [[capacidad]] | Cuántos bares aguanta y dónde se rompe | 2026-08-25 |
 | [[entorno-local]] | Levantar el proyecto en una máquina | rev. 2026-09-02 |
 | [[contribuir]] | Ramas, commits, PRs | 2026-09-01 |
 | [[plan-de-pruebas]] | Qué se prueba y cómo | 2026-08-25 |
-| [[analitica]] | Qué se mide y de dónde sale cada KPI | 2026-08-25 |
+| [[analitica]] | Qué se mide, convención de UTM y los QR | rev. 2026-09-02 |
 
 ### Producto y diseño
 

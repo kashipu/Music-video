@@ -89,9 +89,68 @@ El healthcheck ejecuta Python/`urllib` contra `http://localhost:8000/api/health`
 1. Cree un proyecto Docker Compose conectado al repositorio y apúntelo a `docker-compose.yml`.
 2. Configure las variables anteriores y los dominios de `frontend` y `landing` en Dokploy/Traefik.
 3. Haga push a `main`; Dokploy construye los tres servicios y redepliega producción.
+   **Cualquier commit dispara la reconstrucción completa, incluso uno que solo
+   toque `.md`**, en la misma máquina que está sirviendo a los bares. Agrupe los
+   cambios de documentación en una rama y mézclelos cuando toque desplegar algo
+   de verdad.
 4. Compruebe `https://app.repitela.com/api/health` y abra una ruta de la app para verificar el proxy WebSocket.
 
 Para desarrollo local, vea [DEV_LOCAL_SETUP.md](entorno-local.md). No copie aquí un compose alterno: el archivo raíz es la fuente de verdad del despliegue.
+
+## Staging
+
+Montado el 2026-09-02. Es un **Environment del mismo proyecto** en Dokploy, no un
+proyecto aparte: la v0.30 ya tiene Environments. Los *Preview Deployments*, que
+serían la solución evidente, **no funcionan en proyectos Docker Compose** y este
+lo es.
+
+| | |
+|---|---|
+| Rama | `staging` |
+| Compose | `Monorepo Staging`, `appName` `compose-program-wireless-alarm-ijzhz4` |
+| `st.repitela.com` | servicio **landing** |
+| `stapp.repitela.com` | servicio **frontend** (la app) |
+| Auto-deploy | **apagado**, a propósito |
+| Volumen | propio, separado del de producción |
+
+**El auto-deploy está apagado porque sus builds compiten con los bares.** El
+servidor es de 2 vCPU / 1 GB compartido y construye producción encima; un deploy
+de staging en horario de bar degrada el servicio real. Se despliega a mano.
+
+Staging **no lleva ninguna credencial de producción**: `APP_SECRET_KEY` propia,
+`PAGOS=false`, `GOOGLE_SIGNUP=false`, Wompi y Brevo vacíos. No puede cobrar ni
+enviar correos reales.
+
+### Para qué se usa
+
+1. **Ensayar migraciones** antes de que lleguen a los bares. Es la razón por la
+   que existe: las migraciones corren solas al arrancar (`app/database.py:31`) y
+   `main` es producción.
+2. **Validar cambios de `nginx.conf`.** Una config mal formada hace que nginx no
+   arranque y tumba el sitio entero. Desplegando primero en staging, si el
+   contenedor levanta es que la sintaxis es válida — sin arriesgar producción.
+   Usado así el 2026-09-02 para el redirect `/s`.
+3. **Probar la restauración de un backup**, que es lo que cierra la copia de
+   seguridad de verdad.
+
+### Trampa de Dokploy: los dominios necesitan un redeploy
+
+**Añadir o cambiar un dominio en el panel no surte efecto hasta el siguiente
+despliegue.** La configuración de Traefik se escribe durante el deploy, no al
+guardar el formulario.
+
+Los síntomas no son obvios y costaron dos diagnósticos el mismo día:
+
+- Dominio nuevo → **404**, sin ruta en Traefik.
+- Certificado de **Traefik por defecto** en vez de Let's Encrypt.
+- Dominio reasignado a otro servicio → sigue sirviendo **el servicio anterior**,
+  con código 200, así que parece que funciona.
+
+El tercero es el peligroso: `st.repitela.com` estuvo sirviendo la app mientras el
+panel decía `landing`. Se detecta comparando el `<title>` de la página, no el
+código HTTP.
+
+Tras el redeploy, Let's Encrypt emite en unos 20 segundos.
 
 ## Backups de SQLite
 
@@ -106,7 +165,7 @@ Para desarrollo local, vea [DEV_LOCAL_SETUP.md](entorno-local.md). No copie aqu�
 >
 > **Limitación conocida — RPO de 24h:** un fallo de disco de madrugada pierde la noche entera. Escalón siguiente: Litestream (replicación continua del WAL a R2).
 
-Antes de tratar el dato como respaldado, hay que montar una tarea programada que genere una copia consistente de `/data/barqueue.db` (con WAL contemplado), la transfiera a almacenamiento externo, conserve una política de retención y pruebe restauraciones. Hasta entonces, una pérdida del volumen puede ser pérdida definitiva de datos.
+Lo de arriba ya está montado. Lo que sigue abierto es la **restauración de prueba**: mientras nadie haya levantado una copia en limpio, el respaldo es una hipótesis bien fundada. Se hace en staging (ver abajo).
 
 ## Seed de desarrollo
 

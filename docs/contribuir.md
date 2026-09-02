@@ -267,3 +267,23 @@ python -m app.db.seed     # Datos de prueba
 2. Escribir el SQL de la migración.
 
 3. La migración se aplica automáticamente al iniciar la app.
+
+## Cambios que se ensayan en staging antes de `main`
+
+`main` es producción: el push despliega. Dos tipos de cambio se prueban antes en
+staging (`docs/despliegue.md` §Staging), porque su modo de fallo es caerse
+entero, no fallar un test:
+
+| Cambio | Por qué | Cómo se valida |
+|---|---|---|
+| **Migraciones de base de datos** | Corren solas al arrancar. Una mala llega a los bares sin haber corrido nunca en otro sitio | Restaurar una copia de producción en staging y desplegar ahí primero |
+| **`nginx.conf`** de frontend o landing | Una config mal formada impide que nginx arranque y tumba el sitio | Desplegar staging: si el contenedor levanta, la sintaxis es válida |
+
+No es teórico. En WIL-130 una migración se escribió sin dos columnas que había
+añadido una PR anterior; al reconstruir `venues` las habría borrado y el login
+de clientes de los 8 bares habría respondido 500. Se detectó revisando a mano,
+no por ninguna barrera automática.
+
+**Documentación sola no necesita desplegarse.** Agrupa los `.md` en una rama:
+cada commit en `main` reconstruye los tres servicios en el servidor que está
+atendiendo bares.
