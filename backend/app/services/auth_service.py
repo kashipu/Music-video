@@ -230,11 +230,18 @@ async def get_or_create_daily_pin(venue_id: int) -> str:
 
     pin = ''.join(random.choices('0123456789', k=4))
     await db.execute(
-        "INSERT INTO venue_daily_pins (venue_id, pin, valid_date) VALUES (?, ?, ?)",
+        "INSERT OR IGNORE INTO venue_daily_pins (venue_id, pin, valid_date) VALUES (?, ?, ?)",
         (venue_id, pin, today),
     )
     await _commit_with_retry(db)
-    return pin
+
+    # A concurrent request may have won the INSERT with a different PIN — read back
+    # whichever one actually landed instead of trusting the one generated here.
+    rows = await db.execute_fetchall(
+        "SELECT pin FROM venue_daily_pins WHERE venue_id = ? AND valid_date = ?",
+        (venue_id, today),
+    )
+    return rows[0][0]
 
 
 async def verify_daily_pin(venue_id: int, pin: str) -> bool:
