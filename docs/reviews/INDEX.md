@@ -63,7 +63,7 @@ urgencia.
 | — | **Bloqueados por decisión de producto** | DB-1, DB-4, DB-6 | ver abajo | — | decisión | — |
 
 Los hallazgos menores BE-8 y DB-8 (numeración de migraciones duplicada, columna
-muerta, índice redundante, `docs/DATA_MODEL.md` desactualizado) no tienen fase
+muerta, índice redundante, `docs/modelo-de-datos.md` desactualizado) no tienen fase
 propia: se resuelven de paso en la fase que toque su archivo.
 
 ### Grafo de dependencias
@@ -232,15 +232,15 @@ Middleware de excepciones con request-id y logging estructurado; revisión de lo
 ~50 `except Exception`. `response_model` en los endpoints que consume el
 frontend, empezando por dashboard y kiosco. Acceso a filas por nombre en los
 `SELECT` anchos. Prefijo `/api/v1/` con `/api/` como alias durante la
-convivencia. Reemplazo de los 132 enlaces `file:///Users/...` por rutas
-relativas.
+convivencia. ~~Reemplazo de los 132 enlaces `file:///Users/...` por rutas relativas~~ —
+**hecho el 2026-09-02**: 133 enlaces corregidos.
 
 Las primeras atacan la misma raíz: hoy un cambio puede alterar la respuesta de
 la API sin que nada falle ni quede registrado. El versionado entra aquí porque
 es **habilitador**: INT-3, INT-4 e INT-6 son cambios incompatibles que sin él no
 se pueden desplegar sin romper kioscos que llevan semanas sin recargar.
 
-Con `response_model`, `docs/API.md` deja de ser el contrato —hoy lo es, y está
+Con `response_model`, `docs/api.md` deja de ser el contrato —hoy lo es, y está
 completo al 100 %— y pasa a ser la guía narrativa sobre un OpenAPI generado.
 
 ### F5b · Activos a R2 y build fuera de producción — P1 / U2

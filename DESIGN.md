@@ -2,7 +2,7 @@
 
 Describe el sistema **real**, no el ideal. Si algo está mal, se escribe mal.
 
-> No confundir con [`docs/DESIGN.md`](docs/DESIGN.md), que es la especificación
+> No confundir con [`docs/diseno-landing.md`](docs/diseno-landing.md), que es la especificación
 > visual de la landing. Mismo nombre, tema distinto.
 
 ## Qué es

@@ -1,5 +1,8 @@
 # Arquitectura del Sistema - Repitela.com
 
+> **Índice:** [[README]] · **Autoridad sobre:** la topología del backend · **Últ. cambio:** 2026-08-25
+> Si esta página contradice al código, gana el código y esta página tiene un bug.
+
 ---
 
 ## 1. Visión General del Sistema
@@ -77,16 +80,16 @@ La plataforma integra auto-registro de bares con periodo de prueba gratuito, cob
 
 ## 3. Desglose de Componentes y Servicios
 
-El despliegue de producción se orquesta mediante `docker-compose.yml` ([docker-compose.yml:1-70](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/docker-compose.yml#L1-L70)), compuesto por **4 servicios de infraestructura**:
+El despliegue de producción se orquesta mediante `docker-compose.yml` ([docker-compose.yml:1-70](../docker-compose.yml#L1-L70)), compuesto por **4 servicios de infraestructura**:
 
 ### 3.1. Landing & Blog (`landing`)
-- **Tecnología:** Astro (SSG/SSR) + Nginx ([landing/Dockerfile](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/landing/Dockerfile)).
+- **Tecnología:** Astro (SSG/SSR) + Nginx ([landing/Dockerfile](../landing/Dockerfile)).
 - **Función:** Sitio web comercial, marketing de captación, comparativas de producto (Pain vs Gain), calculadora de precios, blog optimizado para SEO (`/blog/*`), botón flotante de WhatsApp y contenedor de Google Tag Manager.
 - **Exposición:** Puerto 80 interno mapeado al dominio principal `repitela.com`.
 
 ### 3.2. Frontend Webapp (`frontend`)
-- **Tecnología:** Vue.js 3 + Vite + Pinia + Vue Router ([frontend/Dockerfile](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/frontend/Dockerfile)).
-- **Estructura de Vistas (21 Vistas en [frontend/src/views/](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/frontend/src/views/)):**
+- **Tecnología:** Vue.js 3 + Vite + Pinia + Vue Router ([frontend/Dockerfile](../frontend/Dockerfile)).
+- **Estructura de Vistas (21 Vistas en [frontend/src/views/](../frontend/src/views/)):**
   - **Cliente Final:**
     - `QRLanding.vue`: Pantalla de registro al escanear QR (`/:venueSlug/registro`).
     - `CustomerDashboard.vue`: Búsqueda de canciones, confirmación y estado de cola (`/:venueSlug/usuario`).
@@ -123,7 +126,7 @@ El despliegue de producción se orquesta mediante `docker-compose.yml` ([docker-
 
 ### 3.3. Backend API (`backend`)
 - **Tecnología:** Python 3.11 + FastAPI + Uvicorn/Gunicorn + aiosqlite.
-- **10 Routers en [backend/app/routers/](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/):**
+- **10 Routers en [backend/app/routers/](../backend/app/routers/):**
   1. `auth.py`: Autenticación de clientes, validación de PIN diario y perfil (4 endpoints).
   2. `admin_auth.py`: Login de bar, auto-registro con prueba gratis, Turnstile, recuperación y Google OAuth (7 endpoints).
   3. `admin.py`: Control de cola, play-now, skip, volumen, banner, QR, mesas, PIN diario y analítica (29 endpoints).
@@ -134,7 +137,7 @@ El despliegue de producción se orquesta mediante `docker-compose.yml` ([docker-
   8. `websocket.py`: Endpoint `/ws/queue` con gestor de conexiones bidireccional (1 endpoint).
   9. `test.py`: Limpieza y seed para pruebas automatizadas (`APP_ENV=test`, 1 endpoint).
   10. Endpoints en `main.py`: `/api/uploads/{filename}` (logos) y `/api/health` (2 endpoints).
-- **Servicios Principales en [backend/app/services/](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/services/):**
+- **Servicios Principales en [backend/app/services/](../backend/app/services/):**
   - `queue_service.py`: Control de concurrencia y cálculo de rate limiting en ventana deslizante.
   - `playback_service.py`: Máquina de estados de reproducción con locks asíncronos por bar (`_playback_locks`).
   - `youtube_service.py`: Validación de URLs y obtención de metadata vía oEmbed o YouTube Data API v3.
@@ -149,15 +152,15 @@ El despliegue de producción se orquesta mediante `docker-compose.yml` ([docker-
 ## 4. Restricciones de Arquitectura y Techo de Escala (Sección Crítica)
 
 ### 4.1. Restricción Obligatoria de Proceso Único: Gunicorn `-w 1`
-En [backend/Dockerfile:14-23](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/Dockerfile#L14-L23), el backend está configurado estrictamente con **un solo worker de proceso**:
+En [backend/Dockerfile:14-23](../backend/Dockerfile#L14-L23), el backend está configurado estrictamente con **un solo worker de proceso**:
 
 ```dockerfile
 CMD ["gunicorn", "app.main:app", "-w", "1", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000", "--forwarded-allow-ips", "*", "--access-logfile", "-"]
 ```
 
 #### Justificación Técnica de la Restricción:
-1. **Estado de WebSockets en Memoria:** La clase `ConnectionManager` ([backend/app/routers/websocket.py:7-54](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/websocket.py#L7-L54)) mantiene las instancias activas de WebSockets en el diccionario `self.active_connections` del proceso Python. Si se configuran `>1` workers, cada proceso tiene su propio espacio de memoria aislado; cuando un admin ejecuta una acción en el worker A, el broadcast nunca llega a los clientes conectados al worker B. Las pruebas empíricas registraron una **pérdida del 12% al 75% de eventos en tiempo real** al habilitar múltiples workers.
-2. **Estado de Reproducción Fallback en Memoria:** La variable `_fallback_now_playing` ([backend/app/services/playback_service.py:9](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/services/playback_service.py#L9)) reside en la memoria del proceso.
+1. **Estado de WebSockets en Memoria:** La clase `ConnectionManager` ([backend/app/routers/websocket.py:7-54](../backend/app/routers/websocket.py#L7-L54)) mantiene las instancias activas de WebSockets en el diccionario `self.active_connections` del proceso Python. Si se configuran `>1` workers, cada proceso tiene su propio espacio de memoria aislado; cuando un admin ejecuta una acción en el worker A, el broadcast nunca llega a los clientes conectados al worker B. Las pruebas empíricas registraron una **pérdida del 12% al 75% de eventos en tiempo real** al habilitar múltiples workers.
+2. **Estado de Reproducción Fallback en Memoria:** La variable `_fallback_now_playing` ([backend/app/services/playback_service.py:9](../backend/app/services/playback_service.py#L9)) reside en la memoria del proceso.
 3. **Locks Asíncronos de Reproducción:** Los cerrojos `_playback_locks` serializan mutaciones de cola (`skip`, `finished`, `error`) por venue para evitar condiciones de carrera entre clics concurrentes.
 4. **Prevención de Contención en SQLite:** Un solo proceso asíncrono minimiza los errores de `database is locked` en SQLite bajo concurrencia de escrituras.
 
@@ -179,13 +182,13 @@ Dado que `ConnectionManager` y `_fallback_now_playing` son volátiles en memoria
 ## 5. Decisiones de Diseño de Arquitectura (ADRs)
 
 ### ADR-001: SQLite en Modo WAL como Motor de Datos
-- **Decisión:** Mantener SQLite con `PRAGMA journal_mode = WAL`, `PRAGMA busy_timeout = 15000` y `PRAGMA synchronous = NORMAL` ([backend/app/database.py:25-30](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/database.py#L25-L30)).
+- **Decisión:** Mantener SQLite con `PRAGMA journal_mode = WAL`, `PRAGMA busy_timeout = 15000` y `PRAGMA synchronous = NORMAL` ([backend/app/database.py:25-30](../backend/app/database.py#L25-L30)).
 - **Migraciones:** 23 migraciones SQL secuenciales ejecutadas automáticamente al arrancar.
-- **Mantenimiento:** Bucle en segundo plano (`_hourly_cleanup_loop` en [backend/app/main.py:46](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/main.py#L46)) que purga registros de cola y logs mayores a 7 días, sesiones inactivas y eventos de analítica mayores a 180 días para mantener el tamaño del archivo `.db` en niveles óptimos.
+- **Mantenimiento:** Bucle en segundo plano (`_hourly_cleanup_loop` en [backend/app/main.py:46](../backend/app/main.py#L46)) que purga registros de cola y logs mayores a 7 días, sesiones inactivas y eventos de analítica mayores a 180 días para mantener el tamaño del archivo `.db` en niveles óptimos.
 
 ### ADR-002: Motor de Reproducción YouTube — Cierre de Decisión (IFrame API)
 - **Contexto Histórico:** Inicialmente se evaluaron dos alternativas: YouTube IFrame Player API vs descarga y procesamiento con `yt-dlp`.
-- **Decisión Final (CERRADA):** Uso exclusivo de **YouTube IFrame Player API** en el Kiosco ([frontend/src/views/Kiosk.vue](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/frontend/src/views/Kiosk.vue)).
+- **Decisión Final (CERRADA):** Uso exclusivo de **YouTube IFrame Player API** en el Kiosco ([frontend/src/views/Kiosk.vue](../frontend/src/views/Kiosk.vue)).
 - **Justificación:**
   1. **Cumplimiento Legal:** Cumple estrictamente los Términos de Servicio de YouTube (Sección 5).
   2. **Cero Carga de Servidor:** El streaming se realiza directamente desde la infraestructura de Google hacia el navegador del Kiosco; el servidor backend no transcodifica ni almacena video/audio.
@@ -226,14 +229,14 @@ Dado que `ConnectionManager` y `_fallback_now_playing` son volátiles en memoria
 
 | Capa de Seguridad | Mecanismo Implementado | Ubicación en Código |
 |-------------------|------------------------|---------------------|
-| **Guard de Arranque en Producción** | El backend aborta el inicio si `APP_ENV=production` y `APP_SECRET_KEY` tiene el valor por defecto o longitud < 32 caracteres. | [backend/app/config.py:45-51](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/config.py#L45-L51) |
-| **Protección Anti-Bot en Registro** | Validación de tokens de Cloudflare Turnstile en endpoints de signup. | [backend/app/routers/admin_auth.py:32-61](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin_auth.py#L32-L61) |
-| **Rate Limit de Autenticación** | Máximo 5 intentos de login/signup por minuto por par (IP, ruta) en memoria. | [backend/app/routers/admin_auth.py:18-26](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/admin_auth.py#L18-L26) |
-| **Rate Limit de Canciones** | Límite configurable de canciones por ventana deslizante (default: 5 canciones en 20 min). | [backend/app/services/queue_service.py:100](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/services/queue_service.py#L100) |
-| **Preservación de IP Real** | Gunicorn configurado con `--forwarded-allow-ips "*"` para respetar encabezados `X-Forwarded-For` de Nginx. | [backend/Dockerfile:23](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/Dockerfile#L23) |
-| **Validación de Firmas Webhook** | Verificación criptográfica HMAC-SHA256 de webhooks de Wompi con `WOMPI_EVENTS_SECRET`. | [backend/app/routers/billing.py:115-127](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/billing.py#L115-L127) |
-| **Filtro de Contenido y Duración** | Validación de URLs por regex, lista negra de videos bloqueados por bar (`blocked_videos`) y tope de duración en segundos. | [backend/app/routers/queue.py:64-115](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/routers/queue.py#L64-L115) |
-| **Expiración de Sesiones** | Inactividad > 120 min o duración total > 24 horas expira la sesión del cliente. | [backend/app/services/auth_service.py:220](file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/app/services/auth_service.py#L220) |
+| **Guard de Arranque en Producción** | El backend aborta el inicio si `APP_ENV=production` y `APP_SECRET_KEY` tiene el valor por defecto o longitud < 32 caracteres. | [backend/app/config.py:45-51](../backend/app/config.py#L45-L51) |
+| **Protección Anti-Bot en Registro** | Validación de tokens de Cloudflare Turnstile en endpoints de signup. | [backend/app/routers/admin_auth.py:32-61](../backend/app/routers/admin_auth.py#L32-L61) |
+| **Rate Limit de Autenticación** | Máximo 5 intentos de login/signup por minuto por par (IP, ruta) en memoria. | [backend/app/routers/admin_auth.py:18-26](../backend/app/routers/admin_auth.py#L18-L26) |
+| **Rate Limit de Canciones** | Límite configurable de canciones por ventana deslizante (default: 5 canciones en 20 min). | [backend/app/services/queue_service.py:100](../backend/app/services/queue_service.py#L100) |
+| **Preservación de IP Real** | Gunicorn configurado con `--forwarded-allow-ips "*"` para respetar encabezados `X-Forwarded-For` de Nginx. | [backend/Dockerfile:23](../backend/Dockerfile#L23) |
+| **Validación de Firmas Webhook** | Verificación criptográfica HMAC-SHA256 de webhooks de Wompi con `WOMPI_EVENTS_SECRET`. | [backend/app/routers/billing.py:115-127](../backend/app/routers/billing.py#L115-L127) |
+| **Filtro de Contenido y Duración** | Validación de URLs por regex, lista negra de videos bloqueados por bar (`blocked_videos`) y tope de duración en segundos. | [backend/app/routers/queue.py:64-115](../backend/app/routers/queue.py#L64-L115) |
+| **Expiración de Sesiones** | Inactividad > 120 min o duración total > 24 horas expira la sesión del cliente. | [backend/app/services/auth_service.py:220](../backend/app/services/auth_service.py#L220) |
 
 ---
 

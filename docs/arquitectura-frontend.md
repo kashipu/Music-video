@@ -1,5 +1,8 @@
 # Directiva de arquitectura y operación frontend — Repitela.com
 
+> **Índice:** [[README]] · **Autoridad sobre:** las capas y convenciones del frontend · **Últ. cambio:** 2026-08-27
+> Si esta página contradice al código, gana el código y esta página tiene un bug.
+
 Reglas para que el frontend crezca sin repetir los monolitos que ya tenemos
 (`AdminDashboard.vue` 1.520 líneas / 32 `fetch()`, `Kiosk.vue` 1.344 / 11,
 `VenueBillingPanel.vue` 1.197). Aplica a todo código nuevo y a todo archivo
@@ -84,7 +87,7 @@ Nada de carpetas por componente, ni `index.js` barrel, ni sufijos
 3. **Estado local por defecto.** Store Pinia solo cuando 2+ rutas comparten el
    dato. Composable solo cuando 2+ componentes repiten la lógica.
 4. **Tokens del tema, nunca colores literales** en componentes. Un hex solo
-   puede vivir en `src/themes/*.css`. Ver [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md).
+   puede vivir en `src/themes/*.css`. Ver [DESIGN_SYSTEM.md](sistema-de-diseno.md).
 5. **Comentarios solo para lo que el código no puede decir** (por qué, no
    qué). Textos visibles en español **con tildes** — ya perdimos una tarde
    por tildes borradas.
@@ -125,7 +128,7 @@ Nada de carpetas por componente, ni `index.js` barrel, ni sufijos
 - **Compilar no es renderizar**: `build-storybook` verde no prueba nada.
   Verificación real = abrir la story y mirar la consola. Las 4 trampas
   conocidas (APIs que fallan en silencio) están en
-  [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) §6.
+  [DESIGN_SYSTEM.md](sistema-de-diseno.md) §6.
 
 ## 7. Cómo registrar el trabajo en Linear
 

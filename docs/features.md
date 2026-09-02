@@ -4,7 +4,7 @@ Lo que Repítela **ya hace**. Se lee antes de proponer algo nuevo: si algo se
 parece, la propuesta es de mejora, no de feature.
 
 Levantado el 2026-09-02 recorriendo `frontend/src/router/index.js` (23 rutas) y
-`backend/app/routers/` (86 endpoints, catálogo completo en [`API.md`](API.md)).
+`backend/app/routers/` (86 endpoints, catálogo completo en [`API.md`](api.md)).
 Se actualiza al **entregar**, no al planear.
 
 ## Cliente del bar

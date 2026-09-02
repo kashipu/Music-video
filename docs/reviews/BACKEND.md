@@ -178,7 +178,7 @@ Oportunidades reales, en orden de valor:
 
 **Redis pub/sub para el broadcast.** El mayor salto disponible, y ya está
 identificado como el paso correcto en `backend/Dockerfile:15-16` y en
-`docs/ARCHITECTURE.md` §4.1. Quita el techo de un worker sin tocar el lenguaje,
+`docs/arquitectura.md` §4.1. Quita el techo de un worker sin tocar el lenguaje,
 y de paso da un lugar para el rate limit compartido y `_attempts` (BE-6).
 
 **Postgres cuando aparezca el disparador.** Es una decisión de datos, no de
@@ -191,7 +191,7 @@ bares activos concurrentes, o que salte la alerta de tamaño. Aporta
 dominio**: PubSub distribuido, Presence y un proceso supervisado por bar
 resuelven de fábrica lo que aquí está hecho a mano con locks asyncio y un dict
 en memoria. Pero eso rinde a partir de decenas de miles de sockets simultáneos.
-A escala de bares, un worker asyncio va sobrado (ver `docs/CAPACITY.md`: 1500 WS
+A escala de bares, un worker asyncio va sobrado (ver `docs/capacidad.md`: 1500 WS
 con p95 de 22 ms y el worker al 5-20 % de un core). El costo de reescritura no
 se justifica hoy.
 

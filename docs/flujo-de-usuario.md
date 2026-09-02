@@ -1,5 +1,8 @@
 # Flujo del Usuario - BarQueue
 
+> **Índice:** [[README]] · **Autoridad sobre:** el recorrido de cada rol · **Últ. cambio:** 2026-08-25
+> Si esta página contradice al código, gana el código y esta página tiene un bug.
+
 ## Resumen
 
 El usuario llega al bar, escanea un QR, se registra con su celular y puede empezar a encolar canciones desde un dashboard sencillo.

@@ -1,5 +1,8 @@
 # Reglas de Negocio - BarQueue
 
+> **Índice:** [[README]] · **Autoridad sobre:** límites, cola, suscripción y roles · **Últ. cambio:** 2026-05-05
+> Si esta página contradice al código, gana el código y esta página tiene un bug.
+
 Este documento es la fuente de verdad para todas las reglas de dominio de la aplicación. Cada regla tiene un identificador único para trazabilidad.
 
 ---

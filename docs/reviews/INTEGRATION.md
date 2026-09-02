@@ -20,16 +20,16 @@ lo haya declarado.
 
 - Dos canales con roles claros: REST para comandos y carga inicial, WebSocket
   para invalidación.
-- **Los 86 endpoints están documentados en `docs/API.md`**, con método, cuerpo,
+- **Los 86 endpoints están documentados en `docs/api.md`**, con método, cuerpo,
   forma de la respuesta, códigos de error y qué eventos WebSocket dispara cada
   uno. Verificado por script: 0 endpoints sin mencionar.
-- `docs/API.md` documenta sus propias inconsistencias: deja constancia de que el
+- `docs/api.md` documenta sus propias inconsistencias: deja constancia de que el
   header `X-Error-Code` solo está implementado en 2 de los 8 routers.
-- Catálogo completo de los 17 eventos WebSocket (`docs/API.md` §5).
+- Catálogo completo de los 17 eventos WebSocket (`docs/api.md` §5).
 - Actualización optimista con rollback en las acciones críticas del panel:
   `pausePlayback`, `resumePlayback` y `toggleFallback` revierten el estado si la
   API responde error (`useAdminDashboard.js:271-345`).
-- Las referencias de línea de `docs/API.md` siguen siendo correctas: 9
+- Las referencias de línea de `docs/api.md` siguen siendo correctas: 9
   comprobadas al azar en `admin.py`, 9 exactas.
 
 ---
@@ -53,7 +53,7 @@ El WebSocket se usa como campana, no como transporte. Y el refetch no es uno:
 tres GET en todos los paneles conectados.
 
 Encima de eso hay polling: 30 s en el panel admin, 10 s en el kiosco y 3 GET
-cada 30 s por cliente (medido en `docs/CAPACITY.md`). Los dos mecanismos se
+cada 30 s por cliente (medido en `docs/capacidad.md`). Los dos mecanismos se
 solapan sin que ninguno sepa del otro.
 
 **Propuesta:** aplicar el payload del evento donde ya viene completo; reservar
@@ -126,7 +126,7 @@ No existe `/api/v1/`. Los 86 endpoints cuelgan directamente de `/api/`.
 
 Importa más de lo habitual en este producto: la PWA cachea assets 30 días
 (`frontend/nginx.conf`) y el kiosco corre durante semanas sin recargar
-(`docs/ARCHITECTURE.md` §4.2 lo documenta: `/:slug/video` reproduce durante horas
+(`docs/arquitectura.md` §4.2 lo documenta: `/:slug/video` reproduce durante horas
 y un reload la cortaría). Un cambio de contrato no tiene ruta de convivencia: o
 rompe a los clientes viejos, o no se hace.
 
@@ -196,17 +196,17 @@ Enlazar desde el panel de superadmin a la vista pública de un bar exige traduci
 
 **Severidad:** baja · **Esfuerzo:** trivial
 
-`docs/API.md` tiene 112 y `docs/ARCHITECTURE.md` 20, todos con la forma:
+`docs/api.md` tiene 112 y `docs/arquitectura.md` 20, todos con la forma:
 
 ```
-file:///Users/williammoreno/orca/workspaces/Music-video/docs-api-arch/backend/...
+../../backend/...
 ```
 
 Apuntan a una ruta local de otra máquina y a una copia de trabajo distinta
 (`docs-api-arch`). Para cualquiera que no sea ese equipo están muertos.
 
 **Propuesta:** reemplazo por rutas relativas del repo, como ya hace
-`docs/DATA_MODEL.md`.
+`docs/modelo-de-datos.md`.
 
 ### INT-10 · Cero inyección de dependencias: `Depends(get_db)` no se usa nunca
 
@@ -260,7 +260,7 @@ no existe. Ver [BE-4](BACKEND.md#be-4--la-capa-de-servicios-existe-a-medias-126-
 
 ### Frontend
 
-También por capas, con sabor MVVM. `docs/FRONTEND_ARCHITECTURE.md` §1 define
+También por capas, con sabor MVVM. `docs/arquitectura-frontend.md` §1 define
 explícitamente las capas y la dirección única de dependencia
 (`vistas → componentes → primitivos`, `vistas/componentes → stores → services`).
 En términos de Vue: template = vista, `script setup` + composables = view-model,

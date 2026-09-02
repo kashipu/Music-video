@@ -1,5 +1,8 @@
 # Modelo de Datos
 
+> **Índice:** [[README]] · **Autoridad sobre:** el esquema de la base · **Últ. cambio:** 2026-08-25
+> Si esta página contradice al código, gana el código y esta página tiene un bug.
+
 Repitela usa SQLite multi-venue. Al inicializar, activa WAL, claves foráneas, `busy_timeout=15000`, caché de 64 MB y `synchronous=NORMAL` (`backend/app/database.py:17-31`). Las migraciones se aplican por nombre en orden lexicográfico y quedan registradas en `_migrations` (`backend/app/database.py:41-79`).
 
 El esquema actual tiene 17 tablas contando `_migrations`: 16 de producto y el registro de migraciones.

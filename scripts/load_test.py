@@ -10,7 +10,7 @@ Dos modos:
     python scripts/load_test.py run     # genera la carga y mide latencias
 
 Variables: BENCH_BASE (default http://bench-api:8000), BENCH_VENUES, BENCH_USERS,
-BENCH_SECONDS. Ver docs/CAPACITY.md para el procedimiento completo y los
+BENCH_SECONDS. Ver docs/capacidad.md para el procedimiento completo y los
 resultados de la ultima corrida.
 """
 import asyncio
@@ -90,7 +90,7 @@ async def poller(client, slug, period, paths):
     global errors
     # Desfase aleatorio: en la vida real cada cliente entro cuando entro.
     # Sin esto, los 100 clientes de un bar disparan en el mismo instante y lo
-    # que se mide es un thundering herd sintetico (ver docs/CAPACITY.md).
+    # que se mide es un thundering herd sintetico (ver docs/capacidad.md).
     await asyncio.sleep(period * random.random())
     while not done:
         t0 = time.perf_counter()

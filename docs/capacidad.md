@@ -1,5 +1,8 @@
 # Capacidad y limites de escala
 
+> **Índice:** [[README]] · **Autoridad sobre:** los límites de escala medidos · **Últ. cambio:** 2026-08-25
+> Si esta página contradice al código, gana el código y esta página tiene un bug.
+
 Medido el 2026-08-12. Escenario objetivo: **15 bares x 100 personas = 1500 usuarios
 concurrentes**.
 

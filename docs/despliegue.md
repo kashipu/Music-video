@@ -1,5 +1,8 @@
 # Despliegue
 
+> **Índice:** [[README]] · **Autoridad sobre:** cómo se despliega y se respalda · **Últ. cambio:** 2026-09-02
+> Si esta página contradice al código, gana el código y esta página tiene un bug.
+
 Repitela se despliega en producción con **Dokploy** y el `docker-compose.yml` de la raíz. Un push a `main` dispara el despliegue automático de producción. El compose declara tres servicios internos: `backend`, `frontend` y `landing` (`docker-compose.yml:1-64`). Dokploy/Traefik publica los dominios; los contenedores usan `expose`, no `ports`.
 
 > **Crítico: configure `APP_SECRET_KEY` antes del primer deploy.** Con `APP_ENV=production`, el backend se detiene si la clave está vacía, conserva el valor por defecto o tiene menos de 32 caracteres (`backend/app/config.py:43-51`). Genérela, por ejemplo, con `python -c "import secrets; print(secrets.token_urlsafe(48))"`.
@@ -88,7 +91,7 @@ El healthcheck ejecuta Python/`urllib` contra `http://localhost:8000/api/health`
 3. Haga push a `main`; Dokploy construye los tres servicios y redepliega producción.
 4. Compruebe `https://app.repitela.com/api/health` y abra una ruta de la app para verificar el proxy WebSocket.
 
-Para desarrollo local, vea [DEV_LOCAL_SETUP.md](DEV_LOCAL_SETUP.md). No copie aquí un compose alterno: el archivo raíz es la fuente de verdad del despliegue.
+Para desarrollo local, vea [DEV_LOCAL_SETUP.md](entorno-local.md). No copie aquí un compose alterno: el archivo raíz es la fuente de verdad del despliegue.
 
 ## Backups de SQLite
 

@@ -1,9 +1,12 @@
 # Sistema de Diseño y Temas (Frontend App)
 
+> **Índice:** [[README]] · **Autoridad sobre:** temas, tokens y logo · **Últ. cambio:** 2026-09-01
+> Si esta página contradice al código, gana el código y esta página tiene un bug.
+
 Este documento describe la arquitectura, los tokens de diseño, el catálogo de temas y los mecanismos de aplicación visual de la aplicación web de BarQueue (`frontend/`).
 
 > **Nota sobre el alcance:**  
-> Este documento aplica exclusivamente a la **aplicación cliente/admin** (`frontend/`). La landing page promocional (`landing/`) utiliza un stack separado (Astro) documentado en [`docs/DESIGN.md`](DESIGN.md).
+> Este documento aplica exclusivamente a la **aplicación cliente/admin** (`frontend/`). La landing page promocional (`landing/`) utiliza un stack separado (Astro) documentado en [`docs/diseno-landing.md`](diseno-landing.md).
 
 ---
 
@@ -438,36 +441,35 @@ Es fundamental distinguir entre la identidad de la plataforma y la del estableci
 | **Logo de Repítela** | Assets estáticos locales (`assets/logo-color-sobre-*.svg`) | `<img>` directo o fallback | Identidad global de la plataforma BarQueue / Repítela. |
 | **Logo del Bar** | Configuración remota del bar (`auth.adminInfo?.config.logoUrl`, sesión o API) | [`frontend/src/components/VenueLogo.vue`](../frontend/src/components/VenueLogo.vue) | Identidad personalizada del establecimiento. Si `logoUrl` está presente, sustituye al de Repítela en formularios y vistas de marca. |
 
-### 8.4 Inversión Automática Inteligente (`VenueLogo.vue` y `utils/logo.js`)
+### 8.4 Logo del bar por tema (`VenueLogo.vue`)
 
-Cuando un bar sube un logo monocromático en color negro sobre fondo transparente, este se vuelve invisible al mostrarse sobre el tema oscuro de la app o en la pantalla de Kiosko (`#000000`).
+> **Corregido el 2026-09-02.** Esta sección describía una heurística que **ya no
+> existe en el código**: `utils/logo.js`, la función `isMonochromeDarkLogo()`, el
+> muestreo en canvas y la clase CSS `.logo-adaptive`. Se retiraron y se
+> reemplazaron por variantes explícitas. La versión anterior está en el
+> historial de git si hace falta el porqué.
 
-Para resolver esto sin requerir que el bar suba dos versiones de su imagen, [`frontend/src/components/VenueLogo.vue`](../frontend/src/components/VenueLogo.vue) implementa un análisis en runtime vía [`frontend/src/utils/logo.js`](../frontend/src/utils/logo.js):
+El bar sube **dos** logos —uno para fondo claro y otro para fondo oscuro— y se
+elige el que toca. Se acabó adivinar analizando píxeles.
 
-```mermaid
-flowchart TD
-    A[Carga imagen del bar @load] --> B[isMonochromeDarkLogo]
-    B --> C[Dibujar en canvas en memoria 32x32]
-    C --> D[Muestrear píxeles opacos]
-    D --> E{¿colored / opaque < 0.1 & luminanceSum / opaque < 110?}
-    E -->|Sí: Monocromo y oscuro| F[Activar clase CSS .logo-adaptive]
-    E -->|No: Tiene color o es claro| G[Mantener intacto sin clase]
-    F --> H{¿data-theme='dark' o prop alwaysDark?}
-    H -->|Sí| I[Aplicar filter: invert 1 en CSS]
-    H -->|No| J[Sin filtro]
-```
+**Backend:** `venues.logo_url_light` y `venues.logo_url_dark`
+(`022_venue_logo_variants.sql`).
 
-#### Reglas de Inversión CSS (`style.css`)
-```css
-[data-theme="dark"] .logo-adaptive,
-.logo-adaptive.logo-on-dark {
-  filter: invert(1);
-}
-```
+**Frontend:** `VenueLogo.vue` lee `currentMode` de `useTheme()` y resuelve en
+este orden:
 
-#### Justificación y Limitación Técnica
-1. **Por qué se mira la imagen y no la extensión:** El formato (SVG o PNG) no indica si el contenido es monocromo o multicolor. Invertir un logo con color lo dejaría en negativo fotográfico, dañando la marca del bar. Por eso se analizan los píxeles reales.
-2. **Límite real por CORS (*Tainted Canvas*):** Si la imagen del logo proviene de un CDN o dominio externo sin cabeceras `Access-Control-Allow-Origin`, el navegador bloquea la lectura de píxeles (`getImageData`). En ese caso, el bloque `try/catch` captura el error y retorna `false` de forma segura (la imagen no se invierte pero tampoco rompe la app).
+1. `srcDark` si el modo es oscuro o si la prop `alwaysDark` está activa.
+2. `srcLight` si el modo es claro.
+3. La primera que exista, y como último recurso `src` (el logo único heredado).
+
+`alwaysDark` existe porque **el kiosco va siempre sobre negro**, sin importar el
+tema que el bar haya elegido para su panel.
+
+**Por qué se cambió:** la heurística fallaba en silencio. Un logo casi monocromo
+pero no del todo, o uno claro sobre transparente, caía del lado equivocado del
+umbral y quedaba invisible en la pantalla del bar — sin error, sin aviso, y
+detectable solo mirando. Dos columnas y una condición explícita hacen lo mismo
+sin adivinar.
 
 ### 8.5 Catálogo en Storybook
 

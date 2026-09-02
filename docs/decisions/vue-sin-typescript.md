@@ -13,7 +13,7 @@ No consta una decisión explícita. El proyecto arrancó así y creció así.
 
 ## Qué obliga
 
-- **El contrato con el backend solo existe en prosa.** `docs/API.md` documenta
+- **El contrato con el backend solo existe en prosa.** `docs/api.md` documenta
   los 86 endpoints uno por uno, pero nada verifica que la respuesta real
   coincida. Un cambio en el backend puede romper el frontend sin que falle un
   build ni quede registrado (SYS-4).

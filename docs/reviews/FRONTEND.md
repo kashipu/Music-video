@@ -1,7 +1,7 @@
 # Revisión de arquitectura — Frontend
 
 Revisado el 2026-09-02 sobre `claude/frontend-architecture-review-vn2ko9`.
-Alcance: `frontend/src/` (18.724 líneas), directiva `docs/FRONTEND_ARCHITECTURE.md`.
+Alcance: `frontend/src/` (18.724 líneas), directiva `docs/arquitectura-frontend.md`.
 
 Conclusión corta: la arquitectura está **bien pensada en el papel y a medio
 aplicar en el código**. La directiva es sólida; la mitad de la app no la cumple,
@@ -57,7 +57,7 @@ sin cambiar las firmas públicas de los servicios.
 
 **Severidad:** alta · **Esfuerzo:** medio
 
-La regla 1 de `docs/FRONTEND_ARCHITECTURE.md` §4 prohíbe `fetch()` fuera de
+La regla 1 de `docs/arquitectura-frontend.md` §4 prohíbe `fetch()` fuera de
 `src/services/` y los stores. Hay 25 violaciones.
 
 Dominio superadmin completo: `SuperAdminPanel.vue:60`, `SuperAdminUsers.vue`

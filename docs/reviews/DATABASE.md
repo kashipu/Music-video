@@ -23,7 +23,7 @@ de modelo, no de rendimiento, y varias tocan la tenancy.
   preservando los datos legacy inválidos dentro de un JSON marcado en vez de
   perderlos, con `-- migrate: foreign_keys=off` como directiva declarativa.
 - Índices bien elegidos y con propósito claro (22 en total).
-- `docs/DATA_MODEL.md` es honesto: dice explícitamente que las FKs no declaran
+- `docs/modelo-de-datos.md` es honesto: dice explícitamente que las FKs no declaran
   cascada.
 
 ---
@@ -167,5 +167,5 @@ invariante.
   `fallback_songs`.
 - `idx_users_phone` (`001_initial_schema.sql:20`) duplica el índice implícito
   que ya crea `phone TEXT UNIQUE`.
-- `docs/DATA_MODEL.md` está desactualizado: lista hasta `023` y le faltan tres
+- `docs/modelo-de-datos.md` está desactualizado: lista hasta `023` y le faltan tres
   archivos, incluidos los de numeración duplicada.

@@ -2,7 +2,7 @@
 
 Revisado el 2026-09-02 sobre `claude/frontend-architecture-review-vn2ko9`.
 Alcance: `docker-compose.yml`, los tres `Dockerfile`, `frontend/nginx.conf`,
-`docs/DEPLOYMENT.md`, y las capacidades de Dokploy y Cloudflare R2 que hoy no se
+`docs/despliegue.md`, y las capacidades de Dokploy y Cloudflare R2 que hoy no se
 están usando.
 
 Las capacidades de Dokploy citadas aquí se verificaron contra su documentación
@@ -47,7 +47,7 @@ mayoría de las oportunidades de esta lista son configuración, no código.
 - `frontend/Dockerfile` verifica su propio `sed` de `worker_connections` con un
   `grep`, así que un cambio de imagen base que rompa el patrón falla el build en
   vez de degradar la capacidad en silencio.
-- `docs/DEPLOYMENT.md` documenta sus propias deudas como PENDIENTE.
+- `docs/despliegue.md` documenta sus propias deudas como PENDIENTE.
 
 ---
 
@@ -121,8 +121,8 @@ Sigue abierto lo de sacarlos del volumen y del worker único.
 
 `GET /api/uploads/{filename}` (`backend/app/main.py:129-141`) sirve los archivos
 de `/data/logos` con `FileResponse`, a través del **único worker asyncio** que
-`docs/ARCHITECTURE.md` §4.1 declara restricción obligatoria y que
-`docs/CAPACITY.md` identifica como el techo del sistema.
+`docs/arquitectura.md` §4.1 declara restricción obligatoria y que
+`docs/capacidad.md` identifica como el techo del sistema.
 
 Quién pide esos archivos:
 
@@ -132,7 +132,7 @@ Quién pide esos archivos:
 
 Es decir: servir estáticos compite con la API y con el broadcast de WebSocket
 por el mismo proceso. Y hay un detalle que importa para calibrar: **la prueba de
-carga de `docs/CAPACITY.md` no incluyó tráfico de logos**, así que el techo
+carga de `docs/capacidad.md` no incluyó tráfico de logos**, así que el techo
 medido (1500 WS, p95 22 ms) excluye esta carga.
 
 El `Cache-Control: public, max-age=604800` de siete días mitiga, pero no cubre
@@ -260,7 +260,7 @@ Los tres servicios se construyen desde contexto local (`docker-compose.yml:3-4`,
 producción dos `npm ci` + `npm run build` (frontend y landing) y un
 `pip install`.
 
-Ese servidor es una máquina de **2 vCPU / 1 GB** (`docs/CAPACITY.md`), la misma
+Ese servidor es una máquina de **2 vCPU / 1 GB** (`docs/capacidad.md`), la misma
 que está sirviendo a los bares en ese momento. Un despliegue a las 10 de la
 noche compite por CPU y memoria con la reproducción en curso. No hay
 `deploy.resources.limits` en ningún servicio que acote el build.
@@ -276,12 +276,12 @@ CI/CD real.
 **Severidad:** baja · **Esfuerzo:** trivial
 
 `SESSION_INACTIVITY_MINUTES` y `SESSION_MAX_HOURS` existen en `Settings`
-(`backend/app/config.py:35-36`) y están documentadas en `docs/DEPLOYMENT.md`,
+(`backend/app/config.py:35-36`) y están documentadas en `docs/despliegue.md`,
 pero **no aparecen en el bloque `backend.environment`** de
 `docker-compose.yml`. Configurarlas en Dokploy hoy no tiene ningún efecto: el
 backend usa los valores por defecto del código.
 
-Ya está registrado como PENDIENTE en `docs/DEPLOYMENT.md:61`. Es una línea de
+Ya está registrado como PENDIENTE en `docs/despliegue.md:61`. Es una línea de
 Compose.
 
 ---

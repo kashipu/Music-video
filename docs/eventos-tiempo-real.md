@@ -1,5 +1,8 @@
 # Eventos en Tiempo Real — BarQueue
 
+> **Índice:** [[README]] · **Autoridad sobre:** los eventos de WebSocket · **Últ. cambio:** 2026-03-29
+> Si esta página contradice al código, gana el código y esta página tiene un bug.
+
 ## Arquitectura
 
 ```

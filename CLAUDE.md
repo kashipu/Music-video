@@ -17,7 +17,7 @@ Aplica Ponytail: la solución más pequeña que funcione.
 
 ## Antes de escribir código
 
-1. Lee `docs/features.md` — ¿ya existe algo parecido? Mejóralo antes de crear.
+1. Lee `docs/README.md` y `docs/features.md` — ¿ya existe algo parecido? Mejóralo antes de crear.
 2. Lee `RULES.md` — cómo se escribe código aquí.
 3. Feature nueva → `specs/<slug>.md` aprobada antes de la primera línea.
 4. **Nunca trabajes en `main`: push a `main` es deploy directo a producción.**
@@ -31,9 +31,9 @@ Este repo **no** usa `src/features/`. Son tres artefactos con capas técnicas:
 | `frontend/src/` | Vue 3 SPA. `views/` → `components/` → `composables/` → `services/` → `stores/` |
 | `backend/app/` | FastAPI. `routers/` → `services/` → `db/`. Migraciones en `db/migrations/` |
 | `landing/` | Astro. Sitio público, independiente del resto |
-| `docs/` | 19 documentos. `API.md` es el catálogo de los 86 endpoints |
-| `docs/reviews/` | Auditoría de arquitectura 2026-09: 50 hallazgos en 12 fases. **Empieza por `INDEX.md`** |
-| `docs/decisions/` | Decisiones vigentes y su costo de salida |
+| `docs/` | **Wiki del proyecto.** Entra por `docs/README.md`: índice, autoridad de cada página y fecha del último cambio |
+| `docs/decisions/` | Por qué se eligió lo que hay, y su costo de salida |
+| `docs/reviews/` | Auditoría del 2026-09-02: 50 hallazgos en 12 fases. Foto, no página viva |
 | `specs/` | Una por feature nueva |
 
 ## Comandos

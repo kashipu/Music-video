@@ -78,7 +78,7 @@ Plataforma SaaS multi-tenant para bares que permite a los clientes encolar canci
 - Google Tag Manager integrado (GTM-PPVKNTZB)
 - 13 eventos custom enviados al dataLayer (`repitela_*`)
 - Contenedor GTM importable en `docs/gtm-container.json`
-- Documentacion completa en `docs/ANALYTICS.md`
+- Documentacion completa en `docs/analitica.md`
 
 ### UX
 - Registro de usuario muestra logo y nombre del bar (no "BarQueue")

@@ -1,5 +1,8 @@
 # Guía de desarrollo local — BarQueue / Repitela
 
+> **Índice:** [[README]] · **Autoridad sobre:** levantar el proyecto en local · **Últ. cambio:** 2026-05-05
+> Si esta página contradice al código, gana el código y esta página tiene un bug.
+
 Todo lo que necesitas para levantar el sistema localmente y probar las implementaciones.
 
 ---

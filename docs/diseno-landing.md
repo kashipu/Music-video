@@ -1,4 +1,7 @@
 # Repítela — Documento de Diseño y Especificación Visual de la Landing Page
+> **Índice:** [[README]] · **Autoridad sobre:** la especificación visual de la landing · **Últ. cambio:** 2026-08-25
+> Si esta página contradice al código, gana el código y esta página tiene un bug.
+
 **Versión:** 2.0  
 **Fecha de actualización:** 2026-08-14  
 **Proyecto:** Repítela (`landing/`)  

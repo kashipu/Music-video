@@ -1,5 +1,8 @@
 # Plan de Pruebas - Repitela Music Queue
 
+> **Índice:** [[README]] · **Autoridad sobre:** qué se prueba y cómo · **Últ. cambio:** 2026-08-25
+> Si esta página contradice al código, gana el código y esta página tiene un bug.
+
 ## Flujos Criticos por Rol
 
 ### Usuario (Customer)

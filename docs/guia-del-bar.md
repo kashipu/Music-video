@@ -1,5 +1,8 @@
 # Guía del Administrador - BarQueue
 
+> **Índice:** [[README]] · **Autoridad sobre:** cómo opera un dueño de bar · **Últ. cambio:** 2026-08-11
+> Si esta página contradice al código, gana el código y esta página tiene un bug.
+
 ## Acceso al Panel
 
 El panel de administración está en la misma aplicación, accesible desde:

@@ -21,7 +21,7 @@ contenedor**, y hasta hoy ha sido suficiente: 8 bares, ~3.200 reproducciones.
   sistema entero: el mismo hilo sirve la API, el broadcast de WebSocket y los logos.
 - **Sin segundo servidor.** El archivo vive en un volumen de una máquina.
 - **Backups por copia de archivo**, no por dump transaccional. Ver
-  [`docs/DEPLOYMENT.md`](../DEPLOYMENT.md) §Backups.
+  [`docs/despliegue.md`](../despliegue.md) §Backups.
 - **Techo práctico de ~500 MB**, con alerta por correo al 400 MB
   (`DB_SIZE_ALERT_THRESHOLD_BYTES`).
 

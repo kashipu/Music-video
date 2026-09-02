@@ -3,8 +3,8 @@
 Solo lo propio de este proyecto. Lo general está en la skill `spec-driven`.
 Regla ausente aquí = vale el default de la skill.
 
-El detalle largo del frontend vive en [`docs/FRONTEND_ARCHITECTURE.md`](docs/FRONTEND_ARCHITECTURE.md)
-(capas, naming, Storybook) y [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md)
+El detalle largo del frontend vive en [`docs/arquitectura-frontend.md`](docs/arquitectura-frontend.md)
+(capas, naming, Storybook) y [`docs/sistema-de-diseno.md`](docs/sistema-de-diseno.md)
 (temas y logo). Este archivo es el resumen vinculante; no lo dupliques.
 
 ## Stack
