@@ -1,9 +1,9 @@
 # Auditoría de arquitectura — Índice y plan de ejecución
 
 Auditoría realizada el 2026-09-02 sobre `claude/frontend-architecture-review-vn2ko9`.
-Cubre las cuatro capas del sistema y la integración entre ellas. Este documento
-es el índice y el plan: los hallazgos viven en los cinco documentos de abajo y
-aquí solo se ordenan.
+Cubre las cuatro capas del sistema, la integración entre ellas y la operación.
+Este documento es el índice y el plan: los hallazgos viven en los seis
+documentos de abajo y aquí solo se ordenan.
 
 ## Documentos
 
@@ -14,11 +14,13 @@ aquí solo se ordenan.
 | [DATABASE.md](DATABASE.md) | Esquema, 26 migraciones, uso desde el código | DB-1 … DB-8 |
 | [SYSTEM.md](SYSTEM.md) | Topología, contratos, fronteras, operación | SYS-1 … SYS-7 |
 | [INTEGRATION.md](INTEGRATION.md) | Comunicación entre capas, URLs, documentación de la API, estilo arquitectónico | INT-1 … INT-10 |
+| [DEPLOY.md](DEPLOY.md) | Despliegue en Dokploy, CI/CD, Cloudflare R2, monitoreo | OPS-1 … OPS-10 |
 
 `BACKEND.md` cierra con la evaluación de stack (¿Python y FastAPI son lo
 correcto?). `SYSTEM.md` cierra con los tres patrones que se repiten en las tres
 capas. `INTEGRATION.md` cierra con la clasificación del estilo arquitectónico de
-cada capa: ni MVC ni hexagonal, sino por capas técnicas.
+cada capa: ni MVC ni hexagonal, sino por capas técnicas. `DEPLOY.md` cierra con
+la tabla de capacidades de Dokploy y R2 que hoy están sin usar.
 
 ---
 
@@ -45,16 +47,18 @@ urgencia.
 
 | # | Fase | Hallazgos | P | U | Depende de | Esfuerzo |
 |---|---|---|---|---|---|---|
-| F0 | Backups y restauración probada | SYS-1 | P0 | U0 | — | bajo |
+| F0 | Backups a R2 y restauración probada | SYS-1, OPS-1 | P0 | U0 | — | bajo |
 | F1 | CI + rescate de la suite QA | BE-1, FE-5, SYS-2, SYS-3 | P0 | U0 | — | bajo |
-| F2 | Cierre de fronteras y del espacio de nombres | SYS-5, BE-6, INT-7 | P0 | U0 | F1 | bajo |
+| F1b | Visibilidad operativa: notificaciones y monitoreo | OPS-5, OPS-6, OPS-10 | P0 | U0 | — | trivial |
+| F2 | Cierre de fronteras y del espacio de nombres | SYS-5, BE-6, INT-7, OPS-4 | P0 | U0 | F1 | bajo |
 | F3 | Transacciones, inyección de dependencias e integridad | BE-2, INT-10, DB-2, DB-3 | P0 | U1 | F1 | medio |
 | F4 | Capa HTTP única en el frontend | FE-1, FE-2, FE-3, INT-2 | P1 | U1 | F1 | medio |
-| F5 | Observabilidad, contrato tipado y versionado | BE-3, SYS-4, BE-7, INT-5, INT-9 | P1 | U2 | F1 | medio |
+| F5 | Observabilidad, contrato tipado y versionado | BE-3, SYS-4, BE-7, INT-5, INT-9 | P1 | U2 | F1, F1b | medio |
+| F5b | Activos a R2 y build fuera de producción | OPS-2, OPS-3, OPS-8, OPS-9 | P1 | U2 | F0, F1 | medio |
 | F6 | Retención de PII y borrado | DB-5 | P1 | U2 | F0, F3 | medio |
 | F7 | Superadmin: capa de servicios y estado operativo | BE-4, BE-5, INT-3, INT-6 | P2 | U2 | F3, F4, F5 | alto |
 | F8 | Kiosco: modelo de fallo, composables y uso de eventos | SYS-6, FE-4, FE-6, FE-7, INT-1 | P2 | U3 | F4 | alto |
-| F9 | Consolidación: staging, `paid_until` y limpieza de rutas | SYS-7, DB-7, INT-4, INT-8 | P2 | U3 | F1, F5 | medio |
+| F9 | Consolidación: staging, `paid_until` y limpieza de rutas | SYS-7, OPS-7, DB-7, INT-4, INT-8 | P2 | U3 | F1, F5 | medio |
 | — | **Bloqueados por decisión de producto** | DB-1, DB-4, DB-6 | ver abajo | — | decisión | — |
 
 Los hallazgos menores BE-8 y DB-8 (numeración de migraciones duplicada, columna
@@ -65,7 +69,10 @@ propia: se resuelven de paso en la fase que toque su archivo.
 
 ```mermaid
 graph TD
-    F0[F0 · Backups] --> F6[F6 · PII y retención]
+    F0[F0 · Backups a R2] --> F6[F6 · PII y retención]
+    F0 --> F5b[F5b · Activos a R2 y build fuera de prod]
+    F1 --> F5b
+    F1b[F1b · Notificaciones y monitoreo] --> F5
     F1[F1 · CI + suite QA] --> F2[F2 · Fronteras de confianza]
     F1 --> F3[F3 · Transacciones e integridad]
     F1 --> F4[F4 · Capa HTTP frontend]
@@ -79,26 +86,41 @@ graph TD
     F4 --> F8[F8 · Kiosco y composables]
 ```
 
-F0 y F1 no dependen de nada y se pueden hacer en paralelo. Todo lo demás cuelga
-de F1.
+F0, F1 y F1b no dependen de nada y se pueden hacer en paralelo. Todo lo demás
+cuelga de F1.
 
 ---
 
 ## Detalle por fase
 
-### F0 · Backups y restauración probada — P0 / U0
+### F0 · Backups a R2 y restauración probada — P0 / U0
 
-**Cubre:** [SYS-1](SYSTEM.md#sys-1--sin-backups-el-ledger-de-facturación-vive-en-un-archivo-sin-copia)
+**Cubre:** [SYS-1](SYSTEM.md#sys-1--sin-backups-el-ledger-de-facturación-vive-en-un-archivo-sin-copia),
+[OPS-1](DEPLOY.md#ops-1--dokploy-ya-resuelve-el-problema-de-backups-y-no-se-está-usando)
 
-Tarea programada con `VACUUM INTO` (consistente con WAL), transferencia a
-almacenamiento externo, política de retención y **una restauración probada**.
-Actualizar `docs/DEPLOYMENT.md` §Backups quitando el bloque PENDIENTE.
+**Dokploy ya trae esto resuelto y no se está usando.** Sus *Volume Backups*
+copian volúmenes Docker nombrados a un destino S3 con cron y rotación, y
+Cloudflare R2 es un destino documentado. `sqlite_data` ya es un volumen nombrado,
+que es justo el requisito.
+
+Secuencia, en este orden y sin saltarse el primer paso:
+
+1. **Schedule Job** de Dokploy que ejecute `VACUUM INTO '/data/snapshot.db'` en
+   el contenedor del backend, minutos antes de la ventana de copia. Copiar el
+   volumen con SQLite en WAL sin este paso **no garantiza una copia
+   consistente**: un backup de volumen a secas da confianza sin dar
+   recuperabilidad.
+2. **Volume Backup** a un bucket R2 privado, con PathStyle activado, en horario
+   fuera del de los bares.
+3. **Una restauración probada** en un entorno limpio. Hasta entonces el backup es
+   una hipótesis.
+4. Actualizar `docs/DEPLOYMENT.md` §Backups quitando el bloque PENDIENTE.
 
 Va primero porque todo lo demás asume que los datos existen, y porque es el
 único riesgo del sistema que no se puede deshacer.
 
-**Decisión requerida:** destino de la copia externa (S3, Backblaze, `rsync` a
-otro servidor).
+**Verificar antes:** el plan contratado de Dokploy limita los Schedule Jobs (1
+por servidor o contenedor en el plan base).
 
 ### F1 · CI + rescate de la suite QA — P0 / U0
 
@@ -119,16 +141,40 @@ otro servidor).
 Es la fase de mayor palanca: convierte tres directivas escritas en reglas que
 fallan el build, y multiplica la cobertura sin escribir tests nuevos.
 
+### F1b · Visibilidad operativa: notificaciones y monitoreo — P0 / U0
+
+**Cubre:** [OPS-5](DEPLOY.md#ops-5--sin-notificaciones-nadie-se-entera-de-un-despliegue-fallido),
+[OPS-6](DEPLOY.md#ops-6--el-monitoreo-de-dokploy-está-sin-usar-y-el-disco-es-el-punto-ciego),
+[OPS-10](DEPLOY.md#ops-10--variables-de-sesión-declaradas-y-nunca-entregadas-al-contenedor)
+
+Activar las notificaciones de despliegue de Dokploy (Slack, Discord, Telegram o
+correo) y sus gráficas de monitoreo por contenedor, con **alerta de disco**.
+Añadir `SESSION_INACTIVITY_MINUTES` y `SESSION_MAX_HOURS` al bloque
+`backend.environment` del Compose, que hoy están documentadas pero nunca llegan
+al contenedor.
+
+Es la mejor relación esfuerzo/beneficio del plan entero: son minutos de
+configuración y hoy nadie se entera si un deploy falla. La alerta de disco cubre
+además el punto ciego que `check_database_size()` no puede ver: vigila el
+archivo SQLite, no el volumen.
+
+Va en paralelo a F0 y F1 porque no depende de nada, y F5 la aprovecha: no tiene
+sentido montar logging estructurado sin un canal donde avisar.
+
 ### F2 · Cierre de fronteras y del espacio de nombres — P0 / U0
 
 **Cubre:** [SYS-5](SYSTEM.md#sys-5--el-kiosco-no-tiene-frontera-de-confianza),
 [BE-6](BACKEND.md#be-6--apisuperadminlogin-no-tiene-rate-limiting),
-[INT-7](INTEGRATION.md#int-7--el-espacio-de-nombres-de-la-raíz-está-comprometido-y-no-hay-slugs-reservados)
+[INT-7](INTEGRATION.md#int-7--el-espacio-de-nombres-de-la-raíz-está-comprometido-y-no-hay-slugs-reservados),
+[OPS-4](DEPLOY.md#ops-4--svg-subido-se-sirve-desde-el-origen-de-la-app-sin-ningún-header-de-seguridad)
 
 Exigir token en `/api/playback/finished` y `/error` (el kiosco ya lo manda:
 cambio de una línea por endpoint). Token de kiosco para `/fallback-playing`.
 `Depends(limit_auth_attempts)` en `/api/superadmin/login` y evicción de claves
 en `_attempts`. Lista de slugs reservados en `_slugify()` y en `create_venue`.
+Headers de seguridad en `frontend/nginx.conf` (CSP, `nosniff`,
+`X-Frame-Options`), que hoy solo tiene la landing y no la app que maneja
+sesiones.
 
 Esfuerzo bajo, severidad alta: es la mejor relación de todo el plan. INT-7 entra
 aquí por urgencia, no por parentesco: el slug va impreso en los QR de las mesas,
@@ -199,6 +245,31 @@ se pueden desplegar sin romper kioscos que llevan semanas sin recargar.
 Con `response_model`, `docs/API.md` deja de ser el contrato —hoy lo es, y está
 completo al 100 %— y pasa a ser la guía narrativa sobre un OpenAPI generado.
 
+### F5b · Activos a R2 y build fuera de producción — P1 / U2
+
+**Cubre:** [OPS-2](DEPLOY.md#ops-2--los-logos-se-sirven-desde-el-worker-único-que-es-el-techo-de-escala),
+[OPS-3](DEPLOY.md#ops-3--los-logos-viven-en-el-mismo-volumen-que-la-base-sin-copia),
+[OPS-8](DEPLOY.md#ops-8--el-qr-lo-genera-un-tercero-gratuito-y-está-en-la-ruta-crítica),
+[OPS-9](DEPLOY.md#ops-9--se-construye-en-el-servidor-de-producción)
+
+Bucket R2 público con dominio propio para los logos: hoy los sirve
+`GET /api/uploads/{filename}` desde el **único worker asyncio** que la propia
+arquitectura declara como techo de escala, y que además compite con el broadcast
+de WebSocket. Elimina la ruta `/api/uploads`, saca los binarios del volumen de la
+base (OPS-3) y, al servirlos desde otro origen, neutraliza el vector de SVG de
+OPS-4. R2 no cobra egreso, que es el patrón exacto de este caso.
+
+En el mismo bucket, el QR generado una vez al crear el bar y guardado en
+`venues.qr_url`, en lugar de depender de `api.qrserver.com` —un servicio externo
+gratuito, sin SLA, hoy en la ruta por la que entra cada cliente—.
+
+Y mover el build a CI: hoy cada push a `main` dispara dos `npm ci` + `npm run
+build` y un `pip install` **en el servidor de producción**, una máquina de 2 vCPU
+/ 1 GB que en ese momento está sirviendo a los bares. Con las imágenes
+publicadas en un registro, el Compose de producción usa `image:` en vez de
+`build:` y el deploy pasa a ser `pull` + `up`. Es la pieza que convierte lo que
+hoy es solo CD en un CI/CD real, y por eso depende de F1.
+
 ### F6 · Retención de PII y borrado — P1 / U2
 
 **Cubre:** [DB-5](DATABASE.md#db-5--pii-sin-modelo-de-retención-ni-ruta-de-borrado)
@@ -250,9 +321,15 @@ seguridad cuando `wsConnected` es `false`.
 **Cubre:** [SYS-7](SYSTEM.md#sys-7--push-a-main-es-deploy-a-producción-sin-staging),
 [DB-7](DATABASE.md#db-7--venuespaid_until-es-caché-derivada-del-ledger-mantenida-a-mano),
 [INT-4](INTEGRATION.md#int-4--seis-post-mandan-el-estado-por-query-string-en-vez-de-body),
-[INT-8](INTEGRATION.md#int-8--mezcla-de-idiomas-e-identificadores-en-las-rutas-del-frontend)
+[INT-8](INTEGRATION.md#int-8--mezcla-de-idiomas-e-identificadores-en-las-rutas-del-frontend),
+[OPS-7](DEPLOY.md#ops-7--los-preview-deployments-no-aplican-a-este-proyecto-el-staging-necesita-otro-camino)
 
-Entorno de pre-producción antes de `main`. `recompute_paid_until(venue_id)`
+Entorno de pre-producción antes de `main`. **Ojo con la forma que toma:** los
+Preview Deployments de Dokploy —la solución evidente— **no funcionan en
+proyectos Docker Compose**, y este lo es. La vía realista es un segundo proyecto
+Compose apuntando a una rama `staging`, con dominio y volumen propios: no da un
+entorno por PR, pero sí el ensayo de migraciones antes de producción, que es lo
+que SYS-7 pide de verdad. `recompute_paid_until(venue_id)`
 derivada del ledger, con test de invariante. Los seis POST con estado en query
 string pasan a body con modelo Pydantic (INT-4), ya sobre `/api/v1/`.
 Normalización de idioma e identificador en las rutas del frontend (INT-8), con
@@ -291,7 +368,13 @@ técnicas, no MVC ni hexagonal, y la recomendación es **no migrar a hexagonal**
 paga: invertir la dependencia de la base de datos (INT-10). El detalle está en
 [INTEGRATION.md](INTEGRATION.md#estilo-arquitectónico-ni-mvc-ni-hexagonal).
 
-Por eso el plan empieza por F0 y F1: la copia de seguridad que hoy no existe, y
-el circuito de verificación que convierte 4.398 líneas de documentación en
-reglas que fallan el build. Con esas dos fases hechas, el resto del plan pasa de
-ser cirugía a ser mantenimiento.
+Por eso el plan empieza por F0, F1 y F1b: la copia de seguridad que hoy no
+existe, el circuito de verificación que convierte 4.398 líneas de documentación
+en reglas que fallan el build, y los avisos que hoy nadie recibe. Con esas tres
+fases hechas, el resto del plan pasa de ser cirugía a ser mantenimiento.
+
+Un matiz que cambia el costo de arrancar: **buena parte de lo urgente es
+configuración, no código.** Dokploy ya trae copias de volumen a Cloudflare R2,
+trabajos programados, notificaciones de despliegue y monitoreo por contenedor, y
+ninguna de esas cuatro cosas está activada. F0 y F1b son, sobre todo, entrar al
+panel.
