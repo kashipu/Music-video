@@ -1,6 +1,6 @@
 # Modelo de Datos
 
-> **Índice:** [[README]] · **Autoridad sobre:** el esquema de la base · **Últ. cambio:** 2026-08-25
+> **Índice:** [[README]] · **Autoridad sobre:** el esquema de la base · **Últ. cambio:** 2026-08-25 · **Hallazgos de auditoría incorporados:** 2026-09-02
 > Si esta página contradice al código, gana el código y esta página tiene un bug.
 
 Repitela usa SQLite multi-venue. Al inicializar, activa WAL, claves foráneas, `busy_timeout=15000`, caché de 64 MB y `synchronous=NORMAL` (`backend/app/database.py:17-31`). Las migraciones se aplican por nombre en orden lexicográfico y quedan registradas en `_migrations` (`backend/app/database.py:41-79`).
@@ -47,7 +47,7 @@ El bar/cliente: `id`, `name`, `slug` único, `fallback_playlist`, `fallback_mode
 | `play_history` | `id`, `venue_id`, `user_id`, `youtube_id`, `title`, `artist`, `genre`, `played_at`, `duration_sec`; historial de reproducción. |
 | `song_metadata` | `youtube_id` PK, `title`, `artist`, `genre`, `tags` JSON, `duration_sec`, `first_seen_at`; catálogo local de videos conocidos. |
 | `fallback_songs` | `id`, `venue_id`, `youtube_id`, `title`, `thumbnail_url`, `duration_sec`, `position`, `active`, `added_at`; canciones de respaldo, únicas por `(venue_id, youtube_id)`. |
-| `blocked_videos` | `id`, `youtube_id` único, `venue_id` nullable, `error_code`, `title`, `blocked_at`; bloqueos de reproducción o embebido. |
+| `blocked_videos` | `id`, `youtube_id` **único**, `venue_id` nullable, `error_code`, `title`, `blocked_at`. ⚠️ **El índice único es sobre `youtube_id` solo**, así que un bloqueo es **global a toda la plataforma**, no por bar — aunque exista la columna `venue_id`. El código asume lo contrario. Ver WIL-57. |
 
 Las seis tablas están definidas en `001_initial_schema.sql:34-96`, `003_fallback_songs.sql` y `010_blocked_videos.sql`. `idx_queue_active_video` **sí existe**: es un índice único parcial sobre `(venue_id, youtube_id)` para estados `pending` y `playing` (`001_initial_schema.sql:50-53`).
 
@@ -60,6 +60,8 @@ Las seis tablas están definidas en `001_initial_schema.sql:34-96`, `003_fallbac
 | `platform_settings` | Fila única `id=1`, `trial_days`, `grace_period_days`, `monthly_price_cents`. |
 | `venue_billing_events` | `id`, `venue_id`, `kind` (`payment`, `trial`, `legacy`, `adjustment`), `source`, datos del creador, `amount_cents`, `days`, período, `status`, `provider_ref`, `raw_payload`, `notes`, `created_at`. Conserva el historial de cobros y ajustes. |
 | `_migrations` | `id`, `filename` único, `applied_at`; control interno de migraciones. |
+
+⚠️ **`venue_billing_events` es la excepción, no la regla:** es la única FK hacia `venues` con `ON DELETE CASCADE`. Las demás no lo tienen, así que borrar un bar son **10 `DELETE` sueltos escritos a mano y sin transacción** — si uno falla, el bar queda a medias. Y `email_tokens` ni siquiera está en esa lista. Ver WIL-121 y WIL-58.
 
 `venue_billing_events.venue_id` usa `ON DELETE CASCADE`; su índice de idempotencia hace único `(source, provider_ref)` cuando la referencia no es nula (`023_billing_adjustment.sql:5-33`). `platform_settings` se crea con una fila inicial en `013` y gana el precio en `021`.
 

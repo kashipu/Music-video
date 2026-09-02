@@ -1,9 +1,15 @@
 # Guía de desarrollo local — BarQueue / Repitela
 
-> **Índice:** [[README]] · **Autoridad sobre:** levantar el proyecto en local · **Últ. cambio:** 2026-05-05
+> **Índice:** [[README]] · **Autoridad sobre:** levantar el proyecto en local · **Últ. cambio:** 2026-05-05 · **Revisada contra el código:** 2026-09-02
 > Si esta página contradice al código, gana el código y esta página tiene un bug.
 
 Todo lo que necesitas para levantar el sistema localmente y probar las implementaciones.
+
+> **Revisión del 2026-09-02.** Esta guía tenía tres errores que impedían seguirla
+> tal cual. Corregidos abajo: el `.env` **no** viene en el repo, la ruta del
+> kiosco es `/video` y no `/kiosk`, y los comandos eran de PowerShell en un
+> equipo macOS. El bloque de variables estaba incompleto: faltaban las de
+> Turnstile, Brevo, Google y Wompi, añadidas después de que se escribiera.
 
 ---
 
@@ -51,12 +57,15 @@ pip install -r requirements.txt
 
 Copia el ejemplo y edítalo:
 
+El `.env` **no está versionado** (`.gitignore:15`). Hay que crearlo desde el
+ejemplo:
+
 ```bash
-# El archivo .env ya existe en el repo con valores de desarrollo
-# Solo necesitas agregar tu YouTube API Key
+cp .env.example .env
 ```
 
-Contenido del archivo `backend/.env`:
+Mínimo para arrancar en local. Todo lo demás tiene default en
+`backend/app/config.py`:
 
 ```env
 APP_ENV=development
@@ -70,11 +79,28 @@ YOUTUBE_API_KEY=           # <-- única clave que debes obtener (ver sección Yo
 CORS_ORIGINS=http://localhost:5173
 
 MAX_SONGS_PER_WINDOW=5
-WINDOW_MINUTES=30
+WINDOW_MINUTES=20          # OJO: produccion usa 30 (docker-compose.yml). Ver [[reglas-de-negocio]] BR-05
 
 JWT_EXPIRATION_HOURS=24
 JWT_ADMIN_EXPIRATION_HOURS=8
 ```
+
+Opcionales; sin ellas la feature correspondiente queda apagada o abierta, nunca
+rota:
+
+```env
+TURNSTILE_SECRET_KEY=      # vacia = el anti-bot acepta todo (util en local)
+BREVO_API_KEY=             # vacia = el link de verificacion se loguea en vez de enviarse
+GOOGLE_CLIENT_ID=          # vacia = login con Google no funciona
+WOMPI_PUBLIC_KEY=          # vacias = el checkout responde 503
+GOOGLE_SIGNUP=true         # kill-switches reversibles
+PAGOS=true
+```
+
+> `APP_SECRET_KEY=change-me-in-production` sirve en local, pero **el backend se
+> niega a arrancar** con ese valor si `APP_ENV=production` o si la clave tiene
+> menos de 32 caracteres (`config.py:44-50`). Es a propósito: con el secreto por
+> defecto cualquiera puede forjar un token de superadmin.
 
 ### 1.3 Inicializar la base de datos con datos de prueba
 
@@ -178,7 +204,7 @@ Reemplaza `{venue}` con `bar-dev` o `kiosko`.
 
 | Vista | URL | Quién la usa |
 |-------|-----|-------------|
-| Kiosco (pantalla del bar) | `/bar-dev/kiosk` | TV / pantalla del bar |
+| Kiosco (pantalla del bar) | `/bar-dev/video` | TV / pantalla del bar |
 | Panel admin | `/bar-dev/admin` | Admin del bar |
 | Registro de usuario (QR) | `/bar-dev/registro` | Clientes |
 | Dashboard de usuario | `/bar-dev/usuario` | Clientes (post-registro) |
@@ -214,7 +240,7 @@ Para probar todas las implementaciones recientes:
 
 ### Probar lista de respaldo (Fallback)
 
-1. Abre el kiosco: `http://localhost:5173/bar-dev/kiosk` → clic en **INICIAR REPRODUCTOR**
+1. Abre el kiosco: `http://localhost:5173/bar-dev/video` → clic en **INICIAR REPRODUCTOR**
 2. Abre el panel admin: `http://localhost:5173/bar-dev/admin`
 3. En el admin, ve a la sección de playlist de respaldo e importa una playlist de YouTube
 4. Activa la playlist desde el admin
@@ -252,12 +278,8 @@ Para probar todas las implementaciones recientes:
 Si necesitas empezar desde cero:
 
 ```bash
-# Desde la raíz del proyecto
-Remove-Item backend\data\barqueue.db -ErrorAction SilentlyContinue
-
-# Luego vuelve a correr el seed
-cd backend
-python -m app.db.seed
+rm -f backend/data/barqueue.db
+cd backend && python -m app.db.seed
 ```
 
 ---
@@ -266,13 +288,17 @@ python -m app.db.seed
 
 ```bash
 # Backend (terminal 1)
-cd backend && .\venv\Scripts\Activate.ps1 && uvicorn app.main:app --reload --port 8000
+cd backend && source venv/bin/activate && uvicorn app.main:app --reload --port 8000
 
 # Frontend (terminal 2)
 cd frontend && npm run dev
 
 # Reset DB + seed
-Remove-Item backend\data\barqueue.db -Force; cd backend; python -m app.db.seed
+rm -f backend/data/barqueue.db && cd backend && python -m app.db.seed
+
+# Tests del backend: en Docker, no con el python local (3.9 vs 3.11 del proyecto)
+# y siempre con timeout: una conexion aiosqlite sin cerrar cuelga a pytest en verde.
+docker compose run --rm backend timeout 120 python -m pytest
 
 # Ver logs del backend en tiempo real
 uvicorn app.main:app --reload --port 8000 --log-level debug

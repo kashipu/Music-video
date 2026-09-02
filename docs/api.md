@@ -3,7 +3,14 @@
 > **Índice:** [[README]] · **Autoridad sobre:** los 86 endpoints y su contrato · **Últ. cambio:** 2026-08-25
 > Si esta página contradice al código, gana el código y esta página tiene un bug.
 
-Base URL en producción: `https://{domain}/api`  
+Base URL en producción: `https://{domain}/api`
+
+> ⚠️ **La API no tiene versionado (2026-09-02).** Todo cuelga de `/api/` sin
+> número de versión, así que un cliente viejo y uno nuevo piden la misma
+> dirección. Las pantallas de los bares llevan días o semanas sin recargar: hoy
+> **no hay forma segura de hacer un cambio incompatible**. Eso bloquea la
+> separación de `/api/admin`, la unificación de tenancy y el paso de los seis
+> POST con estado en query string a body. Rastreado en WIL-207.  
 Base URL en desarrollo: `http://localhost:8000/api`
 
 ---

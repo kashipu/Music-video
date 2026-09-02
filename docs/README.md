@@ -26,9 +26,13 @@ cuál ganó y por qué.
 
 ## Páginas
 
-La fecha es la del último commit que tocó el archivo, no la de una revisión.
-**Una fecha vieja no significa que esté mal — significa que nadie lo ha
-verificado desde entonces.**
+La fecha es la del último commit que tocó el archivo. **Una fecha vieja no
+significa que esté mal — significa que nadie lo ha verificado desde
+entonces.** `rev. <fecha>` sí es una revisión contra el código.
+
+Las páginas revisadas el 2026-09-02 llevan marcadas con ⚠️ las afirmaciones
+que el código **no cumple**. Se dejan escritas en vez de borrarlas: la regla
+que alguien creyó cierta es la que hay que rastrear.
 
 ### Cómo funciona el sistema
 
@@ -38,8 +42,8 @@ verificado desde entonces.**
 | [[arquitectura]] | Topología del backend y flujo de una petición | 2026-08-25 |
 | [[arquitectura-frontend]] | Capas del frontend, naming, techos de línea, Storybook | 2026-08-27 |
 | [[modelo-de-datos]] | Las 16 tablas y sus relaciones | 2026-08-25 |
-| [[eventos-tiempo-real]] | Qué manda el WebSocket y cuándo | 2026-03-29 ⚠️ |
-| [[reglas-de-negocio]] | Límites, cola, suscripción, roles | 2026-05-05 ⚠️ |
+| [[eventos-tiempo-real]] | Qué manda el WebSocket y cuándo | rev. 2026-09-02 |
+| [[reglas-de-negocio]] | Límites, cola, suscripción, roles | rev. 2026-09-02 |
 
 ### Operar
 
@@ -47,7 +51,7 @@ verificado desde entonces.**
 |---|---|---|
 | [[despliegue]] | Dokploy, variables, backups a R2, staging | 2026-09-02 |
 | [[capacidad]] | Cuántos bares aguanta y dónde se rompe | 2026-08-25 |
-| [[entorno-local]] | Levantar el proyecto en una máquina | 2026-05-05 ⚠️ |
+| [[entorno-local]] | Levantar el proyecto en una máquina | rev. 2026-09-02 |
 | [[contribuir]] | Ramas, commits, PRs | 2026-09-01 |
 | [[plan-de-pruebas]] | Qué se prueba y cómo | 2026-08-25 |
 | [[analitica]] | Qué se mide y de dónde sale cada KPI | 2026-08-25 |
