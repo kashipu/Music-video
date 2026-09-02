@@ -484,6 +484,66 @@ Es un **302, no un 301**, a propósito: un 301 lo cachea el navegador de forma
 permanente y dejaría de poderse cambiar el destino en los teléfonos que ya lo
 escanearon.
 
+### La regla general: la UTM va en el redirect, no en el código
+
+Aprendido con el sticker y **verificado en producción el 2026-09-02**. Aplica a
+cualquier QR, impreso o en pantalla:
+
+> **Lo que se imprime es un puntero corto. Los parámetros se ponen en el
+> servidor.**
+
+Dos razones, y la segunda pesa más:
+
+1. **Densidad.** Cada carácter añade módulos. Un QR más denso necesita más
+   tamaño físico o más cercanía para leerse. Las UTM son largas y no aportan
+   nada al lector.
+2. **Lo impreso no se edita.** Con los parámetros en el redirect se puede
+   renombrar la campaña, cambiar el destino o corregir un error sin reimprimir
+   ni volver a pegar un solo sticker.
+
+Detalles que costaron un despliegue aprender:
+
+- **302, no 301.** El 301 se cachea en el navegador de forma permanente y el
+  destino deja de poder cambiarse en los teléfonos que ya escanearon.
+- **`absolute_redirect off`.** Nginx corre detrás de Traefik, que termina el
+  TLS. Sin esa directiva reconstruye el `Location` en `http://` y cada escaneo
+  paga un salto extra para volver a `https`. Se detectó mirando la cabecera
+  `Location` real en producción, no leyendo la config.
+
+### Los otros dos QR de la aplicación — sin marcar
+
+Verificado el 2026-09-02: **no llevan ninguna UTM**, así que todo el tráfico que
+entra escaneando en un bar cae en GA4 como `direct` y es indistinguible de
+alguien que escribió la dirección a mano.
+
+| QR | Dónde se genera | Uso | Estado |
+|---|---|---|---|
+| De mesa | `useAdminDashboard.js:110-117`, se imprime desde el panel | Pegado en cada mesa | Sin UTM |
+| De pantalla | `Kiosk.vue:18-19` | En la TV del bar, se escanea de lejos | Sin UTM |
+
+Ambos apuntan a `/{slug}/registro`. La app lleva el **mismo** contenedor de GTM
+que la landing (`GTM-PPVKNTZB`, `frontend/index.html:9`), así que marcarlos sí
+mide — no hace falta montar nada nuevo.
+
+Medido, con `https://app.repitela.com/la-terraza/registro`:
+
+| Opción | Caracteres | Módulos | A 3 cm | A 2 cm |
+|---|---|---|---|---|
+| Hoy, sin UTM | 44 | 37 | 0,67 mm | 0,44 mm |
+| UTM inline | 74 | **49** | 0,53 mm | 0,35 mm ❌ |
+| Redirect `/{slug}/r` | 37 | 37 | 0,67 mm | 0,44 mm |
+
+**Poner la UTM inline encarece el QR y el de pantalla se escanea de lejos**, que
+es el caso más exigente. El redirect deja el código igual de simple que hoy y
+además permite cambiar la marcación sin tocar los QR ya impresos y pegados en
+las mesas.
+
+`utm_source` propuesto: `mesa` para el impreso y `pantalla` para el de la TV.
+`utm_medium=qr` en los dos, para que sigan agrupando con el sticker.
+Sin `utm_campaign`: el bar ya va en la ruta y GA4 segmenta por página de destino.
+
+Rastreado en WIL-226.
+
 ### Medidas del sticker, para que no se interprete mal
 
 Los **2 × 2 cm son la caja blanca completa, con la zona tranquila dentro**.
