@@ -440,3 +440,36 @@ El backend tambien registra eventos en la tabla `analytics_events` y calcula met
 - [ ] `repitela_song_confirmed` → tiene `queue_position`, `time_to_confirm_sec`
 - [ ] `repitela_session_expired` → tiene `expiry_reason`, `session_duration_sec`
 - [ ] Todos los eventos → tienen `venue_slug`, `session_duration_sec`
+
+## Convención de UTM
+
+Establecida el 2026-09-02 con el primer QR impreso. **No inventar otra**: si dos
+piezas usan esquemas distintos, GA4 las cuenta como canales distintos y el
+informe deja de servir.
+
+| Parámetro | Qué significa | Valores en uso |
+|---|---|---|
+| `utm_medium` | El **tipo de canal**. Es el eje por el que se agrupa | `qr` |
+| `utm_source` | La **pieza concreta** de donde viene | `sticker` |
+| `utm_campaign` | La **tirada**, para distinguir lotes | `stickers-2026-09` |
+
+Con esa forma, GA4 agrupa por `medium=qr` todo el tráfico que entra escaneando
+—stickers, portamenús, afiches— y luego se abre por `source` para ver cuál
+funciona. Añadir una superficie nueva es un `source` nuevo, no un esquema nuevo.
+
+`utm_campaign` lleva la fecha porque una segunda tirada de stickers con otro
+diseño o en otros barrios tiene que poder compararse contra la primera. No cuesta
+nada: el QR ocupa los mismos módulos con o sin ella.
+
+### Piezas vivas
+
+| Pieza | URL | Archivo |
+|---|---|---|
+| Sticker impreso, tirada sep-2026 | `https://repitela.com/?utm_source=sticker&utm_medium=qr&utm_campaign=stickers-2026-09` | `landing/public/qr-sticker-200.png` y `.svg` |
+
+**Para imprimir usar siempre el SVG.** Los 200 px del PNG son una medida de
+pantalla: a 300 dpi son 1,7 cm, demasiado pequeño para que un teléfono lo lea.
+El SVG es vectorial y sale nítido a cualquier tamaño.
+
+No confundir con el QR **de cada bar**, que es otra cosa: lo genera el sistema
+por bar, va en las mesas y hoy depende de un servicio externo (WIL-201).
