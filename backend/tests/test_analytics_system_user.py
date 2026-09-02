@@ -1,9 +1,13 @@
 import aiosqlite
 import pytest
+import pytest_asyncio
 
 from app.services import analytics_service
 
 
+# aiosqlite corre cada conexión en un hilo no-daemon: si no se cierra,
+# pytest termina en verde y se queda colgado al salir.
+@pytest_asyncio.fixture
 async def analytics_db(monkeypatch):
     db = await aiosqlite.connect(":memory:", isolation_level=None)
     await db.executescript(
@@ -45,12 +49,12 @@ async def analytics_db(monkeypatch):
         return db
 
     monkeypatch.setattr(analytics_service, "get_db", test_db)
-    return db
+    yield db
+    await db.close()
 
 
 @pytest.mark.asyncio
-async def test_system_user_excluded_from_unique_visitor_count(monkeypatch):
-    await analytics_db(monkeypatch)
+async def test_system_user_excluded_from_unique_visitor_count(analytics_db):
 
     result = await analytics_service.get_analytics(venue_id=1, period="all")
 
@@ -59,8 +63,7 @@ async def test_system_user_excluded_from_unique_visitor_count(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_system_user_excluded_from_daily_people_count(monkeypatch):
-    await analytics_db(monkeypatch)
+async def test_system_user_excluded_from_daily_people_count(analytics_db):
 
     result = await analytics_service.get_daily_analytics(venue_id=1, period="all")
 
