@@ -42,6 +42,7 @@ const {
   syncNowPlaying, fetchDailyPin, fetchNowPlaying, playFallback, nextFallback,
   handleFallbackSkip, handleFallbackSongEnded, fetchQueuePreview,
   hideBannerAutomatically, showBanner, reportError, reportFinished, updatePlaybackStatus,
+  ensureKioskToken,
 } = useKioskPlayback({
   venueSlug,
   getPlayer: () => ytPlayer,
@@ -184,6 +185,10 @@ function applyVolume(vol) {
 let pollInterval = null
 
 onMounted(async () => {
+  // Antes que nada: cambiar la sesion del admin (8h) por la credencial de la
+  // pantalla (semanas). Sin esto, play/fin/error dejan de reportarse de noche.
+  await ensureKioskToken()
+
   // Apply venue theme
   try {
     const adminRaw = localStorage.getItem('bq_admin')
@@ -317,13 +322,11 @@ async function onPlayerError(event) {
   // User song failed — notify backend to skip and advance (max 2 attempts)
   if (song.value && song.value.id) {
     const songId = song.value.id
-    let adminToken = null
-    try { adminToken = localStorage.getItem('bq_admin_token') } catch { /* */ }
     let handled = false
     for (let attempt = 0; attempt < 2 && !handled; attempt++) {
       if (attempt > 0) await new Promise(r => setTimeout(r, 500))
       try {
-        const data = await reportError(songId, errorCode, adminToken)
+        const data = await reportError(songId, errorCode)
         if (data) {
           handled = true
           if (data.next_song) {
@@ -384,10 +387,8 @@ async function onPlayerStateChange(event) {
     } else {
       // User song ended — notify backend to advance queue
       const songId = song.value.id
-      let adminToken = null
-      try { adminToken = localStorage.getItem('bq_admin_token') } catch { /* */ }
       try {
-        const data = await reportFinished(songId, adminToken)
+        const data = await reportFinished(songId)
         if (data) {
           if (data.next_song) {
             // Backend returned next song — load it directly without waiting for WS

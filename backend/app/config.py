@@ -25,6 +25,9 @@ class Settings(BaseSettings):
 
     jwt_expiration_hours: int = 24
     jwt_admin_expiration_hours: int = 8
+    # El Kiosk vive encendido en el TV del bar toda la noche: su credencial no
+    # puede caducar en 8h como la del admin o la pantalla deja de avanzar canciones.
+    jwt_kiosk_expiration_hours: int = 720
 
     wompi_public_key: str = ""
     wompi_integrity_secret: str = ""

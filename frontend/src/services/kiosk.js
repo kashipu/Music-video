@@ -25,30 +25,37 @@ export function getDailyPin(adminToken) {
   return request('/api/admin/daily-pin', { adminToken })
 }
 
-export function reportFallbackPlaying(venueSlug, song) {
-  return request(`/api/playback/fallback-playing?venue=${encodeURIComponent(venueSlug)}&youtube_id=${encodeURIComponent(song.youtube_id)}&title=${encodeURIComponent(song.title)}`, { method: 'POST' })
+// El token de admin caduca a las 8h y nadie lo renueva; la pantalla del bar
+// queda encendida toda la noche. Al abrir el Kiosk, el admin autenticado emite
+// esta credencial de larga duracion y con ella se reportan play/fin/error.
+export function getKioskToken(adminToken) {
+  return request('/api/admin/kiosk-token', { method: 'POST', adminToken })
 }
 
-export function startPlaying(venueSlug, songId, adminToken) {
-  return request(`/api/queue/start-playing/${songId}?venue=${encodeURIComponent(venueSlug)}`, { method: 'POST', adminToken })
+export function reportFallbackPlaying(song, kioskToken) {
+  return request(`/api/playback/fallback-playing?youtube_id=${encodeURIComponent(song.youtube_id)}&title=${encodeURIComponent(song.title)}`, { method: 'POST', adminToken: kioskToken })
+}
+
+export function startPlaying(songId, kioskToken) {
+  return request(`/api/queue/start-playing/${songId}`, { method: 'POST', adminToken: kioskToken })
 }
 
 export function getQueue(venueSlug) {
   return request(`/api/queue?venue=${venueSlug}`)
 }
 
-export function reportPlaybackError(songId, venueSlug, errorCode, adminToken) {
+export function reportPlaybackError(songId, venueSlug, errorCode, kioskToken) {
   return request('/api/playback/error', {
     method: 'POST',
-    adminToken,
+    adminToken: kioskToken,
     json: { song_id: songId, venue_slug: venueSlug, error_code: errorCode },
   })
 }
 
-export function reportPlaybackFinished(songId, venueSlug, adminToken) {
+export function reportPlaybackFinished(songId, venueSlug, kioskToken) {
   return request('/api/playback/finished', {
     method: 'POST',
-    adminToken,
+    adminToken: kioskToken,
     json: { song_id: songId, venue_slug: venueSlug },
   })
 }
