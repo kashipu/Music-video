@@ -1,5 +1,8 @@
 # Eventos en Tiempo Real — BarQueue
 
+> **Índice:** [[README]] · **Autoridad sobre:** los eventos de WebSocket · **Últ. cambio:** 2026-03-29 · **Revisada contra el código:** 2026-09-02
+> Si esta página contradice al código, gana el código y esta página tiene un bug.
+
 ## Arquitectura
 
 ```
@@ -32,6 +35,27 @@ Backend (FastAPI)
 | `session_kicked` | send_to_user | admin/kick | `{message}` |
 | `rate_limit_reset` | send_to_user | admin/reset-limit, playback/finished | `{message}` |
 | `banner_changed` | broadcast | admin/banner | `{banner_text, show_brand?}` |
+| `qr_visibility_changed` | broadcast | admin/qr | `{show_qr, qr_size}` |
+| `fallback_skip` | broadcast | admin/play-now, skip, fallback-play | `{}` — sin payload |
+| `song_error` | broadcast | playback/error | `{song_id, error_code, title, message}` |
+| `song_error_notification` | send_to_user | playback/error | `{title, youtube_id, error_code, message}` |
+
+> **Revisión del 2026-09-02.** Los 13 eventos originales siguen existiendo. Se
+> añadieron los **cuatro últimos**, que el código emite y el frontend escucha
+> desde hace meses sin estar documentados:
+>
+> - `fallback_skip` — sin payload; su único trabajo es que el kiosco cambie de
+>   canción **ya** en vez de esperar a que termine la pista de respaldo.
+>   `admin.py:197,351,363,412,485,489`.
+> - `qr_visibility_changed` — el QR en pantalla se controla aparte de
+>   `banner_changed`. `admin.py:711`.
+> - `song_error` / `song_error_notification` — el par de errores de vídeo:
+>   uno al bar, otro al cliente que pidió la canción. `playback.py:165,179`.
+>
+> `song_error` se emite **dentro de un `try/except` que traga la excepción**
+> (`playback.py:173-174`): si el broadcast falla, nadie se entera. Es a
+> propósito —el objetivo era no romper el flujo del kiosco— pero significa que
+> un error de vídeo puede perderse en silencio.
 
 ## Acciones y sus Efectos en Cada Vista
 

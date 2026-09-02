@@ -1,5 +1,8 @@
 # Plan de Medicion - Repitela Analytics
 
+> **Índice:** [[README]] · **Autoridad sobre:** qué se mide y de dónde sale · **Últ. cambio:** 2026-08-25
+> Si esta página contradice al código, gana el código y esta página tiene un bug.
+
 ## Resumen
 
 Repitela usa Google Tag Manager (GTM-PPVKNTZB) para enviar eventos a GA4. Los eventos se pushean al `dataLayer` desde el frontend y GTM los captura y envia a Google Analytics.
@@ -437,3 +440,83 @@ El backend tambien registra eventos en la tabla `analytics_events` y calcula met
 - [ ] `repitela_song_confirmed` → tiene `queue_position`, `time_to_confirm_sec`
 - [ ] `repitela_session_expired` → tiene `expiry_reason`, `session_duration_sec`
 - [ ] Todos los eventos → tienen `venue_slug`, `session_duration_sec`
+
+## Convención de UTM
+
+Establecida el 2026-09-02 con el primer QR impreso. **No inventar otra**: si dos
+piezas usan esquemas distintos, GA4 las cuenta como canales distintos y el
+informe deja de servir.
+
+| Parámetro | Qué significa | Valores en uso |
+|---|---|---|
+| `utm_medium` | El **tipo de canal**. Es el eje por el que se agrupa | `qr` |
+| `utm_source` | La **pieza concreta** de donde viene | `sticker` |
+| `utm_campaign` | La **tirada**, para distinguir lotes | `primeros-stickers` |
+
+Con esa forma, GA4 agrupa por `medium=qr` todo el tráfico que entra escaneando
+—stickers, portamenús, afiches— y luego se abre por `source` para ver cuál
+funciona. Añadir una superficie nueva es un `source` nuevo, no un esquema nuevo.
+
+`utm_campaign` nombra la tirada para poder comparar lotes. Se usa un nombre
+legible (`primeros-stickers`) y no una fecha: en el informe de GA4 lo que se lee
+es el nombre, y "de qué tirada era" se responde mejor con una palabra que con un
+mes. Como vive en el redirect y no en el papel, se puede renombrar cuando haga
+falta.
+
+### Piezas vivas
+
+| Pieza | Lo que lleva impreso | A dónde va | Archivos |
+|---|---|---|---|
+| Sticker 9×2,5 cm, QR de 2×2 cm, primera tirada | `https://repitela.com/s` | `/?utm_source=sticker&utm_medium=qr&utm_campaign=primeros-stickers` | `qr-sticker-caja-20mm.png` (arte final) y `.svg` (maestro) |
+
+**La UTM no va impresa: va en el redirect** (`landing/nginx.conf`, `location = /s`).
+Dos razones, y la segunda importa más que la primera:
+
+1. **No cabe.** A 2×2 cm, la URL completa con UTM son 53 módulos = **0,33 mm por
+   módulo**, por debajo de lo que un teléfono lee con fiabilidad. Bajar la
+   corrección de errores a media da 0,41 mm, que sigue siendo justo para vinilo
+   impreso. Con `/s` son 29 módulos y **0,54 mm**, cómodo.
+2. **Un sticker impreso no se puede editar.** Con la UTM en el redirect, se
+   puede renombrar la campaña, cambiar el destino o corregir un error **sin
+   reimprimir nada**. Con la UTM impresa, el vinilo queda congelado para siempre.
+
+Es un **302, no un 301**, a propósito: un 301 lo cachea el navegador de forma
+permanente y dejaría de poderse cambiar el destino en los teléfonos que ya lo
+escanearon.
+
+### Medidas del sticker, para que no se interprete mal
+
+Los **2 × 2 cm son la caja blanca completa, con la zona tranquila dentro**.
+No el código solo. Si se toma como el código solo, la caja tendría que medir
+**25,5 mm** y no cabría en un sticker de 25 mm de alto.
+
+| Elemento | Medida |
+|---|---|
+| Caja blanca | 20 × 20 mm |
+| Símbolo (los 29 módulos) | 15,7 mm |
+| Zona tranquila | 2,2 mm por lado (= 4 módulos) |
+| Un módulo | 0,54 mm |
+
+`qr-sticker-caja-20mm.png` ya viene con la caja blanca y las esquinas
+redondeadas: se coloca a 20 × 20 mm y no hay nada que ajustar. Son 999 px
+(**1269 dpi** a ese tamaño), con **27 px por módulo exactos** —sin decimales, así
+que no hay bordes borrosos— y la resolución física escrita en el archivo
+(`pHYs`), de modo que se abre ya a 20 mm en Illustrator o Photoshop.
+
+Las esquinas son transparentes (RGBA), no blancas: así el redondeo se ve bien
+sobre el sticker negro y sobre el blanco sin recortar nada.
+
+El `.svg` se conserva como maestro por si hay que regenerarlo a otro tamaño.
+
+**En la versión negra del sticker, ese blanco no es decorativo.** Es lo que
+separa el código del fondo oscuro; recortarlo para ganar espacio hace que
+muchos lectores dejen de encontrarlo.
+
+Nunca invertir el QR (módulos blancos sobre negro): buena parte de los lectores
+no lo procesan.
+
+**Escalar solo de forma proporcional.** Si hay que cambiar el tamaño, mejor
+regenerar desde el `.svg` que estirar el PNG.
+
+No confundir con el QR **de cada bar**, que es otra cosa: lo genera el sistema
+por bar, va en las mesas y hoy depende de un servicio externo (WIL-201).

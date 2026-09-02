@@ -1,6 +1,13 @@
 # Reglas de Negocio - BarQueue
 
+> **Índice:** [[README]] · **Autoridad sobre:** límites, cola, suscripción y roles · **Últ. cambio:** 2026-05-05 · **Revisada contra el código:** 2026-09-02
+> Si esta página contradice al código, gana el código y esta página tiene un bug.
+
 Este documento es la fuente de verdad para todas las reglas de dominio de la aplicación. Cada regla tiene un identificador único para trazabilidad.
+
+> **Revisión del 2026-09-02.** Se verificaron las reglas contra el código. **Dos
+> no se cumplen** y están marcadas abajo con ⚠️. Una regla escrita que el código
+> no aplica es peor que no tenerla: alguien construye encima creyéndola cierta.
 
 ---
 
@@ -18,7 +25,11 @@ El usuario accede al sistema escaneando un código QR ubicado en su mesa. El QR 
 
 - La sesión del cliente se genera al completar el registro
 - Se materializa como un JWT con expiración de **24 horas**
-- Un usuario puede tener una sola sesión activa por venue a la vez
+- ⚠️ **No se cumple.** "Un usuario tiene una sola sesión activa por venue" es
+  la intención, pero **no hay ninguna restricción que lo garantice**: no existe
+  índice único ni chequeo en `user_sessions`. El mismo teléfono puede abrir
+  sesiones simultáneas desde varios dispositivos. Verificado el 2026-09-02.
+  Rastreado en WIL-123.
 - El token incluye: `user_id`, `phone`, `venue_id`, `table_number`, `exp`
 
 ### BR-03: Autenticación de administrador
@@ -37,11 +48,28 @@ El usuario accede al sistema escaneando un código QR ubicado en su mesa. El QR 
 Las canciones se reproducen estrictamente en **orden de llegada** (First In, First Out).
 
 - Cada canción recibe un `position` = `MAX(position) + 1` al ser confirmada
+- El par `SELECT MAX(position)` + `INSERT` se serializa con un **lock por venue
+  en memoria del proceso** (`queue_service.py:15,113`). Sin él, dos peticiones
+  concurrentes obtienen la misma posición y el FIFO se rompe.
+  **Ese lock deja de funcionar con más de un worker**: es una de las razones por
+  las que el backend está atado a `-w 1`. La garantía real la daría un índice
+  `UNIQUE(venue_id, position) WHERE status = 'pending'`, que no existe.
+  Ver [[decisions/sqlite-como-base]] y WIL-134
 - El admin puede alterar el orden manualmente (ver BR-09)
 
 ### BR-05: Rate limiting por usuario
 
-Un usuario puede encolar un **máximo de 5 canciones en cualquier ventana de 30 minutos** (rolling window).
+⚠️ **La ventana no es siempre 30 minutos, y depende del entorno.**
+
+| Dónde | Valor | Origen |
+|---|---|---|
+| Producción | **30 min** | `docker-compose.yml:40` pasa `WINDOW_MINUTES=30` |
+| Local / tests | **20 min** | `backend/app/config.py:24`, el default de `Settings` |
+
+Un usuario puede encolar un **máximo de 5 canciones** (`MAX_SONGS_PER_WINDOW`) en
+esa ventana móvil. Los dos defaults divergen desde que se añadió la variable al
+Compose: reproducir un límite en local no da el mismo resultado que en
+producción. Verificado el 2026-09-02.
 
 - Se cuenta por registros en `submission_log` donde `submitted_at > NOW() - 30 minutos`
 - El conteo es **por venue** (si el usuario está en otro bar, es independiente)

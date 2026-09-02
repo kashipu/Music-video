@@ -1,7 +1,19 @@
 # Capacidad y limites de escala
 
+> **Índice:** [[README]] · **Autoridad sobre:** los límites de escala medidos · **Últ. cambio:** 2026-08-25
+> Si esta página contradice al código, gana el código y esta página tiene un bug.
+
 Medido el 2026-08-12. Escenario objetivo: **15 bares x 100 personas = 1500 usuarios
 concurrentes**.
+
+> **No confundir dos "workers" distintos (nota del 2026-09-02).** Esta página
+> mide `worker_connections` de **nginx**, que es cuántas conexiones acepta el
+> proxy. El otro techo, que esta página **no mide**, es el **único worker
+> asyncio del backend** (`-w 1` en `backend/Dockerfile`): un solo proceso sirve
+> la API, hace el broadcast de WebSocket y entrega los logos. No se puede subir
+> a más de uno mientras el estado viva en memoria (WIL-68) y el lock de
+> posiciones de cola sea por proceso. Ver [[decisions/sqlite-como-base]],
+> WIL-69 y WIL-200.
 
 Conclusion corta: el backend aguanta ese escenario con muchisimo margen. El primer
 techo real era `worker_connections` de nginx, **resuelto y medido el 2026-08-21**

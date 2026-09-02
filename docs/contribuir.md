@@ -1,5 +1,8 @@
 # Contribuir a BarQueue
 
+> **Índice:** [[README]] · **Autoridad sobre:** ramas, commits y PRs · **Últ. cambio:** 2026-09-01
+> Si esta página contradice al código, gana el código y esta página tiene un bug.
+
 ## Setup del Entorno de Desarrollo
 
 ### Requisitos
@@ -41,8 +44,8 @@ npm run dev
 ```
 
 El frontend corre en `http://localhost:5173` y hace proxy al backend en `http://localhost:8000`.
-Storybook: `cd frontend && npm run storybook` abre en `http://localhost:6006`. Para detalles del sistema de temas, tokens y cómo agregar presets, ver [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md).
-Arquitectura del frontend (capas, límites de tamaño, dónde va cada cosa): ver [FRONTEND_ARCHITECTURE.md](FRONTEND_ARCHITECTURE.md).
+Storybook: `cd frontend && npm run storybook` abre en `http://localhost:6006`. Para detalles del sistema de temas, tokens y cómo agregar presets, ver [DESIGN_SYSTEM.md](sistema-de-diseno.md).
+Arquitectura del frontend (capas, límites de tamaño, dónde va cada cosa): ver [FRONTEND_ARCHITECTURE.md](arquitectura-frontend.md).
 
 ---
 
