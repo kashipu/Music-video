@@ -12,6 +12,8 @@ services:
       # Sin default a proposito: el backend falla al arrancar si no se define.
       - APP_SECRET_KEY=${APP_SECRET_KEY:?definir APP_SECRET_KEY en .env}
       - DATABASE_PATH=/data/barqueue.db
+      # Aviso por correo a los superadmins antes del limite practico de SQLite (~500 MB).
+      - DB_SIZE_ALERT_THRESHOLD_BYTES=${DB_SIZE_ALERT_THRESHOLD_BYTES:-419430400}
       - YOUTUBE_API_KEY=${YOUTUBE_API_KEY:-}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
       # Kill-switches reversibles (WIL-151). Ausente o true = encendido; poner
