@@ -1,9 +1,13 @@
 import aiosqlite
 import pytest
+import pytest_asyncio
 
 from app.services import playback_service
 
 
+# aiosqlite corre cada conexión en un hilo no-daemon: si no se cierra,
+# pytest termina en verde y se queda colgado al salir.
+@pytest_asyncio.fixture
 async def playback_db(monkeypatch):
     """Two venues, each with a song currently 'playing' — models an attacker on
     venue A submitting venue B's song_id (song ids are global, guessable ints)."""
@@ -52,12 +56,13 @@ async def playback_db(monkeypatch):
         return db
 
     monkeypatch.setattr(playback_service, "get_db", test_db)
-    return db
+    yield db
+    await db.close()
 
 
 @pytest.mark.asyncio
-async def test_finish_song_ignores_other_venues_song(monkeypatch):
-    db = await playback_db(monkeypatch)
+async def test_finish_song_ignores_other_venues_song(playback_db):
+    db = playback_db
 
     # Attacker on venue 1 claims venue 2's song id 100 as finished.
     result = await playback_service.finish_song(song_id=100, venue_id=1)
@@ -70,8 +75,8 @@ async def test_finish_song_ignores_other_venues_song(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_error_song_ignores_other_venues_song(monkeypatch):
-    db = await playback_db(monkeypatch)
+async def test_error_song_ignores_other_venues_song(playback_db):
+    db = playback_db
 
     result = await playback_service.error_song(song_id=100, venue_id=1, error_code=150)
 
