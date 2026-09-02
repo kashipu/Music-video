@@ -467,7 +467,7 @@ falta.
 
 | Pieza | Lo que lleva impreso | A dónde va | Archivos |
 |---|---|---|---|
-| Sticker 2×2 cm, primera tirada | `https://repitela.com/s` | `/?utm_source=sticker&utm_medium=qr&utm_campaign=primeros-stickers` | `landing/public/qr-sticker-20mm.svg` y `qr-sticker-600.png` |
+| Sticker 9×2,5 cm, QR de 2×2 cm, primera tirada | `https://repitela.com/s` | `/?utm_source=sticker&utm_medium=qr&utm_campaign=primeros-stickers` | `qr-sticker-caja-20mm.svg` (para arte final), `qr-sticker-20mm.svg` (sin caja), `qr-sticker-600.png` |
 
 **La UTM no va impresa: va en el redirect** (`landing/nginx.conf`, `location = /s`).
 Dos razones, y la segunda importa más que la primera:
@@ -483,6 +483,29 @@ Dos razones, y la segunda importa más que la primera:
 Es un **302, no un 301**, a propósito: un 301 lo cachea el navegador de forma
 permanente y dejaría de poderse cambiar el destino en los teléfonos que ya lo
 escanearon.
+
+### Medidas del sticker, para que no se interprete mal
+
+Los **2 × 2 cm son la caja blanca completa, con la zona tranquila dentro**.
+No el código solo. Si se toma como el código solo, la caja tendría que medir
+**25,5 mm** y no cabría en un sticker de 25 mm de alto.
+
+| Elemento | Medida |
+|---|---|
+| Caja blanca | 20 × 20 mm |
+| Símbolo (los 29 módulos) | 15,7 mm |
+| Zona tranquila | 2,2 mm por lado (= 4 módulos) |
+| Un módulo | 0,54 mm |
+
+`qr-sticker-caja-20mm.svg` ya viene con la caja blanca y las esquinas
+redondeadas: se coloca a 20 × 20 mm y no hay nada que ajustar.
+
+**En la versión negra del sticker, ese blanco no es decorativo.** Es lo que
+separa el código del fondo oscuro; recortarlo para ganar espacio hace que
+muchos lectores dejen de encontrarlo.
+
+Nunca invertir el QR (módulos blancos sobre negro): buena parte de los lectores
+no lo procesan.
 
 **Para imprimir usar el SVG**, que ya viene dimensionado a 20 × 20 mm. El PNG de
 600 px equivale a 762 dpi a ese tamaño y sirve de respaldo si la imprenta no
