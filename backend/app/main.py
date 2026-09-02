@@ -1,4 +1,5 @@
 import os
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -6,8 +7,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 
 from app.config import settings
-from app.database import init_db, close_db
+from app.database import init_db, close_db, get_db
 from app.routers import auth, queue, admin, admin_auth, playback, websocket, superadmin, billing, test
+from app.services import email_service
+
+logger = logging.getLogger(__name__)
+_db_size_alerted = False
 
 
 def get_logos_dir():
@@ -43,6 +48,39 @@ async def cleanup_old_data():
         pass
 
 
+async def check_database_size() -> bool:
+    """Alert once while the SQLite database remains above its configured limit."""
+    global _db_size_alerted
+    try:
+        size_bytes = os.path.getsize(settings.database_path)
+    except OSError:
+        logger.warning("Could not read database size for %s", settings.database_path)
+        return False
+
+    if size_bytes <= settings.db_size_alert_threshold_bytes:
+        _db_size_alerted = False
+        return False
+    if _db_size_alerted:
+        return True
+
+    db = await get_db()
+    recipients = await db.execute_fetchall(
+        "SELECT email FROM super_admins "
+        "WHERE COALESCE(role, 'super_admin') = 'super_admin' AND email IS NOT NULL AND email != ''"
+    )
+    size_mb = size_bytes / 1024 / 1024
+    threshold_mb = settings.db_size_alert_threshold_bytes / 1024 / 1024
+    for row in recipients:
+        await email_service.send_email(
+            row[0],
+            "Alerta: la base de datos de Repitela crece",
+            f"<p>La base de datos ocupa {size_mb:.1f} MiB y superó el umbral de {threshold_mb:.0f} MiB.</p>",
+        )
+    logger.warning("Database size alert: %.1f MiB exceeds %.0f MiB", size_mb, threshold_mb)
+    _db_size_alerted = True
+    return True
+
+
 async def _hourly_cleanup_loop():
     # The container runs for weeks (restart: unless-stopped), so a
     # startup-only cleanup never fires again; this loop keeps it periodic.
@@ -50,6 +88,7 @@ async def _hourly_cleanup_loop():
     while True:
         await asyncio.sleep(3600)
         await cleanup_old_data()
+        await check_database_size()
 
 
 @asynccontextmanager
@@ -57,6 +96,7 @@ async def lifespan(app: FastAPI):
     import asyncio
     await init_db()
     await cleanup_old_data()
+    await check_database_size()
     cleanup_task = asyncio.create_task(_hourly_cleanup_loop())
     yield
     cleanup_task.cancel()

@@ -25,6 +25,8 @@ APP_SECRET_KEY=<cadena-aleatoria-de-64-o-mas-caracteres>
 
 # Persistencia
 DATABASE_PATH=/data/barqueue.db
+# Aviso temprano antes del límite práctico de SQLite (~500 MB)
+DB_SIZE_ALERT_THRESHOLD_BYTES=419430400
 
 # Integraciones y autenticación
 YOUTUBE_API_KEY=
@@ -53,6 +55,8 @@ SESSION_MAX_HOURS=24
 ```
 
 `GOOGLE_CLIENT_ID`, Turnstile, Brevo, URLs, Wompi y los límites de sesión están definidos por `Settings` (`backend/app/config.py:4-33`). Sin las tres llaves de Wompi el checkout responde `503`; sin `BREVO_API_KEY` no se envían correos, aunque el enlace queda registrado por el backend (`docker-compose.yml:14-32`). `TURNSTILE_HOSTNAMES` en producción no debe incluir `localhost`.
+
+`DB_SIZE_ALERT_THRESHOLD_BYTES` tiene por defecto `419430400` (400 MiB): deja margen antes del límite práctico aproximado de 500 MB. El backend revisa el archivo SQLite al iniciar y luego cada hora, y envía un correo a los superadmins con email configurado cuando cruza el umbral.
 
 > **PENDIENTE — configuración de sesiones:** `SESSION_INACTIVITY_MINUTES` y `SESSION_MAX_HOURS` existen en `Settings`, pero el `docker-compose.yml` actual no los pasa al contenedor. Añadirlas al bloque `backend.environment` es necesario para que un valor definido en Dokploy tenga efecto.
 
