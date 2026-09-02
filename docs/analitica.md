@@ -451,25 +451,42 @@ informe deja de servir.
 |---|---|---|
 | `utm_medium` | El **tipo de canal**. Es el eje por el que se agrupa | `qr` |
 | `utm_source` | La **pieza concreta** de donde viene | `sticker` |
-| `utm_campaign` | La **tirada**, para distinguir lotes | `stickers-2026-09` |
+| `utm_campaign` | La **tirada**, para distinguir lotes | `primeros-stickers` |
 
 Con esa forma, GA4 agrupa por `medium=qr` todo el tráfico que entra escaneando
 —stickers, portamenús, afiches— y luego se abre por `source` para ver cuál
 funciona. Añadir una superficie nueva es un `source` nuevo, no un esquema nuevo.
 
-`utm_campaign` lleva la fecha porque una segunda tirada de stickers con otro
-diseño o en otros barrios tiene que poder compararse contra la primera. No cuesta
-nada: el QR ocupa los mismos módulos con o sin ella.
+`utm_campaign` nombra la tirada para poder comparar lotes. Se usa un nombre
+legible (`primeros-stickers`) y no una fecha: en el informe de GA4 lo que se lee
+es el nombre, y "de qué tirada era" se responde mejor con una palabra que con un
+mes. Como vive en el redirect y no en el papel, se puede renombrar cuando haga
+falta.
 
 ### Piezas vivas
 
-| Pieza | URL | Archivo |
-|---|---|---|
-| Sticker impreso, tirada sep-2026 | `https://repitela.com/?utm_source=sticker&utm_medium=qr&utm_campaign=stickers-2026-09` | `landing/public/qr-sticker-200.png` y `.svg` |
+| Pieza | Lo que lleva impreso | A dónde va | Archivos |
+|---|---|---|---|
+| Sticker 2×2 cm, primera tirada | `https://repitela.com/s` | `/?utm_source=sticker&utm_medium=qr&utm_campaign=primeros-stickers` | `landing/public/qr-sticker-20mm.svg` y `qr-sticker-600.png` |
 
-**Para imprimir usar siempre el SVG.** Los 200 px del PNG son una medida de
-pantalla: a 300 dpi son 1,7 cm, demasiado pequeño para que un teléfono lo lea.
-El SVG es vectorial y sale nítido a cualquier tamaño.
+**La UTM no va impresa: va en el redirect** (`landing/nginx.conf`, `location = /s`).
+Dos razones, y la segunda importa más que la primera:
+
+1. **No cabe.** A 2×2 cm, la URL completa con UTM son 53 módulos = **0,33 mm por
+   módulo**, por debajo de lo que un teléfono lee con fiabilidad. Bajar la
+   corrección de errores a media da 0,41 mm, que sigue siendo justo para vinilo
+   impreso. Con `/s` son 29 módulos y **0,54 mm**, cómodo.
+2. **Un sticker impreso no se puede editar.** Con la UTM en el redirect, se
+   puede renombrar la campaña, cambiar el destino o corregir un error **sin
+   reimprimir nada**. Con la UTM impresa, el vinilo queda congelado para siempre.
+
+Es un **302, no un 301**, a propósito: un 301 lo cachea el navegador de forma
+permanente y dejaría de poderse cambiar el destino en los teléfonos que ya lo
+escanearon.
+
+**Para imprimir usar el SVG**, que ya viene dimensionado a 20 × 20 mm. El PNG de
+600 px equivale a 762 dpi a ese tamaño y sirve de respaldo si la imprenta no
+acepta vectores.
 
 No confundir con el QR **de cada bar**, que es otra cosa: lo genera el sistema
 por bar, va en las mesas y hoy depende de un servicio externo (WIL-201).
