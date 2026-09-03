@@ -468,8 +468,39 @@ falta.
 | Pieza | Lo que lleva impreso | A dónde va | Archivos |
 |---|---|---|---|
 | Sticker 9×2,5 cm, QR de 2×2 cm, primera tirada | `https://repitela.com/s` | `/?utm_source=sticker&utm_medium=qr&utm_campaign=primeros-stickers` | `qr-sticker-caja-20mm.png` (arte final) y `.svg` (maestro) |
-| QR de mesa, se imprime desde el panel del bar | `https://app.repitela.com/{slug}/r` | `/{slug}/registro?utm_source=mesa&utm_medium=qr` | `frontend/src/composables/useAdminDashboard.js:110-118` |
-| QR de pantalla, en la TV del bar | `https://app.repitela.com/{slug}/p` | `/{slug}/registro?utm_source=pantalla&utm_medium=qr` | `frontend/src/views/Kiosk.vue:18-20` |
+| QR que imprime el panel del bar | `https://app.repitela.com/{slug}/a` | `/{slug}/registro?utm_source=mesa&utm_medium=qr` | `frontend/src/composables/useAdminDashboard.js:110-118` |
+| QR de la pantalla de video, en la TV del bar | `https://app.repitela.com/{slug}/v` | `/{slug}/registro?utm_source=pantalla&utm_medium=qr` | `frontend/src/views/Kiosk.vue:18-20` |
+
+### La ruta corta nombra la superficie, no el destino
+
+Las tres rutas van al mismo sitio conceptual —alguien que quiere entrar— así que
+nombrarlas por el destino las haría indistinguibles. **Cada letra nombra de dónde
+salió el escaneo.** Añadir una superficie es una letra nueva, no un esquema nuevo.
+
+| Ruta | Superficie | `utm_source` |
+|---|---|---|
+| `repitela.com/s` | Sticker impreso, en la calle | `sticker` |
+| `app.repitela.com/{slug}/v` | La pantalla de video del bar | `pantalla` |
+| `app.repitela.com/{slug}/a` | Lo que imprime el panel admin | `mesa` |
+
+Tres cosas que no son obvias mirando la tabla:
+
+1. **`/s` vive en otro host.** Es la landing (`landing/nginx.conf`); `/v` y `/a`
+   son la app y llevan el slug del bar delante (`frontend/nginx.conf`). No son un
+   espacio de nombres común: `repitela.com/v` no existe y no debe inventarse.
+2. **La letra no es el `utm_source`.** La letra dice dónde está pegado el código;
+   el `utm_source` dice lo que se lee en el informe de GA4. `/a` sale del panel
+   admin pero su tráfico es de clientes, no de administradores — llamarlo `admin`
+   en GA4 haría creer lo contrario. Por eso `mesa`.
+3. **Una letra, no dos.** `/a` y no `/ad`: en módulos cuestan lo mismo, pero "ad"
+   es la cadena que más filtran los bloqueadores de anuncios y un bloqueo se ve
+   como una página en blanco que nadie relaciona con el QR. Riesgo pequeño,
+   evitarlo es gratis.
+
+**Techo de longitud del slug.** Con nivel de corrección H, la versión 5 del QR
+(37 módulos) aguanta 44 bytes. `https://app.repitela.com/` son 25, más `/v` o
+`/a` son 27: **un slug de más de 17 caracteres empuja el código a 41 módulos**.
+Ningún bar está cerca hoy, pero conviene saberlo antes de aprobar un slug largo.
 
 **La UTM no va impresa: va en el redirect** (`landing/nginx.conf`, `location = /s`).
 Dos razones, y la segunda importa más que la primera:
@@ -520,8 +551,8 @@ mano. Se marcaron aplicando la regla de arriba: **redirect, no UTM impresa**.
 
 | QR | Dónde se genera | Uso | Apunta a |
 |---|---|---|---|
-| De mesa | `useAdminDashboard.js:110-118`, se imprime desde el panel | Pegado en cada mesa | `/{slug}/r` → `utm_source=mesa` |
-| De pantalla | `Kiosk.vue:18-20` | En la TV del bar, se escanea de lejos | `/{slug}/p` → `utm_source=pantalla` |
+| De mesa | `useAdminDashboard.js:110-118`, se imprime desde el panel | Pegado en cada mesa | `/{slug}/a` → `utm_source=mesa` |
+| De pantalla | `Kiosk.vue:18-20` | En la TV del bar, se escanea de lejos | `/{slug}/v` → `utm_source=pantalla` |
 
 Los dos redirects viven en `frontend/nginx.conf`, junto a `absolute_redirect off`.
 La app lleva el **mismo** contenedor de GTM que la landing (`GTM-PPVKNTZB`,
@@ -535,7 +566,13 @@ Por qué en el redirect y no dentro del QR. Medido con
 |---|---|---|---|---|
 | Antes, sin UTM | 44 | 37 | 0,67 mm | 0,44 mm |
 | UTM inline | 74 | **49** | 0,53 mm | 0,35 mm ❌ |
-| Redirect `/{slug}/r` | 37 | 37 | 0,67 mm | 0,44 mm |
+| Redirect `/{slug}/a` o `/{slug}/v` | 37 | 37 | 0,67 mm | 0,44 mm |
+
+> Esos números salen con nivel de corrección **H**. El QR que genera la app no
+> pasa `ecc` a `api.qrserver.com`, que por defecto usa **L**: ahí las tres
+> primeras filas caen a 29 módulos y la UTM inline a 33. La conclusión no cambia
+> —el redirect sale igual o mejor en los dos niveles— pero no cites esta tabla
+> como si fueran los módulos de producción.
 
 La UTM inline encarece el código y **el de pantalla se escanea desde la mesa**,
 que es el caso más exigente. El redirect deja el QR igual de simple que antes y
@@ -548,8 +585,8 @@ por página de destino.
 bar (`venues.qr_url`), el panel la usa tal cual y ese QR queda sin UTM. A
 2026-09-03 no lo usa ningún bar.
 
-Verificado levantando el nginx real contra el `dist` del build: `/{slug}/r` y
-`/{slug}/p` responden 302 con `Location` relativo, y `registro`, `admin`,
+Verificado levantando el nginx real contra el `dist` del build: `/{slug}/a` y
+`/{slug}/v` responden 302 con `Location` relativo, y `registro`, `admin`,
 `video` y `/superadmin` siguen sirviendo la SPA con 200.
 
 WIL-226, spec en `specs/utm-qr-mesa-y-pantalla.md`.
