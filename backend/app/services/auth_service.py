@@ -146,6 +146,21 @@ def create_admin_token(admin_id: int, username: str, venue_id: int) -> str:
     return jwt.encode(payload, settings.app_secret_key, algorithm="HS256")
 
 
+def create_kiosk_token(venue_id: int) -> str:
+    """Credencial de la pantalla del bar, atada a un venue y sin poderes de admin.
+
+    La emite el admin autenticado al abrir el Kiosk; dura semanas porque la
+    pantalla queda encendida sin nadie que vuelva a iniciar sesion.
+    """
+    exp = datetime.now(timezone.utc) + timedelta(hours=settings.jwt_kiosk_expiration_hours)
+    payload = {
+        "venue_id": venue_id,
+        "is_kiosk": True,
+        "exp": exp,
+    }
+    return jwt.encode(payload, settings.app_secret_key, algorithm="HS256")
+
+
 def create_super_admin_token(admin_id: int, username: str, role: str = "super_admin") -> str:
     exp = datetime.now(timezone.utc) + timedelta(hours=24)
     payload = {

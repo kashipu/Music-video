@@ -4,6 +4,7 @@ from app.models.schemas import SongSubmitRequest, SongConfirmRequest
 from app.routers.auth import get_current_user
 from app.services import queue_service, youtube_service, playback_service
 from app.routers.websocket import manager
+from app.routers.playback import playback_venue_id
 
 router = APIRouter(prefix="/api/queue", tags=["queue"])
 
@@ -256,16 +257,8 @@ async def confirm_song(req: SongConfirmRequest, user: dict = Depends(get_current
 
 
 @router.post("/start-playing/{song_id}")
-async def start_playing(song_id: int, venue: str = Query(...)):
+async def start_playing(song_id: int, venue_id: int = Depends(playback_venue_id)):
     """Called by Kiosk when it actually starts playing a song that was pending during fallback."""
-    from app.database import get_db
-    db = await get_db()
-
-    venue_rows = await db.execute_fetchall("SELECT id FROM venues WHERE slug = ?", (venue,))
-    if not venue_rows:
-        raise HTTPException(status_code=404, detail="Venue not found")
-    venue_id = venue_rows[0][0]
-
     started = await playback_service.try_start_song(venue_id, song_id)
     if not started:
         return {"ok": False, "reason": "song not pending"}

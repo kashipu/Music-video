@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query, Header
+from fastapi import APIRouter, Depends, HTTPException, Query, Header
 
 from app.models.schemas import PlaybackFinishedRequest, PlaybackErrorRequest
 from app.services import playback_service, auth_service
@@ -6,6 +6,27 @@ from app.routers.websocket import manager
 from app.database import get_db
 
 router = APIRouter(prefix="/api/playback", tags=["playback"])
+
+
+async def playback_venue_id(authorization: str = Header(default="")) -> int:
+    """venue_id de quien llama: el admin del bar o su pantalla.
+
+    Antes, si no venia token, estas rutas resolvian el bar por su slug publico:
+    cualquiera con el slug podia saltar la cancion que sonaba, bloquear un video
+    o inyectar un "suena ahora" falso (WIL-106). El slug ya no autoriza nada.
+    """
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Credencial de pantalla requerida")
+    try:
+        payload = auth_service.decode_token(authorization[7:])
+    except Exception:
+        raise HTTPException(status_code=401, detail="Credencial de pantalla expirada")
+    if not (payload.get("is_admin") or payload.get("is_kiosk")):
+        raise HTTPException(status_code=403, detail="Credencial sin permiso de reproduccion")
+    venue_id = payload.get("venue_id")
+    if not venue_id:
+        raise HTTPException(status_code=403, detail="Credencial sin bar asociado")
+    return venue_id
 
 
 @router.get("/now-playing")
@@ -20,13 +41,9 @@ async def now_playing(venue: str = Query(...)):
 
 
 @router.post("/fallback-playing")
-async def fallback_playing(venue: str = Query(...), youtube_id: str = Query(...), title: str = Query(...)):
+async def fallback_playing(youtube_id: str = Query(...), title: str = Query(...),
+                           venue_id: int = Depends(playback_venue_id)):
     """Called by the Kiosk when it starts a fallback song — broadcasts to all clients so they can show what's playing."""
-    db = await get_db()
-    rows = await db.execute_fetchall("SELECT id FROM venues WHERE slug = ?", (venue,))
-    if not rows:
-        raise HTTPException(status_code=404, detail="Bar no encontrado")
-    venue_id = rows[0][0]
     song = {
         "id": None,
         "youtube_id": youtube_id,
@@ -44,27 +61,7 @@ async def fallback_playing(venue: str = Query(...), youtube_id: str = Query(...)
 
 
 @router.post("/finished")
-async def finished(req: PlaybackFinishedRequest, authorization: str = Header(default="")):
-    # Allow both authenticated admin and unauthenticated kiosk (for backward compat)
-    venue_id = None
-
-    # Try admin auth first
-    if authorization.startswith("Bearer "):
-        try:
-            payload = auth_service.decode_token(authorization[7:])
-            if payload.get("venue_id"):
-                venue_id = payload["venue_id"]
-        except Exception:
-            pass
-
-    # Fallback: look up by slug
-    if venue_id is None:
-        db = await get_db()
-        rows = await db.execute_fetchall("SELECT id FROM venues WHERE slug = ?", (req.venue_slug,))
-        if not rows:
-            raise HTTPException(status_code=404, detail="Bar no encontrado")
-        venue_id = rows[0][0]
-
+async def finished(req: PlaybackFinishedRequest, venue_id: int = Depends(playback_venue_id)):
     result = await playback_service.finish_song(req.song_id, venue_id)
 
     # Notify the user whose song just finished — their rate limit slot freed up
@@ -99,7 +96,7 @@ async def finished(req: PlaybackFinishedRequest, authorization: str = Header(def
 
 
 @router.post("/error")
-async def playback_error(req: PlaybackErrorRequest, authorization: str = Header(default="")):
+async def playback_error(req: PlaybackErrorRequest, venue_id: int = Depends(playback_venue_id)):
     """Handle YouTube player errors (blocked/removed videos).
 
     This endpoint MUST NOT return 500 — the Kiosk depends on a 200 to stop
@@ -108,29 +105,6 @@ async def playback_error(req: PlaybackErrorRequest, authorization: str = Header(
     import logging
     log = logging.getLogger(__name__)
 
-    # --- Resolve venue_id ---
-    venue_id = None
-    if authorization.startswith("Bearer "):
-        try:
-            payload = auth_service.decode_token(authorization[7:])
-            if payload.get("venue_id"):
-                venue_id = payload["venue_id"]
-        except Exception:
-            pass
-
-    if venue_id is None:
-        try:
-            db = await get_db()
-            rows = await db.execute_fetchall("SELECT id FROM venues WHERE slug = ?", (req.venue_slug,))
-            if rows:
-                venue_id = rows[0][0]
-        except Exception:
-            pass
-
-    if venue_id is None:
-        # Can't resolve venue — return 200 so Kiosk stops retrying
-        return {"next_song": None, "fallback_active": True, "finished_user_id": None}
-
     # --- Read song info (best-effort) ---
     finished_user_id = None
     error_youtube_id = None
@@ -138,8 +112,10 @@ async def playback_error(req: PlaybackErrorRequest, authorization: str = Header(
     try:
         db = await get_db()
         song_rows = await db.execute_fetchall(
-            "SELECT user_id, youtube_id, title FROM queue_songs WHERE id = ?",
-            (req.song_id,),
+            # AND venue_id: sin esto la respuesta filtra titulo y user_id de la
+            # cancion de otro bar cuyo song_id se pase a mano (WIL-106).
+            "SELECT user_id, youtube_id, title FROM queue_songs WHERE id = ? AND venue_id = ?",
+            (req.song_id, venue_id),
         )
         if song_rows:
             finished_user_id = song_rows[0][0]

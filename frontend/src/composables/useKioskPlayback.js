@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import {
   getDailyPin,
+  getKioskToken,
   getNowPlaying,
   getQueue,
   pausePlayback,
@@ -32,6 +33,30 @@ export function useKioskPlayback({ venueSlug, getPlayer, loadVideo, triggerOverl
   const showQr = ref(false)
   const qrSize = ref('M')
   let bannerAutoHidden = false
+
+  function readStored(key) {
+    try { return localStorage.getItem(key) } catch { return null }
+  }
+
+  // ponytail: el token de kiosk no se puede revocar salvo rotando APP_SECRET_KEY;
+  // si hace falta echar una pantalla concreta, hay que pasar a tokens en tabla.
+  const kioskToken = ref(readStored('bq_kiosk_token') || '')
+
+  // El token de admin caduca a las 8h y nadie lo renueva, pero la pantalla queda
+  // encendida toda la noche: al abrir el Kiosk cambiamos la sesion del admin por
+  // una credencial de larga duracion. Si el admin ya vencio, seguimos con la
+  // guardada, que dura semanas.
+  async function ensureKioskToken() {
+    const adminToken = readStored('bq_admin_token')
+    if (adminToken) {
+      const data = await getKioskToken(adminToken).catch(() => null)
+      if (data?.token) {
+        kioskToken.value = data.token
+        try { localStorage.setItem('bq_kiosk_token', data.token) } catch { /* */ }
+      }
+    }
+    return kioskToken.value
+  }
 
   function syncVenue(data) {
     if (data.banner_text !== undefined && !bannerAutoHidden) bannerText.value = data.banner_text
@@ -114,7 +139,7 @@ export function useKioskPlayback({ venueSlug, getPlayer, loadVideo, triggerOverl
     fallbackPlayed.value.add(fallbackSong.youtube_id)
     song.value = { id: null, youtube_id: fallbackSong.youtube_id, title: fallbackSong.title, is_fallback: true }
     loadVideo(fallbackSong.youtube_id)
-    reportFallbackPlaying(venueSlug, fallbackSong).catch(() => {})
+    reportFallbackPlaying(fallbackSong, kioskToken.value).catch(() => {})
   }
 
   function nextFallback() {
@@ -131,8 +156,7 @@ export function useKioskPlayback({ venueSlug, getPlayer, loadVideo, triggerOverl
     fetchQueuePreview()
 
     if (userSong.id && !userSong.already_playing) {
-      const adminToken = localStorage.getItem('bq_admin_token')
-      startPlaying(venueSlug, userSong.id, adminToken).catch(() => {})
+      startPlaying(userSong.id, kioskToken.value).catch(() => {})
     }
   }
 
@@ -198,12 +222,12 @@ export function useKioskPlayback({ venueSlug, getPlayer, loadVideo, triggerOverl
     bannerAutoHidden = false
   }
 
-  function reportError(songId, errorCode, adminToken) {
-    return reportPlaybackError(songId, venueSlug, errorCode, adminToken)
+  function reportError(songId, errorCode) {
+    return reportPlaybackError(songId, venueSlug, errorCode, kioskToken.value)
   }
 
-  function reportFinished(songId, adminToken) {
-    return reportPlaybackFinished(songId, venueSlug, adminToken)
+  function reportFinished(songId) {
+    return reportPlaybackFinished(songId, venueSlug, kioskToken.value)
   }
 
   function updatePlaybackStatus(status, adminToken) {

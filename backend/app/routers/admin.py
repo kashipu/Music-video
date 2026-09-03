@@ -36,6 +36,12 @@ async def get_current_admin(authorization: str | None = Header(None)) -> dict:
     return payload
 
 
+@router.post("/kiosk-token")
+async def issue_kiosk_token(admin: dict = Depends(get_current_admin)):
+    """El admin autenticado emite la credencial de su pantalla al abrir el Kiosk."""
+    return {"token": auth_service.create_kiosk_token(admin["venue_id"])}
+
+
 @router.post("/onboarding")
 async def complete_onboarding(req: OnboardingRequest, admin: dict = Depends(get_current_admin)):
     venue_type_other = (req.venue_type_other or "").strip()
