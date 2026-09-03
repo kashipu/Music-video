@@ -15,7 +15,8 @@ import KioskPlayerControls from '../components/KioskPlayerControls.vue'
 const route = useRoute()
 const venueSlug = route.params.venueSlug
 const { applyVenueTheme } = useTheme()
-const registroUrl = `${window.location.origin}/${venueSlug}/registro`
+// /v, no /registro: nginx lo redirige anadiendo utm_source=pantalla_video. Ver specs/utm-qr-panel-y-pantalla.md
+const registroUrl = `${window.location.origin}/${venueSlug}/v`
 const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(registroUrl)}`
 
 const showOverlay = ref(false)
