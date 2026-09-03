@@ -1,13 +1,13 @@
-# Marcar con UTM los QR de mesa y de pantalla
+# Marcar con UTM los QR del panel y de la pantalla
 
 **Estado:** implementada — pendiente de verificar en `staging`
 **Linear:** [WIL-226](https://linear.app/william-moreno/issue/WIL-226/todo-el-que-entra-escaneando-un-qr-en-un-bar-aparece-en-analytics-como)
 
 ## Objetivo
 
-Que el equipo pueda separar en GA4 cuánta gente entra escaneando el QR **de su
-mesa** frente al **de la pantalla**, para decidir si vale la pena imprimir más
-mesas o agrandar el QR de la TV.
+Que el equipo pueda separar en GA4 cuánta gente entra escaneando el QR **que se
+imprime desde el panel** frente al **de la pantalla de video**, para decidir si
+vale la pena imprimir piezas para las mesas o agrandar el QR de la TV.
 
 ## Ya existente
 
@@ -21,7 +21,7 @@ están fijadas y verificadas en producción con el sticker de la landing —
 `docs/analitica.md`, sección *Convención de UTM*. Esta spec la aplica, no la
 redefine.
 
-**Momento:** confirmado el 2026-09-03 que **no hay ningún QR de mesa impreso
+**Momento:** confirmado el 2026-09-03 que **no hay ninguna pieza impresa
 todavía** y que **ningún bar tiene `qr_url` manual**. Se entra en limpio: no hay
 piezas viejas que queden sin marcar ni bares que haya que tratar aparte.
 
@@ -32,10 +32,14 @@ ellas:
 
 | QR | Hoy apunta a | Pasa a apuntar a | El redirect 302 lleva a |
 |---|---|---|---|
-| De mesa (`useAdminDashboard.js:110-117`) | `/{slug}/registro` | `/{slug}/a` | `/{slug}/registro?utm_source=mesa&utm_medium=qr` |
+| Del panel admin (`useAdminDashboard.js:110-117`) | `/{slug}/registro` | `/{slug}/a` | `/{slug}/registro?utm_source=panel&utm_medium=qr` |
 | De pantalla (`Kiosk.vue:18-19`) | `/{slug}/registro` | `/{slug}/v` | `/{slug}/registro?utm_source=pantalla&utm_medium=qr` |
 
 Sin `utm_campaign`: el bar ya va en la ruta y GA4 segmenta por página de destino.
+
+`utm_source=panel` y no `mesa`: todavía no hay pieza impresa ni decidido dónde se
+pega, y nombrar la colocación antes de que exista mete una suposición en GA4.
+Cuando se decida, se cambia en el redirect sin reimprimir.
 
 **La letra nombra la superficie, no el destino** — `/a` lo imprime el panel
 admin, `/v` está en la pantalla de video, igual que el `/s` de la landing. Una
@@ -80,14 +84,14 @@ nuevas, y `docs/features.md` al entregar.
 
 - [ ] Escanear el QR de la pantalla abre `/{slug}/registro?utm_source=pantalla&utm_medium=qr`
       y el registro funciona igual que hoy.
-- [ ] Escanear el QR impreso desde el panel abre `/{slug}/registro?utm_source=mesa&utm_medium=qr`.
+- [ ] Escanear el QR impreso desde el panel abre `/{slug}/registro?utm_source=panel&utm_medium=qr`.
 - [x] El nginx responde **302** en `/{slug}/a` y `/{slug}/v`, con `Location`
       relativo (`absolute_redirect off`), y `registro` / `admin` / `video` /
       `/superadmin` siguen sirviendo la SPA con 200. Verificado el 2026-09-03
       levantando `frontend/nginx.conf` contra el `dist` real.
 - [ ] Repetido contra `https://st.repitela.com/{slug}/a`, con `Location` en `https://`.
 - [ ] En GA4 el tráfico aparece agrupado bajo `medium=qr` y separable por
-      `source` en `mesa` / `pantalla`, junto al `sticker` de la landing.
+      `source` en `panel` / `pantalla`, junto al `sticker` de la landing.
 - [x] El QR no gana módulos: `/{slug}/a` es más corto que `/{slug}/registro`.
 - [x] Un slug inexistente en `/{slug}/a` no rompe: redirige y la SPA muestra lo
       mismo que antes para un bar que no existe.

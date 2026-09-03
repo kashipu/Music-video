@@ -34,7 +34,7 @@ Se actualiza al **entregar**, no al planear.
   inicial.
 - **Panel de operación** — `/:venueSlug/admin`. Cola, reproducción (play/pausa/
   saltar), volumen, canción sonando, historial, banner, QR, marca y mesas. El QR
-  que se imprime pasa por `/{slug}/a`, que le añade `utm_source=mesa`.
+  que se imprime pasa por `/{slug}/a`, que le añade `utm_source=panel`.
 - **Suscripción** — `/:venueSlug/admin/suscripcion`. Estado de pago, historial y
   renovación. Pago automático por Wompi (kill-switch `PAGOS`) y pago manual por
   WhatsApp. Aviso a 3 días del vencimiento y bloqueo del panel al suspenderse.

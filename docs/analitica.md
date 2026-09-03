@@ -468,7 +468,7 @@ falta.
 | Pieza | Lo que lleva impreso | A dónde va | Archivos |
 |---|---|---|---|
 | Sticker 9×2,5 cm, QR de 2×2 cm, primera tirada | `https://repitela.com/s` | `/?utm_source=sticker&utm_medium=qr&utm_campaign=primeros-stickers` | `qr-sticker-caja-20mm.png` (arte final) y `.svg` (maestro) |
-| QR que imprime el panel del bar | `https://app.repitela.com/{slug}/a` | `/{slug}/registro?utm_source=mesa&utm_medium=qr` | `frontend/src/composables/useAdminDashboard.js:110-118` |
+| QR que imprime el panel del bar | `https://app.repitela.com/{slug}/a` | `/{slug}/registro?utm_source=panel&utm_medium=qr` | `frontend/src/composables/useAdminDashboard.js:110-118` |
 | QR de la pantalla de video, en la TV del bar | `https://app.repitela.com/{slug}/v` | `/{slug}/registro?utm_source=pantalla&utm_medium=qr` | `frontend/src/views/Kiosk.vue:18-20` |
 
 ### La ruta corta nombra la superficie, no el destino
@@ -481,17 +481,21 @@ salió el escaneo.** Añadir una superficie es una letra nueva, no un esquema nu
 |---|---|---|
 | `repitela.com/s` | Sticker impreso, en la calle | `sticker` |
 | `app.repitela.com/{slug}/v` | La pantalla de video del bar | `pantalla` |
-| `app.repitela.com/{slug}/a` | Lo que imprime el panel admin | `mesa` |
+| `app.repitela.com/{slug}/a` | Lo que imprime el panel admin | `panel` |
 
 Tres cosas que no son obvias mirando la tabla:
 
 1. **`/s` vive en otro host.** Es la landing (`landing/nginx.conf`); `/v` y `/a`
    son la app y llevan el slug del bar delante (`frontend/nginx.conf`). No son un
    espacio de nombres común: `repitela.com/v` no existe y no debe inventarse.
-2. **La letra no es el `utm_source`.** La letra dice dónde está pegado el código;
-   el `utm_source` dice lo que se lee en el informe de GA4. `/a` sale del panel
-   admin pero su tráfico es de clientes, no de administradores — llamarlo `admin`
-   en GA4 haría creer lo contrario. Por eso `mesa`.
+2. **La letra no es el `utm_source`.** La letra dice de qué superficie salió el
+   escaneo; el `utm_source` es lo que se lee en el informe de GA4. `/a` no se
+   llama `admin` ahí porque su tráfico es de clientes, no de administradores, y
+   el informe haría creer lo contrario. Y **no se llama `mesa`**: a 2026-09-03 no
+   hay ninguna pieza impresa ni decidido dónde se pega, y nombrar la colocación
+   antes de que exista mete una suposición en los informes. `panel` dice lo único
+   que hoy es cierto — de ahí sale el código. El día que se decida la pieza, se
+   cambia en el redirect sin reimprimir nada: para eso vive ahí la UTM.
 3. **Una letra, no dos.** `/a` y no `/ad`: en módulos cuestan lo mismo, pero "ad"
    es la cadena que más filtran los bloqueadores de anuncios y un bloqueo se ve
    como una página en blanco que nadie relaciona con el QR. Riesgo pequeño,
@@ -551,7 +555,7 @@ mano. Se marcaron aplicando la regla de arriba: **redirect, no UTM impresa**.
 
 | QR | Dónde se genera | Uso | Apunta a |
 |---|---|---|---|
-| De mesa | `useAdminDashboard.js:110-118`, se imprime desde el panel | Pegado en cada mesa | `/{slug}/a` → `utm_source=mesa` |
+| Del panel | `useAdminDashboard.js:110-118`, se imprime desde el panel | Aún sin pieza decidida | `/{slug}/a` → `utm_source=panel` |
 | De pantalla | `Kiosk.vue:18-20` | En la TV del bar, se escanea de lejos | `/{slug}/v` → `utm_source=pantalla` |
 
 Los dos redirects viven en `frontend/nginx.conf`, junto a `absolute_redirect off`.
@@ -589,7 +593,7 @@ Verificado levantando el nginx real contra el `dist` del build: `/{slug}/a` y
 `/{slug}/v` responden 302 con `Location` relativo, y `registro`, `admin`,
 `video` y `/superadmin` siguen sirviendo la SPA con 200.
 
-WIL-226, spec en `specs/utm-qr-mesa-y-pantalla.md`.
+WIL-226, spec en `specs/utm-qr-panel-y-pantalla.md`.
 
 ### Medidas del sticker, para que no se interprete mal
 
