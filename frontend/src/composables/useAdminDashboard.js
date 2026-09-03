@@ -109,8 +109,9 @@ export function useAdminDashboard() {
 
   const registroUrl = computed(() => {
     if (auth.adminInfo?.qr_url) return auth.adminInfo.qr_url
-    if (typeof window !== 'undefined') return `${window.location.origin}/${venueSlug}/registro`
-    return `/${venueSlug}/registro`
+    // /r, no /registro: nginx lo redirige anadiendo utm_source=mesa. Ver specs/utm-qr-mesa-y-pantalla.md
+    if (typeof window !== 'undefined') return `${window.location.origin}/${venueSlug}/r`
+    return `/${venueSlug}/r`
   })
 
   const qrCodeUrl = computed(() =>

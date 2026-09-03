@@ -1,6 +1,6 @@
 # Plan de Medicion - Repitela Analytics
 
-> **Índice:** [[README]] · **Autoridad sobre:** qué se mide y de dónde sale · **Últ. cambio:** 2026-08-25
+> **Índice:** [[README]] · **Autoridad sobre:** qué se mide y de dónde sale · **Últ. cambio:** 2026-09-03
 > Si esta página contradice al código, gana el código y esta página tiene un bug.
 
 ## Resumen
@@ -468,6 +468,8 @@ falta.
 | Pieza | Lo que lleva impreso | A dónde va | Archivos |
 |---|---|---|---|
 | Sticker 9×2,5 cm, QR de 2×2 cm, primera tirada | `https://repitela.com/s` | `/?utm_source=sticker&utm_medium=qr&utm_campaign=primeros-stickers` | `qr-sticker-caja-20mm.png` (arte final) y `.svg` (maestro) |
+| QR de mesa, se imprime desde el panel del bar | `https://app.repitela.com/{slug}/r` | `/{slug}/registro?utm_source=mesa&utm_medium=qr` | `frontend/src/composables/useAdminDashboard.js:110-118` |
+| QR de pantalla, en la TV del bar | `https://app.repitela.com/{slug}/p` | `/{slug}/registro?utm_source=pantalla&utm_medium=qr` | `frontend/src/views/Kiosk.vue:18-20` |
 
 **La UTM no va impresa: va en el redirect** (`landing/nginx.conf`, `location = /s`).
 Dos razones, y la segunda importa más que la primera:
@@ -510,39 +512,47 @@ Detalles que costaron un despliegue aprender:
   paga un salto extra para volver a `https`. Se detectó mirando la cabecera
   `Location` real en producción, no leyendo la config.
 
-### Los otros dos QR de la aplicación — sin marcar
+### Los otros dos QR de la aplicación — marcados el 2026-09-03
 
-Verificado el 2026-09-02: **no llevan ninguna UTM**, así que todo el tráfico que
-entra escaneando en un bar cae en GA4 como `direct` y es indistinguible de
-alguien que escribió la dirección a mano.
+Hasta esa fecha no llevaban ninguna UTM y todo el que entraba escaneando en un
+bar caía en GA4 como `direct`, indistinguible de quien escribió la dirección a
+mano. Se marcaron aplicando la regla de arriba: **redirect, no UTM impresa**.
 
-| QR | Dónde se genera | Uso | Estado |
+| QR | Dónde se genera | Uso | Apunta a |
 |---|---|---|---|
-| De mesa | `useAdminDashboard.js:110-117`, se imprime desde el panel | Pegado en cada mesa | Sin UTM |
-| De pantalla | `Kiosk.vue:18-19` | En la TV del bar, se escanea de lejos | Sin UTM |
+| De mesa | `useAdminDashboard.js:110-118`, se imprime desde el panel | Pegado en cada mesa | `/{slug}/r` → `utm_source=mesa` |
+| De pantalla | `Kiosk.vue:18-20` | En la TV del bar, se escanea de lejos | `/{slug}/p` → `utm_source=pantalla` |
 
-Ambos apuntan a `/{slug}/registro`. La app lleva el **mismo** contenedor de GTM
-que la landing (`GTM-PPVKNTZB`, `frontend/index.html:9`), así que marcarlos sí
-mide — no hace falta montar nada nuevo.
+Los dos redirects viven en `frontend/nginx.conf`, junto a `absolute_redirect off`.
+La app lleva el **mismo** contenedor de GTM que la landing (`GTM-PPVKNTZB`,
+`frontend/index.html:9`), así que marcarlos midió desde el primer escaneo: no
+hubo que montar nada nuevo.
 
-Medido, con `https://app.repitela.com/la-terraza/registro`:
+Por qué en el redirect y no dentro del QR. Medido con
+`https://app.repitela.com/la-terraza/registro`:
 
 | Opción | Caracteres | Módulos | A 3 cm | A 2 cm |
 |---|---|---|---|---|
-| Hoy, sin UTM | 44 | 37 | 0,67 mm | 0,44 mm |
+| Antes, sin UTM | 44 | 37 | 0,67 mm | 0,44 mm |
 | UTM inline | 74 | **49** | 0,53 mm | 0,35 mm ❌ |
 | Redirect `/{slug}/r` | 37 | 37 | 0,67 mm | 0,44 mm |
 
-**Poner la UTM inline encarece el QR y el de pantalla se escanea de lejos**, que
-es el caso más exigente. El redirect deja el código igual de simple que hoy y
-además permite cambiar la marcación sin tocar los QR ya impresos y pegados en
-las mesas.
+La UTM inline encarece el código y **el de pantalla se escanea desde la mesa**,
+que es el caso más exigente. El redirect deja el QR igual de simple que antes y
+además permite cambiar la marcación sin tocar los que ya estén impresos y pegados.
 
-`utm_source` propuesto: `mesa` para el impreso y `pantalla` para el de la TV.
-`utm_medium=qr` en los dos, para que sigan agrupando con el sticker.
-Sin `utm_campaign`: el bar ya va en la ruta y GA4 segmenta por página de destino.
+Sin `utm_campaign` en ninguno de los dos: el bar ya va en la ruta y GA4 segmenta
+por página de destino.
 
-Rastreado en WIL-226.
+**El `qr_url` manual no se marca.** Si un superadmin fija una URL propia para un
+bar (`venues.qr_url`), el panel la usa tal cual y ese QR queda sin UTM. A
+2026-09-03 no lo usa ningún bar.
+
+Verificado levantando el nginx real contra el `dist` del build: `/{slug}/r` y
+`/{slug}/p` responden 302 con `Location` relativo, y `registro`, `admin`,
+`video` y `/superadmin` siguen sirviendo la SPA con 200.
+
+WIL-226, spec en `specs/utm-qr-mesa-y-pantalla.md`.
 
 ### Medidas del sticker, para que no se interprete mal
 
