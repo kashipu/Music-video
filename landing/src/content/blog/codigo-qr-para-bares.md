@@ -1,9 +1,25 @@
 ---
-title: "Código QR para bares: del menú digital a pedir canciones"
-description: "Usos del código QR para bares y gastrobares: menú, reservas, pagos y una rockola digital para que los clientes pidan música."
+title: "Código QR para bares: 5 usos que suben el consumo"
+description: "Menú, reservas, pagos, reseñas y rockola digital: cinco usos del código QR para bares y gastrobares en Colombia, y dónde ubicarlo para que funcione."
 pubDate: 2026-08-20
+updatedDate: 2026-09-03
 heroImage: "../../assets/blog/codigo-qr-para-bares.png"
 heroImageAlt: "Cliente escaneando el QR de Repítela mostrado en el televisor de un bar"
+keywords:
+  - "código QR para bares"
+  - "código QR para restaurantes y bares"
+  - "menú digital con QR"
+  - "rockola con código QR"
+  - "código QR para bares en Bogotá"
+faq:
+  - q: "¿Para qué sirve un código QR en un bar?"
+    a: "Para cinco cosas que un bar usa a diario: mostrar el menú digital, capturar reservas y cumpleaños, cobrar más rápido al cerrar la cuenta, pedir reseñas en Google antes de que el cliente salga, y dejar que las mesas pidan canciones a las pantallas del local. Los cuatro primeros ahorran tiempo; el quinto es el único que hace que la mesa se quede más tiempo consumiendo."
+  - q: "¿Dónde se debe poner el código QR en un bar?"
+    a: "En dos sitios a la vez. En la mesa, sobre un hablador protegido contra líquidos, impreso oscuro sobre fondo claro para que la cámara lo lea con la luz baja del local. Y en una esquina de los televisores, para que las mesas alejadas de la barra también puedan interactuar sin levantarse. Evita saturar la mesa con cinco códigos distintos: separa claramente el del menú del de entretenimiento."
+  - q: "¿El cliente tiene que descargar una aplicación para usar el código QR?"
+    a: "No debería. Si el QR obliga a instalar una app desde la tienda, la mayoría de la gente abandona el intento: consume datos, ocupa almacenamiento y toma tiempo que nadie quiere gastar en un bar. La experiencia correcta abre directamente en el navegador del celular. Repítela funciona así, sin descargas ni registro."
+  - q: "¿Cuánto cuesta montar una rockola con código QR en un bar en Colombia?"
+    a: "Con Repítela son $50.000 COP al mes por local, sin contrato de permanencia y sin comprar equipos: funciona con el televisor, el sonido y el internet que el bar ya tiene. Los códigos QR llegan listos para imprimir con el logo del negocio."
 ---
 
 El código QR ya es parte del paisaje habitual de bares, gastrobares y discotecas en Colombia. La gran mayoría de negocios lo implementó para mostrar la carta o el menú digital, pero limitarlo a eso es desaprovechar la herramienta de interacción más potente que tienes sobre cada mesa. 

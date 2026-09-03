@@ -1,9 +1,25 @@
 ---
-title: "Cómo atraer más clientes a un bar en Bogotá: 7 ideas para mover el parche"
-description: "Siete ideas prácticas para atraer clientes a un bar en Bogotá, mejorar el ambiente y convertir una visita casual en una noche que quieran repetir."
+title: "Cómo atraer clientes a un bar en Bogotá: 7 ideas"
+description: "Siete ideas para atraer clientes a un bar en Bogotá: propuesta clara, Google Maps por zona, dinámicas que retienen las mesas y reservas por WhatsApp."
 pubDate: 2026-08-20
+updatedDate: 2026-09-03
 heroImage: "../../assets/blog/como-atraer-clientes-bar-bogota.png"
 heroImageAlt: "Clientes disfrutando una noche de karaoke con Repítela en un bar de Bogotá"
+keywords:
+  - "cómo atraer clientes a un bar"
+  - "atraer clientes a un bar en Bogotá"
+  - "marketing para bares en Bogotá"
+  - "cómo llenar un bar entre semana"
+  - "ideas para bares y gastrobares"
+faq:
+  - q: "¿Cómo atraer más clientes a un bar en Bogotá?"
+    a: "Con una propuesta que se pueda nombrar en una frase y encontrar en Google. La gente en Bogotá busca por zona y por ocasión: bar para cumpleaños en Chapinero, gastrobar con buena música en Usaquén. Si tu Perfil de Empresa de Google tiene fotos reales, horarios correctos y enlace a WhatsApp, apareces en esas búsquedas; si tu propuesta es solo cerveza y cocteles, compites contra miles de locales iguales."
+  - q: "¿Qué hacer con los días de semana en los que el bar no se llena?"
+    a: "Asignarle a cada día una dinámica propia y repetirla hasta que la gente la sepa de memoria: jueves de rockola libre, viernes de clásicos, sábados de karaoke. Una dinámica fija genera costumbre; una promoción distinta cada semana solo genera confusión y caza-ofertas."
+  - q: "¿Sirve el Perfil de Empresa de Google para un bar?"
+    a: "Es probablemente el canal de mayor retorno para un bar en Bogotá, porque captura a quien ya decidió salir y está eligiendo dónde. Necesita fotos actuales del ambiente lleno, la carta al día, horarios correctos, enlace directo a WhatsApp y reseñas recientes. Es gratis y la mayoría de locales lo tiene abandonado."
+  - q: "¿Cómo lograr que un cliente nuevo vuelva?"
+    a: "Dándole algo que no pueda repetir en el bar de al lado. El precio no fideliza porque siempre habrá alguien más barato; la experiencia sí. Los clientes vuelven al local donde cantaron con su parche y la pasaron bien, y ese recuerdo se construye con el ambiente, no con el descuento."
 ---
 
 Abrir la puerta y prender las luces ya no garantiza llenar las mesas. En Bogotá la oferta nocturna es gigantesca: desde cervecerías artesanales y gastrobares en Chapinero o la Zona T, hasta bares de salsa y despecho en Galerías, Modelia o el Restrepo. Competir únicamente bajando precios o regalando tragos solo destruye tu margen de ganancia. 

@@ -1,9 +1,25 @@
 ---
-title: "Experiencia del cliente en gastrobares: cómo lograr que el parche quiera volver"
-description: "Guía práctica para mejorar la experiencia del cliente en gastrobares con mejor bienvenida, servicio, ambiente, música y seguimiento."
+title: "Experiencia del cliente en gastrobares: 6 claves"
+description: "Seis claves para mejorar la experiencia del cliente en un gastrobar en Colombia: la llegada, el servicio, la transición de la cena a la rumba y el cierre."
 pubDate: 2026-08-20
+updatedDate: 2026-09-03
 heroImage: "../../assets/blog/experiencia-cliente-gastrobares.png"
 heroImageAlt: "Parche cantando y viendo un video musical con Repítela en un gastrobar"
+keywords:
+  - "experiencia del cliente en gastrobares"
+  - "cómo fidelizar clientes en un bar"
+  - "retención de clientes en restaurantes y bares"
+  - "gastrobares en Bogotá"
+  - "mejorar el servicio en un gastrobar"
+faq:
+  - q: "¿Qué hace que un cliente vuelva a un gastrobar?"
+    a: "La suma de momentos, no un solo detalle. La respuesta rápida por WhatsApp cuando pidió información, la bienvenida sin demora, el ritmo del servicio, cómo se resolvió el problema que hubo, y sobre todo cómo terminó la noche. El precio no fideliza: siempre habrá un local más barato al lado."
+  - q: "¿Cuál es el momento más crítico de la noche en un gastrobar?"
+    a: "Cuando se retiran los platos fuertes. Ahí la mesa decide si pide la cuenta o si arranca la segunda etapa de consumo con cocteles y cervezas. Si el ambiente se queda quieto en ese punto, el grupo se va a rematar a otro local y pierdes la parte más rentable de la noche."
+  - q: "¿Cómo lograr que las mesas se queden después de la cena?"
+    a: "Cambiando el ambiente de forma deliberada en lugar de dejar que la noche se apague sola: ajustar la iluminación, subir el ritmo de la música con temas reconocibles y darle a la mesa algo que hacer. Cuando el grupo puede pedir sus canciones y verlas en las pantallas, se queda esperando su turno y ese tiempo se convierte en consumo."
+  - q: "¿Dejar que los clientes pidan música rompe la identidad del gastrobar?"
+    a: "No, si conservas la moderación. Con Repítela apruebas, reordenas o saltas cualquier canción desde tu celular, bloqueas contenido que no encaje y limitas cuántos temas pide cada mesa. El cliente participa, pero la última palabra sobre lo que suena sigue siendo del local."
 ---
 
 Una buena propuesta gastronómica atrae clientes por primera vez; pero es la experiencia global lo que decide si regresan cada mes o si se van a la competencia apenas terminan el último bocado. 

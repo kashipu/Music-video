@@ -1,9 +1,25 @@
 ---
-title: "Música para gastrobares en Bogotá: cómo armar el ambiente sin matar el parche"
-description: "Guía para elegir música en un gastrobar de Bogotá según el momento de la noche, el público y la experiencia que quieres crear."
+title: "Música para gastrobares en Bogotá: guía por horas"
+description: "Qué música poner en un gastrobar de Bogotá según el momento: llegada, cena, hora pico y cierre. Volúmenes, géneros y los errores que vacían el local."
 pubDate: 2026-08-20
+updatedDate: 2026-09-03
 heroImage: "../../assets/blog/musica-para-gastrobares-bogota.png"
 heroImageAlt: "Amigos viendo un video musical de Repítela en un gastrobar de Bogotá"
+keywords:
+  - "música para gastrobares"
+  - "qué música poner en un bar"
+  - "música para bares en Bogotá"
+  - "playlist para gastrobar"
+  - "música ambiente para restaurantes y bares"
+faq:
+  - q: "¿Qué música poner en un gastrobar?"
+    a: "Depende de la hora, no del gusto del dueño. En la llegada y el tardeo, algo cálido que deje conversar: nu-disco, indie pop latino, soul o bossa nova a volumen medio-bajo. Durante la cena, coherencia con el concepto de la cocina y transiciones suaves. Desde las 9:00 PM, cuando llegan las segundas rondas, temas conocidos y energía. Al cierre, bajar el ritmo de forma gradual."
+  - q: "¿A qué volumen debe estar la música en un bar?"
+    a: "Lo suficientemente bajo para que una mesa converse sin gritar mientras come, y lo suficientemente alto en hora pico para que se sienta el ambiente. El error más caro es dejar un volumen fijo toda la noche: mata la conversación durante la cena y apaga la energía después. Cuida también las diferencias de ganancia entre canciones, que aturden a las mesas."
+  - q: "¿Cómo evitar los silencios cuando se acaba la lista de reproducción?"
+    a: "Con una lista de respaldo que arranque sola. En Repítela defines una playlist curada por ti que entra automáticamente en el momento en que la cola de peticiones de los clientes se vacía, así el local nunca queda mudo aunque nadie esté pidiendo canciones."
+  - q: "¿Dejar que los clientes elijan la música arruina el concepto del local?"
+    a: "Solo si lo haces con un cable auxiliar o una cuenta abierta, donde no hay forma de intervenir. Con una rockola digital el administrador conserva el control: puede saltar una canción que no encaje, bloquear videos, limitar cuántas pide cada mesa y activar un PIN para que solo participen quienes están consumiendo."
 ---
 
 La música en un bar o gastrobar nunca es un simple relleno de fondo; es el motor invisible que marca la velocidad de consumo, la energía de las mesas y el tiempo que la gente decide quedarse. 

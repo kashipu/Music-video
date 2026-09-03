@@ -30,8 +30,15 @@ const ogImage = await getImage({
 });
 const ogImageUrl = new URL(ogImage.src, Astro.site).toString();
 const publishedIso = post.data.pubDate.toISOString();
+const modifiedIso = (post.data.updatedDate ?? post.data.pubDate).toISOString();
 const canonical = new URL(Astro.url.pathname, Astro.site).toString();
 const minutes = readingTime(post.body ?? "");
+const wordCount = (post.body ?? "").trim().split(/\s+/).filter(Boolean).length;
+const { keywords, faq } = post.data;
+
+// Repítela opera solo en Colombia: la señal geográfica va en el grafo para
+// competir con proveedores mexicanos y españoles por las mismas consultas.
+const colombia = { "@type": "Country", name: "Colombia" };
 
 const jsonLd = {
   "@context": "https://schema.org",
@@ -67,22 +74,41 @@ const jsonLd = {
       description: post.data.description,
       image: [ogImageUrl],
       datePublished: publishedIso,
-      dateModified: publishedIso,
+      dateModified: modifiedIso,
       inLanguage: "es-CO",
+      wordCount,
+      ...(keywords.length ? { keywords: keywords.join(", ") } : {}),
       mainEntityOfPage: { "@type": "WebPage", "@id": canonical },
       author: {
         "@type": "Organization",
         name: "Repítela",
         url: "https://repitela.com/",
         description: "Plataforma de rockola digital interactiva con QR para bares y gastrobares en Colombia.",
+        areaServed: colombia,
       },
       publisher: {
         "@type": "Organization",
         name: "Repítela",
         url: "https://repitela.com/",
         logo: { "@type": "ImageObject", url: "https://repitela.com/og-repitela.jpg" },
+        areaServed: colombia,
       },
     },
+    ...(faq.length
+      ? [
+          {
+            "@type": "FAQPage",
+            "@id": `${canonical}#faq`,
+            inLanguage: "es-CO",
+            isPartOf: { "@id": `${canonical}#article` },
+            mainEntity: faq.map((item) => ({
+              "@type": "Question",
+              name: item.q,
+              acceptedAnswer: { "@type": "Answer", text: item.a },
+            })),
+          },
+        ]
+      : []),
   ],
 };
 
@@ -94,7 +120,7 @@ const shareUrl = encodeURIComponent(canonical);
   title={`${post.data.title} | Repítela`}
   description={post.data.description}
   ogImage={ogImageUrl}
-  article={{ publishedTime: publishedIso }}
+  article={{ publishedTime: publishedIso, modifiedTime: modifiedIso }}
 >
   <script slot="head" type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
 
@@ -128,6 +154,12 @@ const shareUrl = encodeURIComponent(canonical);
           <h1 class="text-3xl sm:text-4xl font-extrabold text-white mb-4">{post.data.title}</h1>
           <div class="flex items-center gap-2 text-sm text-zinc-400 mb-8 sm:mb-10">
             <span>{post.data.pubDate.toLocaleDateString("es-CO", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" })}</span>
+            {post.data.updatedDate && (
+              <>
+                <span aria-hidden="true">·</span>
+                <span>Actualizado el {post.data.updatedDate.toLocaleDateString("es-CO", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" })}</span>
+              </>
+            )}
             <span aria-hidden="true">·</span>
             <span>{minutes} min de lectura</span>
           </div>
@@ -135,6 +167,22 @@ const shareUrl = encodeURIComponent(canonical);
           <article class="prose-blog text-zinc-200">
             <Content />
           </article>
+
+          {faq.length > 0 && (
+            <section aria-labelledby="faq-title" class="mt-12 pt-10 border-t border-white/10">
+              <h2 id="faq-title" class="text-2xl sm:text-3xl font-extrabold text-white mb-6">
+                Preguntas frecuentes
+              </h2>
+              <dl class="space-y-5">
+                {faq.map((item) => (
+                  <div class="glass-card rounded-2xl p-5 border border-white/15">
+                    <dt class="text-base font-bold text-white mb-2">{item.q}</dt>
+                    <dd class="text-sm text-zinc-300 leading-relaxed m-0">{item.a}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          )}
         </div>
 
         <aside class="lg:pt-1 space-y-6">
