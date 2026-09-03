@@ -61,7 +61,7 @@ Antes de abrir puertas en una noche concurrida, haz estas pruebas con tu equipo:
 El menú digital se consulta una o dos veces durante la noche y se olvida. En cambio, **una rockola digital con QR mantiene a la mesa conectada con el ambiente durante horas**.
 
 Con **Repítela**, transformas tus pantallas en una experiencia interactiva completa:
-- **Tus clientes se divierten:** Escanean el QR en la mesa o pantalla, buscan videos en YouTube y los agregan a la cola musical en tiempo real, sin instalar aplicaciones ni prestar sus cuentas personales.
+- **Tus clientes se divierten:** Escanean el QR en la mesa o pantalla, buscan el video que quieran y lo agregan a la cola musical en tiempo real, sin instalar aplicaciones.
 - **Tu negocio vende más:** Mientras esperan que suene su canción, las mesas se quedan más tiempo y piden más cervezas, cocteles y comida.
 - **Tu equipo trabaja tranquilo:** Los meseros y bartenders dejan de perder tiempo recibiendo peticiones en servilletas o peleando por el cable auxiliar, concentrándose al 100% en atender y despachar rápido.
 - **Tú mantienes el control total:** Desde tu celular o computador moderas la cola, saltas temas inapropiados y programas música de respaldo automática para que nunca haya silencios incómodos.

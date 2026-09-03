@@ -46,7 +46,7 @@ Vincular la venta con el momento de la noche funciona mucho mejor que recitar un
 La música es el alma de cualquier bar. Una lista aburrida o desconectada vacía el local antes de medianoche; en cambio, **cuando la mesa tiene control sobre lo que suena, nadie se quiere ir.**
 
 Con una rockola digital con QR como **Repítela**:
-- Cada mesa escanea el código, busca sus videos y temas favoritos de YouTube y los manda a la cola del bar.
+- Cada mesa escanea el código, busca sus videos y temas favoritos y los manda a la cola del bar.
 - **Efecto permanencia garantizado:** La gente se queda esperando que suene su canción favorita. Mientras esperan el turno, piden otra ronda de tragos, una picada o unos shots para el grupo.
 - **Tu equipo no se distrae:** Bartenders y meseros no pierden minutos valiosos buscando canciones en una tablet; se dedican 100% a atender y vender.
 - **Cero baches musicales:** Si nadie pide canciones en un momento dado, Repítela activa automáticamente tu lista de respaldo curada para mantener la fiesta encendida.

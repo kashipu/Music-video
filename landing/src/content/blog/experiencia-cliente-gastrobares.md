@@ -53,10 +53,10 @@ Para sostener la mesa y abrir paso a la segunda etapa de consumo (cocteles, cerv
 
 ## 4. Participación del cliente con control total para el administrador
 
-A muchos dueños de gastrobares les preocupa perder el concepto musical si dejan que los clientes pidan música. Es un miedo comprensible cuando se usa un cable auxiliar o Spotify abierto.
+A muchos dueños de gastrobares les preocupa perder el concepto musical si dejan que los clientes pidan música. Es un miedo comprensible cuando se usa un cable auxiliar o una lista abierta que cualquiera puede alterar.
 
 Con **Repítela**, el negocio nunca pierde el control:
-- **Tus clientes piden desde el navegador:** Escanean el QR, buscan sus videos favoritos en YouTube y los envían a la cola sin descargar ninguna aplicación.
+- **Tus clientes piden desde el navegador:** Escanean el QR, buscan sus videos favoritos y los envían a la cola sin descargar ninguna aplicación.
 - **Tú mantienes la moderación:** Desde tu celular puedes aprobar, reordenar o saltar cualquier canción que no encaje con la identidad de tu gastrobar.
 - **Música de respaldo automática:** Si nadie pide canciones en un momento de la tarde, suena tu lista curada para que nunca exista un silencio incómodo.
 - **Filtros y límites:** Puedes limitar la cantidad de pedidos por mesa o activar un PIN para premiar a las mesas con mayor consumo.

@@ -47,7 +47,7 @@ Cuida especialmente las transiciones: pasar bruscamente de una balada lenta a un
 Cuando se retiran los platos y llegan las segundas y terceras rondas de cocteles o cervezas (usualmente a partir de las 9:00 PM), el público quiere diversión y fiesta. Aquí es donde los temas favoritos del público multiplican el consumo.
 
 En lugar de que tus meseros pierdan tiempo recibiendo papelitos con peticiones de canciones o prestando el celular del bar, activa una [rockola digital con QR](/blog/rockola-digital-para-bares/) como **Repítela**:
-- **Democracia musical:** Cada mesa escanea el código QR desde su celular, busca sus canciones favoritas en YouTube y las agrega a la cola visible en pantalla.
+- **Democracia musical:** Cada mesa escanea el código QR desde su celular, busca sus canciones favoritas y las agrega a la cola visible en pantalla.
 - **Mayor permanencia = Más ventas:** Los clientes no se van mientras esperan que suene la canción que pidieron con su parche; piden más tragos para cantar juntos.
 - **Control para el administrador:** Si una mesa pide un tema inapropiado o fuera de lugar, lo saltas o bloqueas en un segundo desde tu teléfono.
 
@@ -59,14 +59,14 @@ Terminar la noche encendiendo las luces blancas de golpe y cortando el audio gen
 
 Evita estos descuidos que arruinan la experiencia y ahuyentan a tus clientes:
 
-1. **Comerciales molestos de YouTube o Spotify Free:** Nada destruye más la atmósfera de un local que un anuncio publicitario a todo volumen en medio de una canción romántica o de rumba.
+1. **Cortes publicitarios en mitad de la noche:** Nada destruye más la atmósfera de un local que un anuncio a todo volumen en medio de una canción romántica o de rumba.
 2. **Cambios drásticos de volumen:** Canciones con diferente nivel de ganancia que aturden a las mesas.
 3. **El bartender actuando de DJ:** Tu personal de barra debe estar concentrado en preparar tragos rápido, no en buscar canciones en un teléfono.
 4. **Silencios incómodos:** Quedarse sin música porque terminó la lista o se desconectó el Bluetooth apaga la energía del bar al instante.
 
 ## Automatiza tu música y fideliza a tus clientes con Repítela
 
-Con **Repítela**, te olvidas de los enredos con cables auxiliares, cuentas personales compartidas o silencios molestos. Obtienes una plataforma profesional con:
+Con **Repítela**, te olvidas de los enredos con cables auxiliares, listas compartidas o silencios molestos. Obtienes una plataforma profesional con:
 - Rockola con código QR para clientes (sin apps ni descargas).
 - Pantalla con tus videos musicales, tu logo y tus promociones de barra.
 - Lista de respaldo automática para que la música nunca se detenga.

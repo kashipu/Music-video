@@ -51,7 +51,7 @@ Tradicionalmente, la música en los bares se ha manejado de forma precaria: una 
 
 **Repítela** transforma la música de tu local en un software interactivo de fidelización y venta:
 
-- **100% interactivo para el cliente:** Tus clientes escanean el código QR en su mesa, buscan videos en YouTube y arman la cola musical desde su navegador web (cero descargas de apps).
+- **100% interactivo para el cliente:** Tus clientes escanean el código QR en su mesa, buscan el video musical que quieran y arman la cola desde su navegador web (cero descargas de apps).
 - **Control total para el negocio:** Como dueño o administrador, moderas la cola en tiempo real, saltas canciones inadecuadas con un toque y programas listas de respaldo para evitar cualquier silencio incómodo.
 - **Monetización en pantalla:** Aprovechas tus televisores para proyectar banners con tus promociones de licor y comida, impulsando la venta de productos de alto margen.
 - **Aumento comprobado del ticket promedio:** Los clientes permanecen más tiempo en tu local disfrutando sus canciones y consumiendo más rondas de bebidas.

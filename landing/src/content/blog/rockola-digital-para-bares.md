@@ -18,20 +18,20 @@ faq:
   - q: "¿Cuánto cuesta una rockola digital para un bar en Colombia?"
     a: "Repítela cuesta $50.000 COP al mes por local, tarifa plana y sin contrato de permanencia. Una rockola física de monedas en Colombia se consigue entre $1.300.000 y $2.199.000 COP, más mantenimiento, más el espacio de mesas que ocupa. La diferencia principal no es el precio mensual sino que el software no inmoviliza capital."
   - q: "¿Necesito internet en el bar para que funcione?"
-    a: "Sí. La rockola digital busca y reproduce videos de YouTube, así que necesita conexión estable en la pantalla del local y los clientes usan sus propios datos o el wifi del bar para pedir. Es el mismo requisito que ya tiene cualquier televisor inteligente del negocio."
+    a: "Sí. La rockola digital busca y reproduce los videos en línea, así que necesita conexión estable en la pantalla del local y los clientes usan sus propios datos o el wifi del bar para pedir. Es el mismo requisito que ya tiene cualquier televisor inteligente del negocio."
   - q: "¿Pierdo el control de lo que suena en mi bar?"
     a: "No. Desde el celular o el computador puedes moderar la cola, reordenar turnos, saltar una canción que no encaje, bloquear videos y limitar cuántas canciones pide cada mesa. También puedes activar un PIN diario para que solo pidan quienes están consumiendo."
   - q: "¿Sirve para hacer noches de karaoke?"
-    a: "Sí, porque el catálogo es el de YouTube: las mesas pueden buscar y encolar las versiones karaoke de sus canciones y cantarlas mirando la pantalla del bar. Es la forma más barata de montar una noche de karaoke sin comprar equipo especializado."
+    a: "Sí, porque el catálogo de búsqueda es prácticamente ilimitado: las mesas pueden buscar y encolar las versiones karaoke de sus canciones y cantarlas mirando la pantalla del bar. Es la forma más barata de montar una noche de karaoke sin comprar equipo especializado."
 ---
 
 Una **rockola digital** es un software que reemplaza a la máquina de monedas: el cliente escanea un código QR desde su mesa, busca la canción en el navegador de su celular y la manda a la cola del bar. El video suena y se ve en el televisor que el local ya tiene. Ni hardware que comprar, ni espacio de mesas ocupado.
 
-En la mayoría de bares y gastrobares la música sigue siendo un dolor de cabeza diario: depende del celular del bartender, una lista de Spotify que nadie actualiza, o clientes que invaden la barra cada cinco minutos para pedir *“la última canción y no molesto más”*. El resultado siempre es el mismo: el personal se distrae, el servicio se ralentiza y el ambiente termina en una discusión por quién tiene el cable auxiliar.
+En la mayoría de bares y gastrobares la música sigue siendo un dolor de cabeza diario: depende del celular del bartender, una lista de reproducción que nadie actualiza, o clientes que invaden la barra cada cinco minutos para pedir *“la última canción y no molesto más”*. El resultado siempre es el mismo: el personal se distrae, el servicio se ralentiza y el ambiente termina en una discusión por quién tiene el cable auxiliar.
 
 Las rockolas tradicionales de monedas ya no tienen sentido: son aparatos gigantescos que ocupan espacio valioso de mesas, se tragan las monedas y ofrecen catálogos viejos.
 
-Una **rockola digital con código QR** resuelve esto de forma moderna, elegante y rentable. El cliente escanea el código desde su mesa, busca cualquier canción en YouTube y la agrega a la cola musical en segundos. Sin descargar aplicaciones, sin prestar cables y sin interrumpir a los meseros.
+Una **rockola digital con código QR** resuelve esto de forma moderna, elegante y rentable. El cliente escanea el código desde su mesa, busca cualquier canción y la agrega a la cola musical en segundos. Sin descargar aplicaciones, sin prestar cables y sin interrumpir a los meseros.
 
 ## Qué es y cómo funciona una rockola digital para bares
 
@@ -43,7 +43,7 @@ Con **Repítela**, el flujo es 100% intuitivo:
 2. **El cliente escanea con la cámara:** Se abre de inmediato la aplicación web en su navegador móvil (sin descargas de Play Store o App Store).
 3. **Búsqueda ilimitada:** El cliente busca su artista o video musical favorito y lo envía a la cola del bar.
 4. **Reproducción automática en pantalla:** El video se reproduce en el televisor del bar en alta definición cuando llega su turno en la cola.
-5. **Música continua de respaldo:** Si la cola se vacía, Repítela reproduce al instante tu lista de YouTube favorita para que el bar nunca quede en silencio.
+5. **Música continua de respaldo:** Si la cola se vacía, Repítela reproduce al instante tu lista de respaldo favorita para que el bar nunca quede en silencio.
 
 ## Por qué una rockola digital hace que tu bar facture más
 
@@ -63,11 +63,11 @@ Darle participación al público no significa perder el orden. Desde el panel de
 - **Bloqueo de contenido inapropiado:** Evita géneros o videos que no correspondan a la identidad de tu local.
 - **Límites por mesa y PIN opcional:** Puedes limitar cuántas canciones puede pedir cada persona o activar un código PIN para que solo pidan quienes estén consumiendo.
 
-## Diferencias frente a Spotify compartido, Bluetooth o DJs
+## Diferencias frente a una lista compartida, Bluetooth o un DJ
 
-| Característica | Spotify / Bluetooth | DJ en vivo | Rockola Digital Repítela |
+| Característica | Lista compartida / Bluetooth | DJ en vivo | Rockola Digital Repítela |
 | :--- | :--- | :--- | :--- |
-| **Costo mensual** | Suscripción + riesgo de cuenta | \$1.500.000 - \$3.000.000+ COP | **\$50.000 COP fijo** |
+| **Costo mensual** | Suscripción mensual | \$1.500.000 - \$3.000.000+ COP | **\$50.000 COP fijo** |
 | **Participación del cliente** | Caótica / cables sueltos | Peticiones a gritos | **QR en cada mesa sin app** |
 | **Distracción del personal** | Alta (atienden la música) | Nula | **Cero distracción** |
 | **Control del administrador** | Ninguno | Depende del DJ | **Total desde tu celular** |
