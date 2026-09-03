@@ -21,7 +21,7 @@ Se actualiza al **entregar**, no al planear.
 - **Reproducir la cola** — `/:venueSlug/video`. Reproductor de YouTube embebido,
   overlay con la canción actual y quién la pidió, banner configurable y QR en
   pantalla para que las mesas se unan. El QR pasa por `/{slug}/v`, que le añade
-  `utm_source=pantalla` — ver [[analitica]].
+  `utm_source=pantalla_video` — ver [[analitica]].
 - **Playlist de respaldo** — cuando la cola se vacía suena la lista de fallback
   del bar.
 
@@ -34,7 +34,7 @@ Se actualiza al **entregar**, no al planear.
   inicial.
 - **Panel de operación** — `/:venueSlug/admin`. Cola, reproducción (play/pausa/
   saltar), volumen, canción sonando, historial, banner, QR, marca y mesas. El QR
-  que se imprime pasa por `/{slug}/a`, que le añade `utm_source=panel`.
+  que se imprime pasa por `/{slug}/a`, que le añade `utm_source=panel_admin`.
 - **Suscripción** — `/:venueSlug/admin/suscripcion`. Estado de pago, historial y
   renovación. Pago automático por Wompi (kill-switch `PAGOS`) y pago manual por
   WhatsApp. Aviso a 3 días del vencimiento y bloqueo del panel al suspenderse.

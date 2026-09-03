@@ -32,12 +32,12 @@ ellas:
 
 | QR | Hoy apunta a | Pasa a apuntar a | El redirect 302 lleva a |
 |---|---|---|---|
-| Del panel admin (`useAdminDashboard.js:110-117`) | `/{slug}/registro` | `/{slug}/a` | `/{slug}/registro?utm_source=panel&utm_medium=qr` |
-| De pantalla (`Kiosk.vue:18-19`) | `/{slug}/registro` | `/{slug}/v` | `/{slug}/registro?utm_source=pantalla&utm_medium=qr` |
+| Del panel admin (`useAdminDashboard.js:110-117`) | `/{slug}/registro` | `/{slug}/a` | `/{slug}/registro?utm_source=panel_admin&utm_medium=qr` |
+| De pantalla (`Kiosk.vue:18-19`) | `/{slug}/registro` | `/{slug}/v` | `/{slug}/registro?utm_source=pantalla_video&utm_medium=qr` |
 
 Sin `utm_campaign`: el bar ya va en la ruta y GA4 segmenta por página de destino.
 
-`utm_source=panel` y no `mesa`: todavía no hay pieza impresa ni decidido dónde se
+`utm_source=panel_admin` y no `mesa`: todavía no hay pieza impresa ni decidido dónde se
 pega, y nombrar la colocación antes de que exista mete una suposición en GA4.
 Cuando se decida, se cambia en el redirect sin reimprimir.
 
@@ -82,16 +82,16 @@ nuevas, y `docs/features.md` al entregar.
 
 ## Criterios de aceptación
 
-- [ ] Escanear el QR de la pantalla abre `/{slug}/registro?utm_source=pantalla&utm_medium=qr`
+- [ ] Escanear el QR de la pantalla abre `/{slug}/registro?utm_source=pantalla_video&utm_medium=qr`
       y el registro funciona igual que hoy.
-- [ ] Escanear el QR impreso desde el panel abre `/{slug}/registro?utm_source=panel&utm_medium=qr`.
+- [ ] Escanear el QR impreso desde el panel abre `/{slug}/registro?utm_source=panel_admin&utm_medium=qr`.
 - [x] El nginx responde **302** en `/{slug}/a` y `/{slug}/v`, con `Location`
       relativo (`absolute_redirect off`), y `registro` / `admin` / `video` /
       `/superadmin` siguen sirviendo la SPA con 200. Verificado el 2026-09-03
       levantando `frontend/nginx.conf` contra el `dist` real.
 - [ ] Repetido contra `https://st.repitela.com/{slug}/a`, con `Location` en `https://`.
 - [ ] En GA4 el tráfico aparece agrupado bajo `medium=qr` y separable por
-      `source` en `panel` / `pantalla`, junto al `sticker` de la landing.
+      `source` en `panel_admin` / `pantalla_video`, junto al `sticker` de la landing.
 - [x] El QR no gana módulos: `/{slug}/a` es más corto que `/{slug}/registro`.
 - [x] Un slug inexistente en `/{slug}/a` no rompe: redirige y la SPA muestra lo
       mismo que antes para un bar que no existe.

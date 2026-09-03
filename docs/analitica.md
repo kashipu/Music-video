@@ -468,8 +468,8 @@ falta.
 | Pieza | Lo que lleva impreso | A dónde va | Archivos |
 |---|---|---|---|
 | Sticker 9×2,5 cm, QR de 2×2 cm, primera tirada | `https://repitela.com/s` | `/?utm_source=sticker&utm_medium=qr&utm_campaign=primeros-stickers` | `qr-sticker-caja-20mm.png` (arte final) y `.svg` (maestro) |
-| QR que imprime el panel del bar | `https://app.repitela.com/{slug}/a` | `/{slug}/registro?utm_source=panel&utm_medium=qr` | `frontend/src/composables/useAdminDashboard.js:110-118` |
-| QR de la pantalla de video, en la TV del bar | `https://app.repitela.com/{slug}/v` | `/{slug}/registro?utm_source=pantalla&utm_medium=qr` | `frontend/src/views/Kiosk.vue:18-20` |
+| QR que imprime el panel del bar | `https://app.repitela.com/{slug}/a` | `/{slug}/registro?utm_source=panel_admin&utm_medium=qr` | `frontend/src/composables/useAdminDashboard.js:110-118` |
+| QR de la pantalla de video, en la TV del bar | `https://app.repitela.com/{slug}/v` | `/{slug}/registro?utm_source=pantalla_video&utm_medium=qr` | `frontend/src/views/Kiosk.vue:18-20` |
 
 ### La ruta corta nombra la superficie, no el destino
 
@@ -480,8 +480,8 @@ salió el escaneo.** Añadir una superficie es una letra nueva, no un esquema nu
 | Ruta | Superficie | `utm_source` |
 |---|---|---|
 | `repitela.com/s` | Sticker impreso, en la calle | `sticker` |
-| `app.repitela.com/{slug}/v` | La pantalla de video del bar | `pantalla` |
-| `app.repitela.com/{slug}/a` | Lo que imprime el panel admin | `panel` |
+| `app.repitela.com/{slug}/v` | La pantalla de video del bar | `pantalla_video` |
+| `app.repitela.com/{slug}/a` | Lo que imprime el panel admin | `panel_admin` |
 
 Tres cosas que no son obvias mirando la tabla:
 
@@ -493,7 +493,7 @@ Tres cosas que no son obvias mirando la tabla:
    llama `admin` ahí porque su tráfico es de clientes, no de administradores, y
    el informe haría creer lo contrario. Y **no se llama `mesa`**: a 2026-09-03 no
    hay ninguna pieza impresa ni decidido dónde se pega, y nombrar la colocación
-   antes de que exista mete una suposición en los informes. `panel` dice lo único
+   antes de que exista mete una suposición en los informes. `panel_admin` dice lo único
    que hoy es cierto — de ahí sale el código. El día que se decida la pieza, se
    cambia en el redirect sin reimprimir nada: para eso vive ahí la UTM.
 3. **Una letra, no dos.** `/a` y no `/ad`: en módulos cuestan lo mismo, pero "ad"
@@ -555,8 +555,8 @@ mano. Se marcaron aplicando la regla de arriba: **redirect, no UTM impresa**.
 
 | QR | Dónde se genera | Uso | Apunta a |
 |---|---|---|---|
-| Del panel | `useAdminDashboard.js:110-118`, se imprime desde el panel | Aún sin pieza decidida | `/{slug}/a` → `utm_source=panel` |
-| De pantalla | `Kiosk.vue:18-20` | En la TV del bar, se escanea de lejos | `/{slug}/v` → `utm_source=pantalla` |
+| Del panel | `useAdminDashboard.js:110-118`, se imprime desde el panel | Aún sin pieza decidida | `/{slug}/a` → `utm_source=panel_admin` |
+| De pantalla | `Kiosk.vue:18-20` | En la TV del bar, se escanea de lejos | `/{slug}/v` → `utm_source=pantalla_video` |
 
 Los dos redirects viven en `frontend/nginx.conf`, junto a `absolute_redirect off`.
 La app lleva el **mismo** contenedor de GTM que la landing (`GTM-PPVKNTZB`,

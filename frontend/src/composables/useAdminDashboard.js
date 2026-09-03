@@ -109,7 +109,7 @@ export function useAdminDashboard() {
 
   const registroUrl = computed(() => {
     if (auth.adminInfo?.qr_url) return auth.adminInfo.qr_url
-    // /a, no /registro: nginx lo redirige anadiendo utm_source=panel. Ver specs/utm-qr-panel-y-pantalla.md
+    // /a, no /registro: nginx lo redirige anadiendo utm_source=panel_admin. Ver specs/utm-qr-panel-y-pantalla.md
     if (typeof window !== 'undefined') return `${window.location.origin}/${venueSlug}/a`
     return `/${venueSlug}/a`
   })
